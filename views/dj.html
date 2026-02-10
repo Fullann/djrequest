@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DJ Queue - Interface DJ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <!-- Header -->
+  <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 shadow-lg">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <div>
+        <h1 class="text-3xl font-bold">🎧 Interface DJ</h1>
+        <p id="eventName" class="text-purple-100 mt-1">Chargement...</p>
+      </div>
+      <div id="spotifyStatus">
+        <button 
+          id="connectSpotify"
+          onclick="connectSpotify()"
+          class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-full transition"
+        >
+          🎵 Connecter Spotify
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Spotify (caché) -->
+  <div id="spotifyPlayer" class="hidden max-w-7xl mx-auto p-6">
+    <div class="bg-white rounded-xl shadow-lg p-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <img id="currentTrackImage" src="" alt="" class="w-16 h-16 rounded hidden">
+          <div>
+            <h3 id="currentTrackName" class="font-bold text-gray-800">Aucune lecture</h3>
+            <p id="currentTrackArtist" class="text-sm text-gray-600"></p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <button onclick="previousTrack()" class="bg-gray-200 hover:bg-gray-300 p-3 rounded-full transition">⏮️</button>
+          <button id="playPauseBtn" onclick="togglePlayPause()" class="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full transition">▶️</button>
+          <button onclick="nextTrack()" class="bg-gray-200 hover:bg-gray-300 p-3 rounded-full transition">⏭️</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto p-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Demandes en attente -->
+      <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+          📬 Demandes en attente
+          <span id="pendingCount" class="text-sm font-normal text-gray-500">(0)</span>
+        </h2>
+        <div id="pendingRequests" class="space-y-3">
+          <p class="text-gray-500 text-center py-8">Aucune demande</p>
+        </div>
+      </div>
+      
+      <!-- Queue de lecture -->
+      <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+          🎵 Queue de lecture
+          <span id="queueCount" class="text-sm font-normal text-gray-500">(0)</span>
+        </h2>
+        <p class="text-sm text-gray-600 mb-4">Drag & drop pour réorganiser</p>
+        <div id="autoPlayToggle" class="mb-4 hidden">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="autoPlay" class="w-5 h-5" checked>
+            <span class="text-sm font-medium text-gray-700">Lecture automatique</span>
+          </label>
+        </div>
+        <div id="queue" class="space-y-3">
+          <p class="text-gray-500 text-center py-8">Queue vide</p>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <script>
+    const eventId = window.location.pathname.split('/')[2];
+    const socket = io();
+    
+    let pendingRequests = [];
+    let queue = [];
+    let spotifyPlayer = null;
+    let deviceId = null;
+    let isPlaying = false;
+    let autoPlayEnabled = true;
+    let currentTrackIndex = 0;
+    
+    socket.emit('join-event', eventId);
+    
+    // Charger l'événement
+    fetch(`/api/events/${eventId}`)
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('eventName').textContent = data.name;
+        queue = data.queue;
+        renderQueue();
+      });
+    
+    // Vérifier si Spotify est déjà connecté
+    checkSpotifyStatus();
+    
+    async function checkSpotifyStatus() {
+      const response = await fetch(`/api/spotify/status/${eventId}`);
+      const data = await response.json();
+      
+      if (data.connected) {
+        document.getElementById('connectSpotify').textContent = '✅ Spotify connecté';
+        document.getElementById('connectSpotify').classList.remove('bg-green-500', 'hover:bg-green-600');
+        document.getElementById('connectSpotify').classList.add('bg-green-700');
+        initSpotifyPlayer();
+      }
+    }
+    
+    async function connectSpotify() {
+      const response = await fetch(`/api/spotify/login/${eventId}`);
+      const data = await response.json();
+      window.location.href = data.authUrl;
+    }
+    
+    // Initialiser le Spotify Web Playback SDK
+    async function initSpotifyPlayer() {
+      const response = await fetch(`/api/spotify/token/${eventId}`);
+      const data = await response.json();
+      const token = data.access_token;
+      
+      window.onSpotifyWebPlaybackSDKReady = () => {
+        spotifyPlayer = new Spotify.Player({
+          name: 'DJ Queue Player',
+          getOAuthToken: cb => { cb(token); },
+          volume: 0.8
+        });
+        
+        // Événements du player
+        spotifyPlayer.addListener('ready', ({ device_id }) => {
+          console.log('Player prêt, device_id:', device_id);
+          deviceId = device_id;
+          document.getElementById('spotifyPlayer').classList.remove('hidden');
+          document.getElementById('autoPlayToggle').classList.remove('hidden');
+        });
+        
+        spotifyPlayer.addListener('player_state_changed', state => {
+          if (!state) return;
+          
+          const track = state.track_window.current_track;
+          document.getElementById('currentTrackName').textContent = track.name;
+          document.getElementById('currentTrackArtist').textContent = track.artists.map(a => a.name).join(', ');
+          document.getElementById('currentTrackImage').src = track.album.images[0].url;
+          document.getElementById('currentTrackImage').classList.remove('hidden');
+          
+          isPlaying = !state.paused;
+          document.getElementById('playPauseBtn').textContent = isPlaying ? '⏸️' : '▶️';
+          
+          // Si la chanson se termine et autoplay activé
+          if (state.position === 0 && state.paused && autoPlayEnabled && queue.length > 0) {
+            playNextInQueue();
+          }
+        });
+        
+        spotifyPlayer.connect();
+      };
+    }
+    
+    async function playTrack(uri, requestId) {
+      if (!deviceId) {
+        alert('Player Spotify non initialisé');
+        return;
+      }
+      
+      try {
+        await fetch(`/api/spotify/play/${eventId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uri, device_id: deviceId })
+        });
+        
+        // Marquer comme jouée
+        setTimeout(() => {
+          socket.emit('mark-played', { eventId, requestId });
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Erreur lecture:', error);
+      }
+    }
+    
+    function playNextInQueue() {
+      if (queue.length > 0) {
+        const nextTrack = queue[0];
+        playTrack(nextTrack.uri, nextTrack.id);
+      }
+    }
+    
+    function togglePlayPause() {
+      spotifyPlayer.togglePlay();
+    }
+    
+    function nextTrack() {
+      spotifyPlayer.nextTrack();
+    }
+    
+    function previousTrack() {
+      spotifyPlayer.previousTrack();
+    }
+    
+    document.getElementById('autoPlay')?.addEventListener('change', (e) => {
+      autoPlayEnabled = e.target.checked;
+    });
+    
+    // WebSocket events
+    socket.on('new-request', (request) => {
+      if (request.status === 'pending') {
+        pendingRequests.push(request);
+        renderPending();
+      }
+    });
+    
+    socket.on('request-accepted', (data) => {
+      pendingRequests = pendingRequests.filter(r => r.id !== data.requestId);
+      queue = data.queue;
+      renderPending();
+      renderQueue();
+    });
+    
+    socket.on('request-rejected', (data) => {
+      pendingRequests = pendingRequests.filter(r => r.id !== data.requestId);
+      renderPending();
+    });
+    
+    socket.on('queue-updated', (data) => {
+      queue = data.queue;
+      renderQueue();
+    });
+    
+    function renderPending() {
+      const container = document.getElementById('pendingRequests');
+      document.getElementById('pendingCount').textContent = `(${pendingRequests.length})`;
+      
+      if (pendingRequests.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-8">Aucune demande</p>';
+        return;
+      }
+      
+      container.innerHTML = pendingRequests.map(request => `
+        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+          <div class="flex gap-3 mb-3">
+            ${request.image ? `<img src="${request.image}" class="w-16 h-16 rounded">` : ''}
+            <div class="flex-1">
+              <h3 class="font-bold text-gray-800">${request.songName}</h3>
+              <p class="text-gray-600 text-sm">${request.artist}</p>
+              <p class="text-xs text-gray-500 mt-1">Par ${request.userName}</p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button 
+              onclick="acceptRequest('${request.id}')"
+              class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+            >
+              ✓ Accepter
+            </button>
+            <button 
+              onclick="rejectRequest('${request.id}')"
+              class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+            >
+              ✗ Refuser
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function renderQueue() {
+      const container = document.getElementById('queue');
+      document.getElementById('queueCount').textContent = `(${queue.length})`;
+      
+      if (queue.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-8">Queue vide</p>';
+        return;
+      }
+      
+      container.innerHTML = queue.map((request, index) => `
+        <div 
+          class="border-2 border-purple-200 bg-purple-50 rounded-lg p-4 cursor-move hover:shadow-md transition" 
+          data-id="${request.id}"
+        >
+          <div class="flex items-start gap-3">
+            <div class="flex-shrink-0 w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+              ${index + 1}
+            </div>
+            ${request.image ? `<img src="${request.image}" class="w-12 h-12 rounded">` : ''}
+            <div class="flex-1">
+              <h3 class="font-bold text-gray-800">${request.songName}</h3>
+              <p class="text-gray-600 text-sm">${request.artist}</p>
+              <p class="text-xs text-gray-500">Par ${request.userName}</p>
+            </div>
+            <div class="flex gap-2">
+              ${request.uri ? `
+                <button 
+                  onclick="playTrack('${request.uri}', '${request.id}')"
+                  class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2 px-3 rounded-lg transition"
+                >
+                  ▶️ Jouer
+                </button>
+              ` : ''}
+              <button 
+                onclick="markPlayed('${request.id}')"
+                class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 px-3 rounded-lg transition"
+              >
+                ✓ Fait
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      
+      new Sortable(container, {
+        animation: 150,
+        ghostClass: 'opacity-50',
+        onEnd: function (evt) {
+          const newQueue = Array.from(container.children).map(el => {
+            const id = el.getAttribute('data-id');
+            return queue.find(r => r.id === id);
+          });
+          socket.emit('reorder-queue', { eventId, newQueue });
+        }
+      });
+    }
+    
+    function acceptRequest(requestId) {
+      socket.emit('accept-request', { eventId, requestId });
+    }
+    
+    function rejectRequest(requestId) {
+      socket.emit('reject-request', { eventId, requestId });
+    }
+    
+    function markPlayed(requestId) {
+      socket.emit('mark-played', { eventId, requestId });
+    }
+  </script>
+</body>
+</html>
