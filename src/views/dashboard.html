@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DJ Queue - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <div
+      class="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 shadow-lg"
+    >
+      <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-bold">🎧 Dashboard DJ</h1>
+          <p id="djName" class="text-purple-100 mt-1">Bienvenue</p>
+        </div>
+        <div class="flex gap-3">
+          <button
+            id="btnHistory"
+            class="bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-6 rounded-full transition"
+          >
+            📚 Historique
+          </button>
+          <button
+            id="btnCreateEvent"
+            class="bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-6 rounded-full transition"
+          >
+            ➕ Nouvelle soirée
+          </button>
+          <button
+            id="btnLogout"
+            class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full transition"
+          >
+            Déconnexion
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-6">
+      <!-- Stats globales -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">Soirées totales</p>
+              <p id="totalEvents" class="text-3xl font-bold text-purple-600">
+                0
+              </p>
+            </div>
+            <div class="text-4xl">🎉</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">Chansons jouées</p>
+              <p id="totalSongs" class="text-3xl font-bold text-green-600">0</p>
+            </div>
+            <div class="text-4xl">🎵</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">Votes moyens</p>
+              <p id="avgVotes" class="text-3xl font-bold text-blue-600">0</p>
+            </div>
+            <div class="text-4xl">👍</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">Taux acceptation</p>
+              <p id="acceptRate" class="text-3xl font-bold text-orange-600">
+                0%
+              </p>
+            </div>
+            <div class="text-4xl">✅</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Soirées actives -->
+      <div class="bg-white rounded-xl shadow mb-6">
+        <div class="p-6 border-b">
+          <h2 class="text-2xl font-bold text-gray-800">🔴 Soirées actives</h2>
+        </div>
+        <div id="activeEventsList" class="p-6">
+          <p class="text-gray-500 text-center py-8">Chargement...</p>
+        </div>
+      </div>
+
+      <!-- Top chansons -->
+      <div class="bg-white rounded-xl shadow">
+        <div class="p-6 border-b">
+          <h2 class="text-2xl font-bold text-gray-800">
+            🏆 Top chansons de toutes mes soirées
+          </h2>
+        </div>
+        <div id="topSongs" class="p-6">
+          <p class="text-gray-500 text-center py-8">Chargement...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal création soirée -->
+    <div
+      id="createEventModal"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+    >
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+          ➕ Créer une nouvelle soirée
+        </h2>
+
+        <form id="createEventForm">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Nom de la soirée</label
+            >
+            <input
+              type="text"
+              id="eventName"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+              placeholder="Soirée du 10 février"
+            />
+          </div>
+
+          <div class="flex gap-3">
+            <button
+              type="button"
+              id="btnCancelModal"
+              class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 rounded-lg transition"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg transition"
+            >
+              Créer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      let djData = null;
+
+      // ========== Event Listeners ==========
+
+      document.getElementById("btnHistory").addEventListener("click", () => {
+        window.location.href = "/history";
+      });
+
+      document
+        .getElementById("btnCreateEvent")
+        .addEventListener("click", openCreateEventModal);
+      document.getElementById("btnLogout").addEventListener("click", logout);
+      document
+        .getElementById("btnCancelModal")
+        .addEventListener("click", closeModal);
+
+      document
+        .getElementById("createEventModal")
+        .addEventListener("click", (e) => {
+          if (e.target.id === "createEventModal") closeModal();
+        });
+
+      document
+        .getElementById("createEventForm")
+        .addEventListener("submit", handleCreateEvent);
+
+      // Délégation d'événements
+      document
+        .getElementById("activeEventsList")
+        .addEventListener("click", async (e) => {
+          const button = e.target.closest("button");
+          if (!button) return;
+
+          const action = button.dataset.action;
+          const eventId = button.dataset.eventId;
+          const eventName = button.dataset.eventName;
+
+          if (action === "show-qr") {
+            showQRCode(eventId, eventName);
+          } else if (action === "open-dj") {
+            goToDJ(eventId);
+          } else if (action === "end-event") {
+            await endEvent(eventId, eventName);
+          }
+        });
+
+      // ========== Fonctions ==========
+
+      async function loadDashboard() {
+        try {
+          const response = await fetch("/api/dj/dashboard");
+
+          if (response.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
+
+          if (!response.ok) throw new Error("Erreur chargement dashboard");
+
+          djData = await response.json();
+
+          document.getElementById("djName").textContent =
+            `Bienvenue, ${djData.dj.name}`;
+
+          // Stats globales
+          document.getElementById("totalEvents").textContent =
+            parseInt(djData.stats.totalEvents) || 0;
+          document.getElementById("totalSongs").textContent =
+            parseInt(djData.stats.totalSongs) || 0;
+
+          const avgVotes = parseFloat(djData.stats.avgVotes) || 0;
+          document.getElementById("avgVotes").textContent = avgVotes.toFixed(1);
+
+          document.getElementById("acceptRate").textContent =
+            djData.stats.acceptRate || "0%";
+
+          // Séparer les événements actifs et terminés
+          const activeEvents = (djData.events || []).filter((e) => !e.ended_at);
+          renderActiveEvents(activeEvents);
+
+          renderTopSongs(djData.topSongs || []);
+        } catch (error) {
+          console.error("Erreur:", error);
+          showErrorPage(error.message);
+        }
+      }
+
+      function renderActiveEvents(events) {
+        const container = document.getElementById("activeEventsList");
+
+        if (!events || events.length === 0) {
+          container.innerHTML =
+            '<p class="text-gray-500 text-center py-8">Aucune soirée active</p>';
+          return;
+        }
+
+        container.innerHTML = events
+          .map((event) => {
+            const date = new Date(event.created_at).toLocaleDateString(
+              "fr-FR",
+              {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              },
+            );
+
+            const escapedName = event.name.replace(/'/g, "\\'");
+            const acceptedCount = event.accepted_count || 0;
+
+            return `
+          <div class="border-b last:border-b-0 py-4 hover:bg-gray-50 transition">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <h3 class="font-bold text-lg text-gray-800">${event.name}</h3>
+                  <span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded">ACTIVE</span>
+                </div>
+                <p class="text-sm text-gray-500">${date}</p>
+                <div class="flex gap-4 mt-2 text-sm">
+                  <span class="text-green-600">✓ ${event.played_songs || 0} jouées</span>
+                  <span class="text-orange-600">⏳ ${acceptedCount} en attente</span>
+                  <span class="text-red-600">✗ ${event.rejected_songs || 0} refusées</span>
+                  <span class="text-gray-600">📊 ${event.total_songs || 0} total</span>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button 
+                  data-action="show-qr"
+                  data-event-id="${event.id}"
+                  data-event-name="${escapedName}"
+                  class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold py-2 px-4 rounded-lg transition"
+                >
+                  📱 QR Code
+                </button>
+                <button 
+                  data-action="open-dj"
+                  data-event-id="${event.id}"
+                  class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition"
+                >
+                  🎧 Ouvrir
+                </button>
+                <button 
+                  data-action="end-event"
+                  data-event-id="${event.id}"
+                  data-event-name="${escapedName}"
+                  class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold py-2 px-4 rounded-lg transition"
+                >
+                  🏁 Terminer
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+          })
+          .join("");
+      }
+
+      async function endEvent(eventId, eventName) {
+        const confirmed = confirm(
+          `🏁 Terminer "${eventName}" ?\n\n` +
+            `Cela va :\n` +
+            `- Archiver la soirée\n` +
+            `- Sauvegarder les statistiques\n` +
+            `- Empêcher de nouvelles demandes\n\n` +
+            `Vous pourrez consulter les stats dans l'historique.`,
+        );
+
+        if (!confirmed) return;
+
+        try {
+          const response = await fetch(`/api/events/${eventId}/end`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-cache", // ← Ajouter cette ligne
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            alert(
+              `✅ Soirée terminée avec succès !\n\n📊 Stats:\n- ${data.stats.played_count || 0} chansons jouées\n- ${data.stats.rejected_count || 0} refusées\n- ${data.stats.total_requests || 0} demandes au total`,
+            );
+
+            // Forcer le rechargement complet de la page
+            window.location.reload();
+          } else {
+            alert("Erreur: " + (data.error || "Erreur inconnue"));
+          }
+        } catch (error) {
+          console.error("Erreur fin événement:", error);
+          alert("Erreur lors de la fin de la soirée");
+        }
+      }
+
+      function renderTopSongs(songs) {
+        const container = document.getElementById("topSongs");
+
+        if (!songs || songs.length === 0) {
+          container.innerHTML =
+            '<p class="text-gray-500 text-center py-8">Aucune chanson jouée</p>';
+          return;
+        }
+
+        container.innerHTML = `
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="text-left p-3 font-semibold text-gray-700">#</th>
+              <th class="text-left p-3 font-semibold text-gray-700">Chanson</th>
+              <th class="text-left p-3 font-semibold text-gray-700">Artiste</th>
+              <th class="text-center p-3 font-semibold text-gray-700">Fois jouée</th>
+              <th class="text-center p-3 font-semibold text-gray-700">Votes moy.</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${songs
+              .slice(0, 10)
+              .map((song, index) => {
+                const avgUpvotes = parseFloat(song.avg_upvotes) || 0;
+                return `
+                <tr class="border-b hover:bg-gray-50">
+                  <td class="p-3 font-bold text-purple-600">${index + 1}</td>
+                  <td class="p-3 font-semibold">${song.song_name}</td>
+                  <td class="p-3 text-gray-600">${song.artist}</td>
+                  <td class="p-3 text-center">${song.play_count}</td>
+                  <td class="p-3 text-center text-green-600 font-semibold">${avgUpvotes.toFixed(1)}</td>
+                </tr>
+              `;
+              })
+              .join("")}
+          </tbody>
+        </table>
+      `;
+      }
+
+      function openCreateEventModal() {
+        document.getElementById("createEventModal").classList.remove("hidden");
+        document.getElementById("eventName").focus();
+      }
+
+      function closeModal() {
+        document.getElementById("createEventModal").classList.add("hidden");
+        document.getElementById("eventName").value = "";
+      }
+
+      async function handleCreateEvent(e) {
+        e.preventDefault();
+
+        const name = document.getElementById("eventName").value;
+
+        try {
+          const response = await fetch("/api/events", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            closeModal();
+            showQRCode(data.eventId, name);
+          } else {
+            alert(data.error || "Erreur création soirée");
+          }
+        } catch (error) {
+          console.error("Erreur:", error);
+          alert("Erreur création soirée");
+        }
+      }
+
+      function showQRCode(eventId, eventName) {
+        window.location.href = `/event/${eventId}/qr`;
+      }
+
+      function goToDJ(eventId) {
+        window.location.href = `/dj/${eventId}`;
+      }
+
+      async function logout() {
+        try {
+          await fetch("/api/auth/logout", { method: "POST" });
+          window.location.href = "/login";
+        } catch (error) {
+          console.error("Erreur logout:", error);
+          window.location.href = "/login";
+        }
+      }
+
+      function showErrorPage(message) {
+        document.body.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center bg-red-50">
+          <div class="bg-white p-8 rounded-xl shadow-lg max-w-md">
+            <h2 class="text-2xl font-bold text-red-600 mb-4">Erreur</h2>
+            <p class="text-gray-700 mb-4">Impossible de charger le dashboard</p>
+            <p class="text-sm text-gray-500 mb-4">${message}</p>
+            <button 
+              onclick="window.location.href='/login'"
+              class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
+            >
+              Retour à la connexion
+            </button>
+          </div>
+        </div>
+      `;
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          const modal = document.getElementById("createEventModal");
+          if (!modal.classList.contains("hidden")) {
+            closeModal();
+          }
+        }
+      });
+
+      loadDashboard();
+    </script>
+  </body>
+</html>

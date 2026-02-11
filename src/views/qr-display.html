@@ -30,7 +30,7 @@
             class="flex-1 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm"
           >
           <button 
-            onclick="copyUrl()"
+            id="btnCopyUrl"
             class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition"
           >
             📋 Copier
@@ -41,19 +41,19 @@
       <!-- Actions -->
       <div class="flex gap-3 justify-center">
         <button 
-          onclick="printQR()"
+          id="btnPrint"
           class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition"
         >
           🖨️ Imprimer
         </button>
         <button 
-          onclick="goToDJ()"
+          id="btnGoToDJ"
           class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition"
         >
           🎧 Interface DJ
         </button>
         <button 
-          onclick="backToDashboard()"
+          id="btnBackToDashboard"
           class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition"
         >
           ← Dashboard
@@ -86,6 +86,15 @@
     const eventId = window.location.pathname.split('/')[2];
     const socket = io();
 
+    // ========== Event Listeners ==========
+    
+    document.getElementById('btnCopyUrl').addEventListener('click', copyUrl);
+    document.getElementById('btnPrint').addEventListener('click', printQR);
+    document.getElementById('btnGoToDJ').addEventListener('click', goToDJ);
+    document.getElementById('btnBackToDashboard').addEventListener('click', backToDashboard);
+
+    // ========== Fonctions ==========
+
     // Charger les données
     fetch(`/api/events/${eventId}`)
       .then(r => r.json())
@@ -101,6 +110,10 @@
           });
 
         updateStats();
+      })
+      .catch(error => {
+        console.error('Erreur chargement événement:', error);
+        alert('Erreur lors du chargement de l\'événement');
       });
 
     // WebSocket pour stats temps réel
@@ -111,19 +124,53 @@
     socket.on('queue-updated', () => updateStats());
 
     async function updateStats() {
-      const response = await fetch(`/api/events/${eventId}/stats`);
-      const data = await response.json();
+      try {
+        const response = await fetch(`/api/events/${eventId}/stats`);
+        const data = await response.json();
 
-      document.getElementById('pendingCount').textContent = data.stats.pending_count || 0;
-      document.getElementById('queueCount').textContent = data.stats.accepted_count || 0;
-      document.getElementById('playedCount').textContent = data.stats.played_count || 0;
+        document.getElementById('pendingCount').textContent = data.stats.pending_count || 0;
+        document.getElementById('queueCount').textContent = data.stats.accepted_count || 0;
+        document.getElementById('playedCount').textContent = data.stats.played_count || 0;
+      } catch (error) {
+        console.error('Erreur mise à jour stats:', error);
+      }
     }
 
     function copyUrl() {
       const url = document.getElementById('eventUrl');
       url.select();
-      document.execCommand('copy');
-      alert('✅ Lien copié !');
+      url.setSelectionRange(0, 99999); // Pour mobile
+      
+      // Méthode moderne
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url.value)
+          .then(() => {
+            showCopySuccess();
+          })
+          .catch(() => {
+            // Fallback
+            document.execCommand('copy');
+            showCopySuccess();
+          });
+      } else {
+        // Fallback pour anciens navigateurs
+        document.execCommand('copy');
+        showCopySuccess();
+      }
+    }
+
+    function showCopySuccess() {
+      const btn = document.getElementById('btnCopyUrl');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '✅ Copié !';
+      btn.classList.add('bg-green-600');
+      btn.classList.remove('bg-purple-600');
+      
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.classList.remove('bg-green-600');
+        btn.classList.add('bg-purple-600');
+      }, 2000);
     }
 
     function printQR() {

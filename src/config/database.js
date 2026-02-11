@@ -13,7 +13,7 @@ const pool = mysql.createPool({
   keepAliveInitialDelay: 0
 });
 
-// Test de connexion au démarrage
+// Test de connexion
 pool.getConnection()
   .then(connection => {
     console.log('✅ MySQL connecté avec succès');
