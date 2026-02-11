@@ -1,197 +1,222 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DJ Queue - QR Code</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gradient-to-br from-purple-600 to-blue-600 min-h-screen flex items-center justify-center p-4">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DJ Queue - QR Code</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="bg-gradient-to-br from-purple-600 to-blue-600 min-h-screen flex items-center justify-center p-4"
+  >
+    <div class="max-w-2xl w-full">
+      <!-- Carte QR Code -->
+      <div class="bg-white rounded-2xl shadow-2xl p-8 text-center">
+        <h1 id="eventName" class="text-3xl font-bold text-gray-800 mb-2">
+          Soirée
+        </h1>
+        <p class="text-gray-600 mb-8">Scanne le QR code pour rejoindre !</p>
 
-  <div class="max-w-2xl w-full">
-    <!-- Carte QR Code -->
-    <div class="bg-white rounded-2xl shadow-2xl p-8 text-center">
-      <h1 id="eventName" class="text-3xl font-bold text-gray-800 mb-2">Soirée</h1>
-      <p class="text-gray-600 mb-8">Scanne le QR code pour rejoindre !</p>
+        <!-- QR Code -->
+        <div class="flex justify-center mb-8">
+          <img
+            id="qrCode"
+            src=""
+            alt="QR Code"
+            class="w-80 h-80 border-4 border-purple-200 rounded-xl"
+          />
+        </div>
 
-      <!-- QR Code -->
-      <div class="flex justify-center mb-8">
-        <img id="qrCode" src="" alt="QR Code" class="w-80 h-80 border-4 border-purple-200 rounded-xl">
-      </div>
+        <!-- URL -->
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+          <p class="text-sm text-gray-600 mb-2">Ou partage ce lien :</p>
+          <div class="flex items-center gap-2">
+            <input
+              id="eventUrl"
+              type="text"
+              readonly
+              class="flex-1 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+            />
+            <button
+              id="btnCopyUrl"
+              class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+            >
+              📋 Copier
+            </button>
+          </div>
+        </div>
 
-      <!-- URL -->
-      <div class="bg-gray-50 rounded-lg p-4 mb-6">
-        <p class="text-sm text-gray-600 mb-2">Ou partage ce lien :</p>
-        <div class="flex items-center gap-2">
-          <input 
-            id="eventUrl" 
-            type="text" 
-            readonly 
-            class="flex-1 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+        <!-- Actions -->
+        <div class="flex gap-3 justify-center">
+          <button
+            id="btnPrint"
+            class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition"
           >
-          <button 
-            id="btnCopyUrl"
-            class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+            🖨️ Imprimer
+          </button>
+          <button
+            id="btnGoToDJ"
+            class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition"
           >
-            📋 Copier
+            🎧 Interface DJ
+          </button>
+          <button
+            id="btnBackToDashboard"
+            class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition"
+          >
+            ← Dashboard
           </button>
         </div>
       </div>
 
-      <!-- Actions -->
-      <div class="flex gap-3 justify-center">
-        <button 
-          id="btnPrint"
-          class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition"
-        >
-          🖨️ Imprimer
-        </button>
-        <button 
-          id="btnGoToDJ"
-          class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition"
-        >
-          🎧 Interface DJ
-        </button>
-        <button 
-          id="btnBackToDashboard"
-          class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition"
-        >
-          ← Dashboard
-        </button>
-      </div>
-    </div>
-
-    <!-- Stats en temps réel -->
-    <div class="mt-6 bg-white rounded-xl shadow p-6">
-      <h2 class="text-xl font-bold text-gray-800 mb-4">📊 Stats en temps réel</h2>
-      <div class="grid grid-cols-3 gap-4 text-center">
-        <div>
-          <p class="text-3xl font-bold text-purple-600" id="pendingCount">0</p>
-          <p class="text-sm text-gray-600">En attente</p>
-        </div>
-        <div>
-          <p class="text-3xl font-bold text-green-600" id="queueCount">0</p>
-          <p class="text-sm text-gray-600">Dans la queue</p>
-        </div>
-        <div>
-          <p class="text-3xl font-bold text-blue-600" id="playedCount">0</p>
-          <p class="text-sm text-gray-600">Jouées</p>
+      <!-- Stats en temps réel -->
+      <div class="mt-6 bg-white rounded-xl shadow p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">
+          📊 Stats en temps réel
+        </h2>
+        <div class="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <p class="text-3xl font-bold text-purple-600" id="pendingCount">
+              0
+            </p>
+            <p class="text-sm text-gray-600">En attente</p>
+          </div>
+          <div>
+            <p class="text-3xl font-bold text-green-600" id="queueCount">0</p>
+            <p class="text-sm text-gray-600">Dans la queue</p>
+          </div>
+          <div>
+            <p class="text-3xl font-bold text-blue-600" id="playedCount">0</p>
+            <p class="text-sm text-gray-600">Jouées</p>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const eventId = window.location.pathname.split('/')[2];
-    const socket = io();
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const eventId = window.location.pathname.split("/")[2];
+      const socket = io();
 
-    // ========== Event Listeners ==========
-    
-    document.getElementById('btnCopyUrl').addEventListener('click', copyUrl);
-    document.getElementById('btnPrint').addEventListener('click', printQR);
-    document.getElementById('btnGoToDJ').addEventListener('click', goToDJ);
-    document.getElementById('btnBackToDashboard').addEventListener('click', backToDashboard);
+      // ========== Event Listeners ==========
 
-    // ========== Fonctions ==========
+      document.getElementById("btnCopyUrl").addEventListener("click", copyUrl);
+      document.getElementById("btnPrint").addEventListener("click", printQR);
+      document.getElementById("btnGoToDJ").addEventListener("click", goToDJ);
+      document
+        .getElementById("btnBackToDashboard")
+        .addEventListener("click", backToDashboard);
 
-    // Charger les données
-    fetch(`/api/events/${eventId}`)
-      .then(r => r.json())
-      .then(data => {
-        document.getElementById('eventName').textContent = data.name;
-        document.getElementById('eventUrl').value = window.location.origin + '/user/' + eventId;
+      // ========== Fonctions ==========
 
-        // Générer QR code
-        fetch(`/api/events/${eventId}/qrcode`)
-          .then(r => r.json())
-          .then(qr => {
-            document.getElementById('qrCode').src = qr.qrCode;
-          });
+      // Charger les données
+      fetch(`/api/events/${eventId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          document.getElementById("eventName").textContent = data.name;
+          document.getElementById("eventUrl").value =
+            window.location.origin + "/user/" + eventId;
 
-        updateStats();
-      })
-      .catch(error => {
-        console.error('Erreur chargement événement:', error);
-        alert('Erreur lors du chargement de l\'événement');
-      });
+          // Générer QR code
+          fetch(`/api/events/${eventId}/qrcode`)
+            .then((r) => r.json())
+            .then((qr) => {
+              document.getElementById("qrCode").src = qr.qrCode;
+            });
 
-    // WebSocket pour stats temps réel
-    socket.emit('join-event', eventId);
+          updateStats();
+        })
+        .catch((error) => {
+          console.error("Erreur chargement événement:", error);
+          alert("Erreur lors du chargement de l'événement");
+        });
 
-    socket.on('new-request', () => updateStats());
-    socket.on('request-accepted', () => updateStats());
-    socket.on('queue-updated', () => updateStats());
+      // WebSocket pour stats temps réel
+      socket.emit("join-event", eventId);
 
-    async function updateStats() {
-      try {
-        const response = await fetch(`/api/events/${eventId}/stats`);
-        const data = await response.json();
+      socket.on("new-request", () => updateStats());
+      socket.on("request-accepted", () => updateStats());
+      socket.on("queue-updated", () => updateStats());
 
-        document.getElementById('pendingCount').textContent = data.stats.pending_count || 0;
-        document.getElementById('queueCount').textContent = data.stats.accepted_count || 0;
-        document.getElementById('playedCount').textContent = data.stats.played_count || 0;
-      } catch (error) {
-        console.error('Erreur mise à jour stats:', error);
+      async function updateStats() {
+        try {
+          const response = await fetch(`/api/events/${eventId}/stats`);
+          const data = await response.json();
+
+          document.getElementById("pendingCount").textContent =
+            data.stats.pending_count || 0;
+          document.getElementById("queueCount").textContent =
+            data.stats.accepted_count || 0;
+          document.getElementById("playedCount").textContent =
+            data.stats.played_count || 0;
+        } catch (error) {
+          console.error("Erreur mise à jour stats:", error);
+        }
       }
-    }
 
-    function copyUrl() {
-      const url = document.getElementById('eventUrl');
-      url.select();
-      url.setSelectionRange(0, 99999); // Pour mobile
-      
-      // Méthode moderne
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url.value)
-          .then(() => {
-            showCopySuccess();
-          })
-          .catch(() => {
-            // Fallback
-            document.execCommand('copy');
-            showCopySuccess();
-          });
-      } else {
-        // Fallback pour anciens navigateurs
-        document.execCommand('copy');
-        showCopySuccess();
+      function copyUrl() {
+        const url = document.getElementById("eventUrl");
+        url.select();
+        url.setSelectionRange(0, 99999); // Pour mobile
+
+        // Méthode moderne
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard
+            .writeText(url.value)
+            .then(() => {
+              showCopySuccess();
+            })
+            .catch(() => {
+              // Fallback
+              document.execCommand("copy");
+              showCopySuccess();
+            });
+        } else {
+          // Fallback pour anciens navigateurs
+          document.execCommand("copy");
+          showCopySuccess();
+        }
       }
-    }
 
-    function showCopySuccess() {
-      const btn = document.getElementById('btnCopyUrl');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '✅ Copié !';
-      btn.classList.add('bg-green-600');
-      btn.classList.remove('bg-purple-600');
-      
-      setTimeout(() => {
-        btn.innerHTML = originalText;
-        btn.classList.remove('bg-green-600');
-        btn.classList.add('bg-purple-600');
-      }, 2000);
-    }
+      function showCopySuccess() {
+        const btn = document.getElementById("btnCopyUrl");
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "✅ Copié !";
+        btn.classList.add("bg-green-600");
+        btn.classList.remove("bg-purple-600");
 
-    function printQR() {
-      window.print();
-    }
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.classList.remove("bg-green-600");
+          btn.classList.add("bg-purple-600");
+        }, 2000);
+      }
 
-    function goToDJ() {
-      window.location.href = `/dj/${eventId}`;
-    }
+      function printQR() {
+        window.print();
+      }
 
-    function backToDashboard() {
-      window.location.href = '/dashboard';
-    }
-  </script>
+      function goToDJ() {
+        window.location.href = `/dj/${eventId}`;
+      }
 
-  <style>
-    @media print {
-      body { background: white; }
-      button { display: none; }
-      .mt-6 { display: none; }
-    }
-  </style>
-</body>
+      function backToDashboard() {
+        window.location.href = "/dashboard";
+      }
+    </script>
+
+    <style>
+      @media print {
+        body {
+          background: white;
+        }
+        button {
+          display: none;
+        }
+        .mt-6 {
+          display: none;
+        }
+      }
+    </style>
+  </body>
 </html>

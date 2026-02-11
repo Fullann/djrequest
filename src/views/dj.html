@@ -592,10 +592,7 @@
 
       // Définir IMMÉDIATEMENT la fonction callback (avant que le SDK ne charge)
       window.onSpotifyWebPlaybackSDKReady = () => {
-        console.log("🎵 Spotify SDK prêt");
-
         if (!spotifyToken) {
-          console.log("⏳ En attente du token...");
           return;
         }
 
@@ -604,8 +601,6 @@
 
       // Fonction pour initialiser le player avec le token
       function initializePlayer() {
-        console.log("🎵 Initialisation du player Spotify");
-
         spotifyPlayer = new Spotify.Player({
           name: "DJ Queue Player",
           getOAuthToken: (cb) => {
@@ -615,7 +610,6 @@
         });
 
         spotifyPlayer.addListener("ready", ({ device_id }) => {
-          console.log("✅ Player prêt, device_id:", device_id);
           deviceId = device_id;
           document.getElementById("spotifyPlayer").classList.remove("hidden");
           document.getElementById("autoPlayToggle").classList.remove("hidden");
@@ -676,13 +670,7 @@
           alert("Erreur: Compte Spotify Premium requis");
         });
 
-        spotifyPlayer.connect().then((success) => {
-          if (success) {
-            console.log("✅ Player Spotify connecté");
-          } else {
-            console.error("❌ Échec connexion player");
-          }
-        });
+        spotifyPlayer.connect();
       }
       // ========== Gestion de la progression ==========
 
@@ -731,7 +719,6 @@
 
       async function seekToPosition(positionMs) {
         if (!spotifyPlayer || !deviceId) {
-          console.log("❌ Player non prêt pour le seek");
           return;
         }
 
@@ -739,7 +726,6 @@
           await spotifyPlayer.seek(positionMs);
           currentPosition = positionMs;
           updateProgress();
-          console.log("✅ Seek à", formatTime(positionMs));
         } catch (error) {
           console.error("❌ Erreur seek:", error);
         }
@@ -1024,9 +1010,6 @@
           if (data.pending && data.pending.length > 0) {
             pendingRequests = data.pending;
             renderPending();
-            console.log(
-              `✅ ${data.pending.length} demande(s) en attente chargée(s)`,
-            );
           }
         } catch (error) {
           console.error("Erreur chargement pending:", error);
@@ -1108,13 +1091,11 @@
             votesEnabled = newState;
             updateVotesToggleUI();
 
-            // ⚡ Notifier tous les clients via socket
+            // Notifier tous les clients via socket
             socket.emit("update-event-settings", {
               eventId,
               votesEnabled: newState,
             });
-
-            console.log("✅ Votes", newState ? "activés" : "désactivés");
           }
         } catch (error) {
           console.error("❌ Erreur toggle votes:", error);
@@ -1211,7 +1192,6 @@
 
       async function initSpotifyPlayer() {
         try {
-          console.log("🔄 Récupération du token Spotify...");
           const response = await fetch(`/api/spotify/token/${eventId}`);
           const data = await response.json();
 
@@ -1221,14 +1201,10 @@
           }
 
           spotifyToken = data.access_token;
-          console.log("✅ Token obtenu");
 
           // Si le SDK est déjà chargé, initialiser immédiatement
           if (window.Spotify) {
-            console.log("SDK déjà chargé, initialisation immédiate");
             window.onSpotifyWebPlaybackSDKReady();
-          } else {
-            console.log("En attente du chargement du SDK...");
           }
         } catch (error) {
           console.error("❌ Erreur init player:", error);
@@ -1253,9 +1229,6 @@
         }
 
         try {
-          console.log("🎵 Lecture de:", uri);
-          console.log("📱 Device ID:", deviceId);
-
           const response = await fetch(`/api/spotify/play/${eventId}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1281,8 +1254,6 @@
             }
             return;
           }
-
-          console.log("✅ Lecture lancée");
 
           // Marquer comme jouée après 2 secondes
           setTimeout(() => {
@@ -1433,8 +1404,6 @@
             return;
           }
 
-          console.log("✅ Chanson ajoutée par le DJ");
-
           // Fermer le panneau
           closeAddSongPanel();
 
@@ -1491,12 +1460,9 @@
       // ========== WebSocket Events ==========
 
       socket.on("new-request", (request) => {
-        console.log("🆕 Nouvelle demande reçue:", request);
-
         // Vérifier que la demande n'existe pas déjà
         const exists = pendingRequests.some((r) => r.id === request.id);
         if (exists) {
-          console.log("⚠️ Demande déjà présente, ignorée");
           return;
         }
 

@@ -222,13 +222,6 @@ router.post(
 
       const token = rows[0].access_token;
 
-      console.log(`▶️ Lecture de ${uri}`);
-      if (device_id) {
-        console.log(`📱 Sur device: ${device_id} (Web Player)`);
-      } else {
-        console.log(`📱 Sur appareil actif par défaut`);
-      }
-
       // Si device_id fourni (Web Player), l'utiliser directement
       // Sinon laisser Spotify utiliser l'appareil actif
       const playUrl = device_id
@@ -246,7 +239,6 @@ router.post(
         },
       );
 
-      console.log("✅ Lecture lancée avec succès");
       res.json({ success: true, device_id });
     } catch (error) {
       console.error(

@@ -353,8 +353,6 @@
 
       // ========== Socket Events ==========
       socket.on("event-ended", (data) => {
-        console.log("🏁 Événement terminé");
-
         // Afficher un message
         showError(
           `🎉 ${data.message || "La soirée est terminée !"}\n\nRedirection dans 2 secondes...`,
@@ -446,8 +444,6 @@
       });
 
       socket.on("event-settings-updated", (data) => {
-        console.log("⚙️ Paramètres mis à jour en temps réel:", data);
-
         if (data.votesEnabled !== undefined) {
           votesEnabled = data.votesEnabled;
 

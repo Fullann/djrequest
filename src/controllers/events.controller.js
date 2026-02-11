@@ -73,8 +73,6 @@ class EventsController {
         process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
       const userUrl = `${baseUrl}/user/${eventId}`;
 
-      console.log("📱 URL générée:", userUrl);
-
       const qrCodeDataUrl = await QRCode.toDataURL(userUrl);
 
       res.json({ qrCode: qrCodeDataUrl, userUrl });

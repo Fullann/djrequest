@@ -5,12 +5,9 @@ const rateLimitService = require("../services/rateLimit.service");
 
 function setupSocketHandlers(io) {
   io.on("connection", (socket) => {
-    console.log("Client connecté:", socket.id);
-
     // Rejoindre un événement
     socket.on("join-event", async (eventId) => {
       socket.join(eventId);
-      console.log(`Socket ${socket.id} a rejoint l'événement ${eventId}`);
 
       // Envoyer le statut du rate limit
       try {
@@ -106,8 +103,6 @@ function setupSocketHandlers(io) {
           ],
         );
 
-        console.log(`✅ Demande créée: ${requestId} (${status})`);
-
         // Incrémenter le rate limit
         await rateLimitService.incrementRateLimit(socket.id);
 
@@ -127,9 +122,6 @@ function setupSocketHandlers(io) {
         });
 
         if (status === "accepted") {
-          // ⚡ AUTO-ACCEPT activé : ajouter directement à la queue
-          console.log("⚡ Auto-accept: ajout direct à la queue");
-
           // Notifier l'utilisateur de l'acceptation
           socket.emit("your-request-accepted", {
             requestId,
@@ -143,9 +135,6 @@ function setupSocketHandlers(io) {
           // Notifier aussi le DJ via request-accepted
           io.to(eventId).emit("request-accepted", { requestId });
         } else {
-          // 🔒 Mode normal : envoyer au DJ pour validation
-          console.log("🔒 Mode normal: envoi au DJ pour validation");
-
           const request = await queueService.getRequestWithVotes(requestId);
           io.to(eventId).emit("new-request", request);
         }
@@ -335,19 +324,9 @@ function setupSocketHandlers(io) {
       }
     });
 
-    // Déconnexion
-    socket.on("disconnect", () => {
-      console.log("Client déconnecté:", socket.id);
-    });
     // Mettre à jour les paramètres de l'événement (DJ)
     socket.on("update-event-settings", async (data) => {
       const { eventId, votesEnabled, autoAcceptEnabled } = data;
-
-      console.log("⚙️ Mise à jour paramètres:", {
-        eventId,
-        votesEnabled,
-        autoAcceptEnabled,
-      });
 
       try {
         // Construire la requête SQL dynamiquement
@@ -376,8 +355,6 @@ function setupSocketHandlers(io) {
             votesEnabled,
             autoAcceptEnabled,
           });
-
-          console.log("✅ Paramètres diffusés à tous les clients");
         }
       } catch (error) {
         console.error("❌ Erreur update-event-settings:", error);

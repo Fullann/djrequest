@@ -1,4 +1,4 @@
-const db = require('../config/database');
+const db = require("../config/database");
 
 class DjController {
   /**
@@ -10,8 +10,8 @@ class DjController {
     try {
       // Info DJ
       const [djRows] = await db.query(
-        'SELECT id, name, email FROM djs WHERE id = ?',
-        [djId]
+        "SELECT id, name, email FROM djs WHERE id = ?",
+        [djId],
       );
       const dj = djRows[0];
 
@@ -32,10 +32,8 @@ class DjController {
         GROUP BY e.id
         ORDER BY e.created_at DESC
         LIMIT 20`,
-        [djId]
+        [djId],
       );
-
-      console.log('📊 Dashboard: événements actifs:', events.length);
 
       // Stats globales (TOUS les événements du DJ)
       const [statsRows] = await db.query(
@@ -48,7 +46,7 @@ class DjController {
         FROM events e
         LEFT JOIN requests r ON e.id = r.event_id
         WHERE e.dj_id = ?`,
-        [djId]
+        [djId],
       );
 
       const stats = statsRows[0];
@@ -61,12 +59,15 @@ class DjController {
         FROM requests r
         JOIN events e ON r.event_id = e.id
         WHERE e.dj_id = ?`,
-        [djId]
+        [djId],
       );
 
-      const acceptRate = acceptRateRows[0].total > 0
-        ? Math.round((acceptRateRows[0].played / acceptRateRows[0].total) * 100) + '%'
-        : '0%';
+      const acceptRate =
+        acceptRateRows[0].total > 0
+          ? Math.round(
+              (acceptRateRows[0].played / acceptRateRows[0].total) * 100,
+            ) + "%"
+          : "0%";
 
       // Top chansons (tous événements)
       const [topSongs] = await db.query(
@@ -81,7 +82,7 @@ class DjController {
         GROUP BY r.song_name, r.artist
         ORDER BY play_count DESC
         LIMIT 10`,
-        [djId]
+        [djId],
       );
 
       res.json({
@@ -91,13 +92,13 @@ class DjController {
           totalEvents: stats.totalEvents || 0,
           totalSongs: stats.totalSongs || 0,
           avgVotes: stats.avgVotes || 0,
-          acceptRate
+          acceptRate,
         },
-        topSongs
+        topSongs,
       });
     } catch (error) {
-      console.error('❌ Erreur dashboard:', error);
-      res.status(500).json({ error: 'Erreur serveur' });
+      console.error("❌ Erreur dashboard:", error);
+      res.status(500).json({ error: "Erreur serveur" });
     }
   }
 
@@ -110,8 +111,8 @@ class DjController {
     try {
       // Info DJ
       const [djRows] = await db.query(
-        'SELECT id, name, email FROM djs WHERE id = ?',
-        [djId]
+        "SELECT id, name, email FROM djs WHERE id = ?",
+        [djId],
       );
       const dj = djRows[0];
 
@@ -131,10 +132,8 @@ class DjController {
         GROUP BY e.id
         ORDER BY e.ended_at DESC
         LIMIT 50`,
-        [djId]
+        [djId],
       );
-
-      console.log('📚 Historique: événements terminés:', events.length);
 
       // Stats globales de l'historique
       const [statsRows] = await db.query(
@@ -145,7 +144,7 @@ class DjController {
         FROM events e
         LEFT JOIN requests r ON e.id = r.event_id
         WHERE e.dj_id = ? AND e.ended_at IS NOT NULL`,
-        [djId]
+        [djId],
       );
 
       const stats = {
@@ -156,8 +155,8 @@ class DjController {
 
       res.json({ dj, events, stats });
     } catch (error) {
-      console.error('❌ Erreur historique:', error);
-      res.status(500).json({ error: 'Erreur serveur' });
+      console.error("❌ Erreur historique:", error);
+      res.status(500).json({ error: "Erreur serveur" });
     }
   }
 
@@ -171,12 +170,12 @@ class DjController {
     try {
       // Vérifier que l'événement appartient au DJ
       const [eventRows] = await db.query(
-        'SELECT * FROM events WHERE id = ? AND dj_id = ?',
-        [eventId, djId]
+        "SELECT * FROM events WHERE id = ? AND dj_id = ?",
+        [eventId, djId],
       );
 
       if (eventRows.length === 0) {
-        return res.status(404).json({ error: 'Événement non trouvé' });
+        return res.status(404).json({ error: "Événement non trouvé" });
       }
 
       const event = eventRows[0];
@@ -192,7 +191,7 @@ class DjController {
           END) as avg_votes
         FROM requests r
         WHERE r.event_id = ?`,
-        [eventId]
+        [eventId],
       );
 
       const stats = statsRows[0];
@@ -208,7 +207,7 @@ class DjController {
         GROUP BY song_name, artist
         ORDER BY play_count DESC, song_name ASC
         LIMIT 10`,
-        [eventId]
+        [eventId],
       );
 
       // Chansons les plus votées
@@ -226,7 +225,7 @@ class DjController {
         GROUP BY r.id, r.song_name, r.artist
         ORDER BY net_votes DESC, upvotes DESC
         LIMIT 10`,
-        [eventId]
+        [eventId],
       );
 
       // Top artistes
@@ -239,7 +238,7 @@ class DjController {
         GROUP BY artist
         ORDER BY count DESC
         LIMIT 10`,
-        [eventId]
+        [eventId],
       );
 
       // Timeline des chansons jouées
@@ -256,7 +255,7 @@ class DjController {
         WHERE r.event_id = ? AND r.status = 'played'
         GROUP BY r.id
         ORDER BY r.played_at ASC`,
-        [eventId]
+        [eventId],
       );
 
       res.json({
@@ -265,11 +264,11 @@ class DjController {
         topSongs,
         mostVoted,
         topArtists,
-        playedSongs
+        playedSongs,
       });
     } catch (error) {
-      console.error('❌ Erreur stats détaillées:', error);
-      res.status(500).json({ error: 'Erreur serveur' });
+      console.error("❌ Erreur stats détaillées:", error);
+      res.status(500).json({ error: "Erreur serveur" });
     }
   }
 }

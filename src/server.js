@@ -215,11 +215,6 @@ app.get("/callback", async (req, res) => {
   const code = req.query.code;
   const eventId = req.query.state;
 
-  console.log("Spotify callback reçu:", {
-    code: code?.substring(0, 20) + "...",
-    eventId,
-  });
-
   if (!code || !eventId) {
     console.error("Code ou eventId manquant");
     return res.redirect("/dashboard?error=spotify_auth_failed");
@@ -247,14 +242,8 @@ app.get("/callback", async (req, res) => {
 
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
-    console.log("✅ Token Spotify obtenu avec succès");
-    console.log("⏱️  expires_in:", expires_in, "secondes");
-
     // Utiliser un timestamp Unix en millisecondes (BIGINT)
     const expiresAt = Date.now() + expires_in * 1000;
-
-    console.log("📅 Expiration timestamp:", expiresAt);
-    console.log("📅 Expiration date:", new Date(expiresAt).toISOString());
 
     await db.query(
       `INSERT INTO spotify_tokens (event_id, access_token, refresh_token, expires_at)
@@ -265,8 +254,6 @@ app.get("/callback", async (req, res) => {
        expires_at = VALUES(expires_at)`,
       [eventId, access_token, refresh_token || null, expiresAt],
     );
-
-    console.log("✅ Token stocké pour event:", eventId);
 
     res.redirect(`/dj/${eventId}?spotify=connected`);
   } catch (error) {
@@ -316,7 +303,6 @@ async function start() {
 
     http.listen(PORT, () => {
       console.log(`🎵 Serveur sur http://localhost:${PORT}`);
-      console.log(`💾 MySQL: Persistance activée`);
       if (process.env.NODE_ENV === "production") {
         console.log(`🔴 Redis: Sessions persistantes`);
         console.log(`⚡ Rate limiting: Activé (500 req/15min)`);
@@ -324,7 +310,6 @@ async function start() {
         console.log(`⚠️  Dev: Sessions en mémoire`);
         console.log(`⚡ Rate limiting: Mode permissif`);
       }
-      console.log(`🔒 Sécurité: Helmet, Sanitization activés`);
     });
   } catch (error) {
     console.error("❌ Erreur démarrage:", error);

@@ -1,139 +1,157 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Historique - DJ Queue</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 min-h-screen">
-
-  <!-- Header -->
-  <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 shadow-lg">
-    <div class="max-w-7xl mx-auto flex justify-between items-center">
-      <div>
-        <h1 class="text-3xl font-bold">📚 Historique des soirées</h1>
-        <p id="djName" class="text-purple-100 mt-1">Chargement...</p>
-      </div>
-      <div class="flex gap-3">
-        <button 
-          id="btnBackToDashboard"
-          class="bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-6 rounded-full transition"
-        >
-          ← Dashboard
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div class="max-w-7xl mx-auto p-6">
-
-    <!-- Stats historique -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="bg-white rounded-xl shadow p-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-gray-500 text-sm">Soirées terminées</p>
-            <p id="totalEndedEvents" class="text-3xl font-bold text-purple-600">0</p>
-          </div>
-          <div class="text-4xl">🏁</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Historique - DJ Queue</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <div
+      class="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 shadow-lg"
+    >
+      <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-bold">📚 Historique des soirées</h1>
+          <p id="djName" class="text-purple-100 mt-1">Chargement...</p>
         </div>
-      </div>
-
-      <div class="bg-white rounded-xl shadow p-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-gray-500 text-sm">Durée totale</p>
-            <p id="totalDuration" class="text-3xl font-bold text-blue-600">0h</p>
-          </div>
-          <div class="text-4xl">⏱️</div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl shadow p-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-gray-500 text-sm">Chansons totales</p>
-            <p id="totalSongsPlayed" class="text-3xl font-bold text-green-600">0</p>
-          </div>
-          <div class="text-4xl">🎵</div>
+        <div class="flex gap-3">
+          <button
+            id="btnBackToDashboard"
+            class="bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-6 rounded-full transition"
+          >
+            ← Dashboard
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Liste des soirées terminées -->
-    <div class="bg-white rounded-xl shadow">
-      <div class="p-6 border-b">
-        <h2 class="text-2xl font-bold text-gray-800">🗂️ Soirées passées</h2>
+    <div class="max-w-7xl mx-auto p-6">
+      <!-- Stats historique -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">Soirées terminées</p>
+              <p
+                id="totalEndedEvents"
+                class="text-3xl font-bold text-purple-600"
+              >
+                0
+              </p>
+            </div>
+            <div class="text-4xl">🏁</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">Durée totale</p>
+              <p id="totalDuration" class="text-3xl font-bold text-blue-600">
+                0h
+              </p>
+            </div>
+            <div class="text-4xl">⏱️</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">Chansons totales</p>
+              <p
+                id="totalSongsPlayed"
+                class="text-3xl font-bold text-green-600"
+              >
+                0
+              </p>
+            </div>
+            <div class="text-4xl">🎵</div>
+          </div>
+        </div>
       </div>
-      <div id="endedEventsList" class="p-6">
-        <p class="text-gray-500 text-center py-8">Chargement...</p>
+
+      <!-- Liste des soirées terminées -->
+      <div class="bg-white rounded-xl shadow">
+        <div class="p-6 border-b">
+          <h2 class="text-2xl font-bold text-gray-800">🗂️ Soirées passées</h2>
+        </div>
+        <div id="endedEventsList" class="p-6">
+          <p class="text-gray-500 text-center py-8">Chargement...</p>
+        </div>
       </div>
     </div>
 
-  </div>
+    <script>
+      document
+        .getElementById("btnBackToDashboard")
+        .addEventListener("click", () => {
+          window.location.href = "/dashboard";
+        });
 
-  <script>
-    document.getElementById('btnBackToDashboard').addEventListener('click', () => {
-      window.location.href = '/dashboard';
-    });
+      async function loadHistory() {
+        try {
+          const response = await fetch("/api/dj/history");
 
-    async function loadHistory() {
-      try {
-        const response = await fetch('/api/dj/history');
+          if (response.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
 
-        if (response.status === 401) {
-          window.location.href = '/login';
+          if (!response.ok) throw new Error("Erreur chargement historique");
+
+          const data = await response.json();
+
+          document.getElementById("djName").textContent = `${data.dj.name}`;
+
+          // Stats
+          document.getElementById("totalEndedEvents").textContent =
+            data.stats.totalEnded || 0;
+          document.getElementById("totalDuration").textContent = formatDuration(
+            data.stats.totalDurationMinutes || 0,
+          );
+          document.getElementById("totalSongsPlayed").textContent =
+            data.stats.totalSongsPlayed || 0;
+
+          renderEndedEvents(data.events || []);
+        } catch (error) {
+          console.error("Erreur:", error);
+          alert("Erreur lors du chargement de l'historique");
+        }
+      }
+
+      function formatDuration(minutes) {
+        if (minutes < 60) return `${minutes}m`;
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hours}h${mins}` : `${hours}h`;
+      }
+
+      function renderEndedEvents(events) {
+        const container = document.getElementById("endedEventsList");
+
+        if (!events || events.length === 0) {
+          container.innerHTML =
+            '<p class="text-gray-500 text-center py-8">Aucune soirée terminée</p>';
           return;
         }
 
-        if (!response.ok) throw new Error('Erreur chargement historique');
+        container.innerHTML = events
+          .map((event) => {
+            const startDate = new Date(event.created_at);
+            const endDate = new Date(event.ended_at);
 
-        const data = await response.json();
+            const dateStr = startDate.toLocaleDateString("fr-FR", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            });
 
-        document.getElementById('djName').textContent = `${data.dj.name}`;
+            const duration = Math.floor((endDate - startDate) / (1000 * 60)); // minutes
 
-        // Stats
-        document.getElementById('totalEndedEvents').textContent = data.stats.totalEnded || 0;
-        document.getElementById('totalDuration').textContent = formatDuration(data.stats.totalDurationMinutes || 0);
-        document.getElementById('totalSongsPlayed').textContent = data.stats.totalSongsPlayed || 0;
-
-        renderEndedEvents(data.events || []);
-
-      } catch (error) {
-        console.error('Erreur:', error);
-        alert('Erreur lors du chargement de l\'historique');
-      }
-    }
-
-    function formatDuration(minutes) {
-      if (minutes < 60) return `${minutes}m`;
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      return mins > 0 ? `${hours}h${mins}` : `${hours}h`;
-    }
-
-    function renderEndedEvents(events) {
-      const container = document.getElementById('endedEventsList');
-
-      if (!events || events.length === 0) {
-        container.innerHTML = '<p class="text-gray-500 text-center py-8">Aucune soirée terminée</p>';
-        return;
-      }
-
-      container.innerHTML = events.map(event => {
-        const startDate = new Date(event.created_at);
-        const endDate = new Date(event.ended_at);
-        
-        const dateStr = startDate.toLocaleDateString('fr-FR', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        });
-
-        const duration = Math.floor((endDate - startDate) / (1000 * 60)); // minutes
-
-        return `
+            return `
           <div class="border-b last:border-b-0 py-4 hover:bg-gray-50 transition cursor-pointer" onclick="viewEventDetails('${event.id}')">
             <div class="flex justify-between items-start">
               <div class="flex-1">
@@ -154,14 +172,15 @@
             </div>
           </div>
         `;
-      }).join('');
-    }
+          })
+          .join("");
+      }
 
-    function viewEventDetails(eventId) {
-      window.location.href = `/event/${eventId}/stats`;
-    }
+      function viewEventDetails(eventId) {
+        window.location.href = `/event/${eventId}/stats`;
+      }
 
-    loadHistory();
-  </script>
-</body>
+      loadHistory();
+    </script>
+  </body>
 </html>

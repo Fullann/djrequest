@@ -1,113 +1,120 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Merci ! - DJ Queue</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gradient-to-br from-purple-600 to-pink-500 min-h-screen flex items-center justify-center p-4">
-  
-  <div class="max-w-2xl w-full">
-    <div class="bg-white rounded-3xl shadow-2xl p-8 text-center transform animate-fade-in">
-      <!-- Animation confettis -->
-      <div class="text-8xl mb-6 animate-bounce">
-        🎉
-      </div>
-      
-      <h1 class="text-4xl font-bold text-gray-800 mb-4">
-        La soirée est terminée !
-      </h1>
-      
-      <p class="text-xl text-gray-600 mb-8" id="eventName">
-        Chargement...
-      </p>
-      
-      <div class="bg-purple-50 rounded-xl p-6 mb-8">
-        <p class="text-lg text-gray-700 leading-relaxed" id="thankYouMessage">
-          Merci d'avoir participé ! 🎵<br>
-          On espère que vous avez passé un excellent moment.<br>
-          À très bientôt pour une nouvelle soirée ! 🚀
-        </p>
-      </div>
-      
-      <!-- Stats de la soirée -->
-      <div class="grid grid-cols-3 gap-4 mb-8">
-        <div class="bg-gradient-to-br from-green-400 to-green-600 rounded-xl p-4 text-white">
-          <div class="text-3xl font-bold" id="totalPlayed">-</div>
-          <div class="text-sm">Chansons jouées</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Merci ! - DJ Queue</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="bg-gradient-to-br from-purple-600 to-pink-500 min-h-screen flex items-center justify-center p-4"
+  >
+    <div class="max-w-2xl w-full">
+      <div
+        class="bg-white rounded-3xl shadow-2xl p-8 text-center transform animate-fade-in"
+      >
+        <!-- Animation confettis -->
+        <div class="text-8xl mb-6 animate-bounce">🎉</div>
+
+        <h1 class="text-4xl font-bold text-gray-800 mb-4">
+          La soirée est terminée !
+        </h1>
+
+        <p class="text-xl text-gray-600 mb-8" id="eventName">Chargement...</p>
+
+        <div class="bg-purple-50 rounded-xl p-6 mb-8">
+          <p class="text-lg text-gray-700 leading-relaxed" id="thankYouMessage">
+            Merci d'avoir participé ! 🎵<br />
+            On espère que vous avez passé un excellent moment.<br />
+            À très bientôt pour une nouvelle soirée ! 🚀
+          </p>
         </div>
-        
-        <div class="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-4 text-white">
-          <div class="text-3xl font-bold" id="totalRequests">-</div>
-          <div class="text-sm">Demandes</div>
+
+        <!-- Stats de la soirée -->
+        <div class="grid grid-cols-3 gap-4 mb-8">
+          <div
+            class="bg-gradient-to-br from-green-400 to-green-600 rounded-xl p-4 text-white"
+          >
+            <div class="text-3xl font-bold" id="totalPlayed">-</div>
+            <div class="text-sm">Chansons jouées</div>
+          </div>
+
+          <div
+            class="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-4 text-white"
+          >
+            <div class="text-3xl font-bold" id="totalRequests">-</div>
+            <div class="text-sm">Demandes</div>
+          </div>
+
+          <div
+            class="bg-gradient-to-br from-pink-400 to-pink-600 rounded-xl p-4 text-white"
+          >
+            <div class="text-3xl font-bold" id="duration">-</div>
+            <div class="text-sm">Durée</div>
+          </div>
         </div>
-        
-        <div class="bg-gradient-to-br from-pink-400 to-pink-600 rounded-xl p-4 text-white">
-          <div class="text-3xl font-bold" id="duration">-</div>
-          <div class="text-sm">Durée</div>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a
+            href="/"
+            class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition transform hover:scale-105"
+          >
+            ← Retour à l'accueil
+          </a>
         </div>
-      </div>
-      
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a 
-          href="/"
-          class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition transform hover:scale-105"
-        >
-          ← Retour à l'accueil
-        </a>
       </div>
     </div>
-  </div>
 
-  <style>
-    @keyframes fade-in {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    .animate-fade-in {
-      animation: fade-in 0.6s ease-out;
-    }
-  </style>
-
-  <script>
-    const eventId = window.location.pathname.split('/')[2];
-
-    // Charger les infos de l'événement terminé
-    fetch(`/api/events/${eventId}`)
-      .then(r => r.json())
-      .then(data => {
-        document.getElementById('eventName').textContent = data.name;
-        
-        // Message personnalisé du DJ (si disponible)
-        if (data.thank_you_message) {
-          document.getElementById('thankYouMessage').innerHTML = 
-            data.thank_you_message.replace(/\n/g, '<br>');
+    <style>
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
         }
-      })
-      .catch(err => {
-        console.error('Erreur chargement event:', err);
-      });
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .animate-fade-in {
+        animation: fade-in 0.6s ease-out;
+      }
+    </style>
 
-    // Charger les stats
-    fetch(`/api/events/${eventId}/stats`)
-      .then(r => r.json())
-      .then(data => {
-        document.getElementById('totalPlayed').textContent = data.stats.played_count || 0;
-        document.getElementById('totalRequests').textContent = data.stats.total_requests || 0;
-        
-        // Calculer la durée (placeholder pour l'instant)
-        document.getElementById('duration').textContent = '🔥';
-      })
-      .catch(err => {
-        console.error('Erreur chargement stats:', err);
-      });
-  </script>
-</body>
+    <script>
+      const eventId = window.location.pathname.split("/")[2];
+
+      // Charger les infos de l'événement terminé
+      fetch(`/api/events/${eventId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          document.getElementById("eventName").textContent = data.name;
+
+          // Message personnalisé du DJ (si disponible)
+          if (data.thank_you_message) {
+            document.getElementById("thankYouMessage").innerHTML =
+              data.thank_you_message.replace(/\n/g, "<br>");
+          }
+        })
+        .catch((err) => {
+          console.error("Erreur chargement event:", err);
+        });
+
+      // Charger les stats
+      fetch(`/api/events/${eventId}/stats`)
+        .then((r) => r.json())
+        .then((data) => {
+          document.getElementById("totalPlayed").textContent =
+            data.stats.played_count || 0;
+          document.getElementById("totalRequests").textContent =
+            data.stats.total_requests || 0;
+
+          // Calculer la durée (placeholder pour l'instant)
+          document.getElementById("duration").textContent = "🔥";
+        })
+        .catch((err) => {
+          console.error("Erreur chargement stats:", err);
+        });
+    </script>
+  </body>
 </html>

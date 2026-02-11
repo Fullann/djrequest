@@ -236,9 +236,6 @@ router.post(
         eventId,
       ]);
 
-      console.log("✅ Événement terminé:", eventId);
-      console.log("📊 Stats finales:", stats[0]);
-
       // Notifier tous les clients
       const io = req.app.get("io");
       if (io) {
@@ -255,29 +252,28 @@ router.post(
   },
 );
 // Historique des événements terminés
-router.get('/history',
-  async (req, res) => {
-    if (!req.session.djId) {
-      return res.status(401).json({ error: 'Non authentifié' });
-    }
-    
-    const controller = require('../controllers/events.controller');
-    await controller.getHistory(req, res);
+router.get("/history", async (req, res) => {
+  if (!req.session.djId) {
+    return res.status(401).json({ error: "Non authentifié" });
   }
-);
+
+  const controller = require("../controllers/events.controller");
+  await controller.getHistory(req, res);
+});
 
 // Stats détaillées d'un événement
-router.get('/:eventId/detailed-stats',
+router.get(
+  "/:eventId/detailed-stats",
   eventIdValidator,
   handleValidationErrors,
   async (req, res) => {
     if (!req.session.djId) {
-      return res.status(401).json({ error: 'Non authentifié' });
+      return res.status(401).json({ error: "Non authentifié" });
     }
-    
-    const controller = require('../controllers/events.controller');
+
+    const controller = require("../controllers/events.controller");
     await controller.getDetailedStats(req, res);
-  }
+  },
 );
 // Mettre à jour le message de remerciement
 router.post(
@@ -291,19 +287,17 @@ router.post(
     const { message } = req.body;
 
     try {
-      await db.query(
-        "UPDATE events SET thank_you_message = ? WHERE id = ?",
-        [message || null, eventId]
-      );
-
-      console.log("✅ Message de remerciement mis à jour pour:", eventId);
+      await db.query("UPDATE events SET thank_you_message = ? WHERE id = ?", [
+        message || null,
+        eventId,
+      ]);
 
       res.json({ success: true, message });
     } catch (error) {
       console.error("Erreur mise à jour message:", error);
       res.status(500).json({ error: "Erreur serveur" });
     }
-  }
+  },
 );
 
 module.exports = router;
