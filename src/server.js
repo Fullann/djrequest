@@ -58,12 +58,12 @@ app.use("/api/events", apiLimiter, eventsRoutes);
 app.use("/api/dj", apiLimiter, djRoutes);
 app.use("/api/spotify", apiLimiter, spotifyRoutes);
 
-// === Routes vues (pas de rate limit) ===
 app.get("/", (req, res) => {
   if (req.session.djId) {
     return res.redirect("/dashboard");
   }
-  res.redirect("/login");
+  // Sinon, afficher la page d'accueil
+  res.sendFile(path.join(__dirname, "/views/index.html"));
 });
 
 app.get("/login", (req, res) => {

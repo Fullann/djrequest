@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DJ Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    html { scroll-behavior: smooth; }
+  </style>
+</head>
+<body class="bg-[#0d0d0d] text-white">
+
+  <!-- NAV -->
+  <nav class="fixed top-0 left-0 w-full z-50 bg-[#0d0d0d]/90 backdrop-blur border-b border-white/10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2 font-bold text-lg">
+        <span class="text-2xl">🎵</span>
+        <span>DJ <span class="text-violet-400">Queue</span></span>
+      </div>
+      <div class="hidden sm:flex items-center gap-6 text-sm text-gray-400">
+        <a href="#features" class="hover:text-white transition">Fonctionnalités</a>
+        <a href="#steps"    class="hover:text-white transition">Comment ça marche</a>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <a href="/login"    class="text-sm text-gray-300 hover:text-white transition px-3 py-1.5">Connexion</a>
+        <a href="/register" class="text-sm bg-violet-600 hover:bg-violet-500 transition px-4 py-2 rounded-lg font-semibold">
+          Commencer
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="pt-32 pb-20 px-4 sm:px-6 text-center">
+    <div class="max-w-3xl mx-auto">
+      <span class="inline-block text-xs font-semibold uppercase tracking-widest text-violet-400 border border-violet-400/40 rounded-full px-4 py-1 mb-6">
+        Pour tes soirées 🎉
+      </span>
+      <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight mb-6">
+        Laisse la salle<br/>
+        <span class="text-violet-400">choisir la musique</span>
+      </h1>
+      <p class="text-gray-400 text-base sm:text-lg max-w-xl mx-auto mb-10">
+        Tes invités scannent un QR code, proposent des tracks Spotify et votent.
+        Toi tu gères la queue depuis ta console DJ. Simple.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="/register" class="bg-violet-600 hover:bg-violet-500 transition px-8 py-3.5 rounded-xl font-semibold text-base">
+          🚀 Créer un événement
+        </a>
+        <a href="#steps"    class="border border-white/20 hover:border-white/50 transition px-8 py-3.5 rounded-xl font-semibold text-base text-gray-300">
+          Voir comment ça marche
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="py-10 px-4 sm:px-6 border-y border-white/10">
+    <div class="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+      <div>
+        <div class="text-3xl font-extrabold text-violet-400">1 000+</div>
+        <div class="text-sm text-gray-500 mt-1">Soirées créées</div>
+      </div>
+      <div>
+        <div class="text-3xl font-extrabold text-pink-400">50 000+</div>
+        <div class="text-sm text-gray-500 mt-1">Tracks jouées</div>
+      </div>
+      <div>
+        <div class="text-3xl font-extrabold text-cyan-400">100K+</div>
+        <div class="text-sm text-gray-500 mt-1">Demandes envoyées</div>
+      </div>
+      <div>
+        <div class="text-3xl font-extrabold text-green-400">4.9 ★</div>
+        <div class="text-sm text-gray-500 mt-1">Note moyenne</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="py-20 px-4 sm:px-6">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-2xl sm:text-3xl font-bold text-center mb-12">Tout ce dont tu as besoin 🔥</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-violet-500/50 transition">
+          <div class="text-3xl mb-4">📱</div>
+          <h3 class="font-bold text-lg mb-2">QR Code instantané</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Un QR code unique par événement. Les invités scannent et accèdent à l'interface en 2 secondes.</p>
+        </div>
+
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-green-500/50 transition">
+          <div class="text-3xl mb-4">🎧</div>
+          <h3 class="font-bold text-lg mb-2">Intégration Spotify</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Recherche dans des millions de tracks Spotify. Preview audio et lecture automatique dans le navigateur.</p>
+        </div>
+
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-pink-500/50 transition">
+          <div class="text-3xl mb-4">👍</div>
+          <h3 class="font-bold text-lg mb-2">Système de votes</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Chacun vote pour ses tracks préférées. La queue s'organise selon la popularité en temps réel.</p>
+        </div>
+
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-cyan-500/50 transition">
+          <div class="text-3xl mb-4">⚡</div>
+          <h3 class="font-bold text-lg mb-2">Temps réel</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">WebSocket pour une synchronisation instantanée. Tout le monde voit les mises à jour sans recharger.</p>
+        </div>
+
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-yellow-500/50 transition">
+          <div class="text-3xl mb-4">📊</div>
+          <h3 class="font-bold text-lg mb-2">Statistiques</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Dashboard complet : top tracks, taux d'acceptation, historique des soirées passées.</p>
+        </div>
+
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-violet-500/50 transition">
+          <div class="text-3xl mb-4">🛡️</div>
+          <h3 class="font-bold text-lg mb-2">Anti-spam</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Rate limiting par utilisateur, gestion des doublons et validation des données.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="steps" class="py-20 px-4 sm:px-6 bg-white/[0.02] border-y border-white/10">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-2xl sm:text-3xl font-bold text-center mb-12">Comment ça marche ? 👇</h2>
+      <div class="space-y-6">
+
+        <div class="flex gap-5 items-start">
+          <div class="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center font-bold text-lg flex-shrink-0 mt-0.5">1</div>
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-5 flex-1">
+            <h3 class="font-semibold text-lg mb-1">Crée ton événement</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">Inscris-toi, donne un nom à ta soirée. Un QR code unique est généré automatiquement.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-5 items-start">
+          <div class="w-10 h-10 rounded-full bg-pink-600 flex items-center justify-center font-bold text-lg flex-shrink-0 mt-0.5">2</div>
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-5 flex-1">
+            <h3 class="font-semibold text-lg mb-1">Affiche le QR code</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">Projette-le sur un écran ou imprime-le. Les invités scannent et arrivent directement sur l'interface.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-5 items-start">
+          <div class="w-10 h-10 rounded-full bg-cyan-600 flex items-center justify-center font-bold text-lg flex-shrink-0 mt-0.5">3</div>
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-5 flex-1">
+            <h3 class="font-semibold text-lg mb-1">Les invités proposent</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">Recherche Spotify, preview, vote, suivi du statut en direct et timer avant passage.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-5 items-start">
+          <div class="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center font-bold text-lg flex-shrink-0 mt-0.5">4</div>
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-5 flex-1">
+            <h3 class="font-semibold text-lg mb-1">Tu gères depuis la console</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">Accepte, refuse, réordonne par drag & drop. La musique passe automatiquement sur Spotify.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-24 px-4 sm:px-6 text-center">
+    <div class="max-w-xl mx-auto">
+      <h2 class="text-3xl sm:text-4xl font-extrabold mb-4">Prêt pour ta prochaine soirée ? 🎉</h2>
+      <p class="text-gray-400 mb-8">Setup en 30 secondes. Gratuit. Aucune carte requise.</p>
+      <a href="/register" class="inline-block bg-violet-600 hover:bg-violet-500 transition px-10 py-4 rounded-xl font-bold text-lg">
+        Créer mon premier événement
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-white/10 py-8 px-4 sm:px-6">
+    <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+      <div class="flex items-center gap-2 font-semibold text-white">
+        <span>🎵</span>
+        <span>DJ <span class="text-violet-400">Queue</span></span>
+      </div>
+      <div class="flex gap-4 sm:gap-6">
+        <a href="#features" class="hover:text-white transition">Fonctionnalités</a>
+        <a href="#steps"    class="hover:text-white transition">Comment ça marche</a>
+        <a href="/login"    class="hover:text-white transition">Connexion</a>
+      </div>
+      <p>&copy; 2026 DJ Queue</p>
+    </div>
+  </footer>
+
+</body>
+</html>
