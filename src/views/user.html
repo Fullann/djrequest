@@ -6,6 +6,12 @@
     <title>DJ Queue - Proposer une chanson</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
+      * {
+        font-family: "Inter", sans-serif;
+      }
+    </style>
     <script>
       tailwind.config = { darkMode: "class" };
       if (localStorage.getItem("darkMode") === "true") {
@@ -14,12 +20,12 @@
     </script>
   </head>
   <body
-    class="bg-gradient-to-br from-pink-500 to-purple-600 dark:from-gray-900 dark:to-gray-800 min-h-screen p-4 transition-colors duration-300"
+    class="bg-[#0d0d0d] text-white min-h-screen p-4 transition-colors duration-300"
   >
     <!-- Toggle mode sombre -->
     <button
       id="darkModeToggle"
-      class="fixed top-4 right-4 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-3 rounded-full shadow-lg hover:scale-110 transition-transform z-50"
+      class="fixed top-4 right-4 border border-white/20 bg-white/5 text-white p-3 rounded-full shadow-lg hover:scale-110 transition-transform z-50"
     >
       <span id="darkModeIcon">🌙</span>
     </button>
@@ -28,15 +34,15 @@
       <!-- Rate limit banner -->
       <div
         id="rateLimitBanner"
-        class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 mb-4 hidden transition-colors duration-300"
+        class="bg-white/5 border border-white/10 rounded-2xl shadow-lg p-4 mb-4 hidden transition-colors duration-300"
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <p class="text-sm font-semibold text-gray-300">
               Demandes restantes
             </p>
             <p
-              class="text-2xl font-bold text-purple-600 dark:text-purple-400"
+              class="text-2xl font-extrabold text-violet-400"
               id="remainingRequests"
             >
               3
@@ -47,21 +53,21 @@
       </div>
 
       <div
-        class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-6 mb-4 transition-colors duration-300"
+        class="bg-white/5 border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 mb-4 transition-colors duration-300"
       >
         <h1
-          class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mb-1"
+          class="text-2xl sm:text-3xl font-extrabold text-white mb-1"
         >
           🎵 Propose une chanson
         </h1>
-        <p class="text-sm text-gray-600 dark:text-gray-300 mb-6" id="eventName">
+        <p class="text-sm text-gray-400 mb-6" id="eventName">
           Chargement...
         </p>
 
         <!-- Barre de recherche Spotify -->
         <div class="mb-4">
           <label
-            class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            class="block text-sm font-medium text-gray-300 mb-2"
           >
             🔍 Rechercher sur Spotify
           </label>
@@ -69,7 +75,7 @@
             type="text"
             id="searchInput"
             placeholder="Titre, artiste..."
-            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+            class="w-full px-4 py-3 border border-white/20 bg-black/30 text-white rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition"
           />
         </div>
 
@@ -82,16 +88,16 @@
         <!-- Message d'erreur -->
         <div
           id="errorMessage"
-          class="hidden bg-red-50 dark:bg-red-900/30 border-2 border-red-200 dark:border-red-800 rounded-lg p-4 mb-4 transition-colors duration-300"
+          class="hidden bg-red-500/10 border border-red-400/30 rounded-xl p-4 mb-4 transition-colors duration-300"
         >
           <div class="flex items-start gap-3">
             <span class="text-2xl">⚠️</span>
             <div>
-              <p class="font-bold text-red-800 dark:text-red-300 mb-1">
+              <p class="font-bold text-red-200 mb-1">
                 Oups !
               </p>
               <p
-                class="text-sm text-red-700 dark:text-red-400"
+                class="text-sm text-red-300"
                 id="errorText"
               ></p>
             </div>
@@ -105,26 +111,26 @@
       <!-- Queue complète (avec votes) -->
       <div
         id="queueSection"
-        class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-6 transition-colors duration-300"
+        class="bg-white/5 border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 transition-colors duration-300"
       >
         <h2
-          class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-4"
+          class="text-xl sm:text-2xl font-bold text-white mb-4"
         >
           🎵 Prochaines chansons
           <span
             id="queueCount"
-            class="text-sm font-normal text-gray-500 dark:text-gray-400"
+            class="text-sm font-normal text-gray-400"
             >(0)</span
           >
         </h2>
         <p
           id="votesDisabledMsg"
-          class="hidden text-sm text-gray-600 dark:text-gray-400 mb-4"
+          class="hidden text-sm text-gray-400 mb-4"
         >
           Les votes sont désactivés par le DJ
         </p>
         <div id="fullQueue" class="space-y-3">
-          <p class="text-gray-500 dark:text-gray-400 text-center py-8">
+          <p class="text-gray-400 text-center py-8">
             Aucune chanson en attente
           </p>
         </div>
@@ -249,13 +255,7 @@
           banner.classList.remove("hidden");
 
           if (currentRateLimit.remaining === 0) {
-            banner.classList.add(
-              "bg-red-50",
-              "dark:bg-red-900/30",
-              "border-2",
-              "border-red-200",
-              "dark:border-red-800",
-            );
+            banner.classList.add("bg-red-500/10", "border-red-400/30");
           }
         }
       }
@@ -287,7 +287,7 @@
 
         if (!tracks || tracks.length === 0) {
           container.innerHTML =
-            '<p class="text-gray-500 dark:text-gray-400 text-sm text-center py-4">Aucun résultat</p>';
+            '<p class="text-gray-400 text-sm text-center py-4">Aucun résultat</p>';
           return;
         }
 
@@ -296,15 +296,15 @@
             const trackJson = JSON.stringify(track).replace(/"/g, "&quot;");
             return `
         <div 
-          class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition"
+          class="flex items-center gap-3 p-3 border border-white/10 bg-white/5 rounded-xl hover:bg-white/10 cursor-pointer transition"
           data-track="${trackJson}"
         >
           <img src="${track.image}" alt="${track.name}" class="w-12 h-12 rounded">
           <div class="flex-1 min-w-0">
-            <h4 class="font-semibold text-gray-800 dark:text-white truncate">${track.name}</h4>
-            <p class="text-sm text-gray-600 dark:text-gray-300 truncate">${track.artist}</p>
+            <h4 class="font-semibold text-white truncate">${track.name}</h4>
+            <p class="text-sm text-gray-300 truncate">${track.artist}</p>
           </div>
-          <button class="text-purple-600 dark:text-purple-400 font-bold text-xl">+</button>
+          <button class="text-violet-400 font-bold text-xl">+</button>
         </div>
       `;
           })
@@ -470,27 +470,27 @@
         myRequests.forEach((request, id) => {
           const div = document.createElement("div");
           div.className =
-            "bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 transition-colors duration-300";
+            "bg-white/5 border border-white/10 rounded-xl shadow-lg p-4 transition-colors duration-300";
 
           let statusHtml = "";
           let statusClass = "";
 
           if (request.status === "pending") {
             statusClass =
-              "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300";
+              "bg-yellow-500/20 text-yellow-200 border border-yellow-400/30";
             statusHtml = "⏳ En attente";
           } else if (request.status === "accepted") {
             statusClass =
-              "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300";
+              "bg-green-500/20 text-green-200 border border-green-400/30";
             const estimatedTime = request.position * 3;
             statusHtml = `✅ Acceptée - Position ${request.position} (~${estimatedTime} min)`;
           } else if (request.status === "rejected") {
             statusClass =
-              "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300";
+              "bg-red-500/20 text-red-200 border border-red-400/30";
             statusHtml = "❌ Refusée";
           } else if (request.status === "played") {
             statusClass =
-              "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300";
+              "bg-cyan-500/20 text-cyan-200 border border-cyan-400/30";
             statusHtml = "✓ Jouée";
           }
 
@@ -501,8 +501,8 @@
           div.innerHTML = `
           <div class="flex justify-between items-start mb-2">
             <div class="flex-1">
-              <h3 class="font-bold text-gray-800 dark:text-white">${request.songName || "Ta chanson"}</h3>
-              <p class="text-sm text-gray-600 dark:text-gray-300">${request.artist || ""}</p>
+              <h3 class="font-bold text-white">${request.songName || "Ta chanson"}</h3>
+              <p class="text-sm text-gray-300">${request.artist || ""}</p>
             </div>
           </div>
 
@@ -513,14 +513,14 @@
             <button 
               data-vote-action="up"
               data-request-id="${id}"
-              class="flex items-center gap-1 px-3 py-1 rounded-lg transition ${myVote === "up" ? "bg-green-500 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-100 dark:hover:bg-green-900/30"}"
+              class="flex items-center gap-1 px-3 py-1 rounded-lg transition ${myVote === "up" ? "bg-green-500 text-white" : "bg-white/10 text-gray-200 hover:bg-green-500/20"}"
             >
               👍 <span class="font-bold">${upvotes}</span>
             </button>
             <button 
               data-vote-action="down"
               data-request-id="${id}"
-              class="flex items-center gap-1 px-3 py-1 rounded-lg transition ${myVote === "down" ? "bg-red-500 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 dark:hover:bg-red-900/30"}"
+              class="flex items-center gap-1 px-3 py-1 rounded-lg transition ${myVote === "down" ? "bg-red-500 text-white" : "bg-white/10 text-gray-200 hover:bg-red-500/20"}"
             >
               👎 <span class="font-bold">${downvotes}</span>
             </button>
@@ -547,7 +547,7 @@
 
         if (fullQueue.length === 0) {
           container.innerHTML =
-            '<p class="text-gray-500 dark:text-gray-400 text-center py-8">Aucune chanson en attente</p>';
+            '<p class="text-gray-400 text-center py-8">Aucune chanson en attente</p>';
           return;
         }
 
@@ -556,23 +556,23 @@
             const netVotes = (song.upvotes || 0) - (song.downvotes || 0);
             const voteColor =
               netVotes > 0
-                ? "text-green-600 dark:text-green-400"
+                ? "text-green-300"
                 : netVotes < 0
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-gray-600 dark:text-gray-400";
+                  ? "text-red-300"
+                  : "text-gray-300";
             const myVote = myVotes.get(song.id);
 
             return `
-          <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 transition">
+          <div class="border border-white/10 bg-white/[0.02] rounded-xl p-4 transition">
             <div class="flex items-start gap-3 mb-3">
-              <div class="flex-shrink-0 w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+              <div class="flex-shrink-0 w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
                 ${index + 1}
               </div>
               ${song.image_url ? `<img src="${song.image_url}" class="w-12 h-12 rounded hidden sm:block">` : ""}
               <div class="flex-1 min-w-0">
-                <h3 class="font-bold text-gray-800 dark:text-white truncate">${song.song_name}</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-300 truncate">${song.artist}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">Par ${song.user_name}</p>
+                <h3 class="font-bold text-white truncate">${song.song_name}</h3>
+                <p class="text-sm text-gray-300 truncate">${song.artist}</p>
+                <p class="text-xs text-gray-400">Par ${song.user_name}</p>
               </div>
             </div>
 
@@ -583,14 +583,14 @@
               <button 
                 data-vote-action="up"
                 data-request-id="${song.id}"
-                class="flex items-center gap-1 px-3 py-2 rounded-lg transition ${myVote === "up" ? "bg-green-500 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-100 dark:hover:bg-green-900/30"}"
+                class="flex items-center gap-1 px-3 py-2 rounded-lg transition ${myVote === "up" ? "bg-green-500 text-white" : "bg-white/10 text-gray-200 hover:bg-green-500/20"}"
               >
                 👍 <span class="font-bold">${song.upvotes || 0}</span>
               </button>
               <button 
                 data-vote-action="down"
                 data-request-id="${song.id}"
-                class="flex items-center gap-1 px-3 py-2 rounded-lg transition ${myVote === "down" ? "bg-red-500 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 dark:hover:bg-red-900/30"}"
+                class="flex items-center gap-1 px-3 py-2 rounded-lg transition ${myVote === "down" ? "bg-red-500 text-white" : "bg-white/10 text-gray-200 hover:bg-red-500/20"}"
               >
                 👎 <span class="font-bold">${song.downvotes || 0}</span>
               </button>
@@ -599,7 +599,7 @@
               </span>
             </div>
             `
-                : '<p class="text-sm text-gray-500 dark:text-gray-400">👍 ' +
+                : '<p class="text-sm text-gray-400">👍 ' +
                   (song.upvotes || 0) +
                   " | 👎 " +
                   (song.downvotes || 0) +

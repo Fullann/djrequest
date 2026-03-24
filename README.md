@@ -81,7 +81,7 @@ GRANT ALL PRIVILEGES ON dj_queue.* TO 'djuser'@'localhost';
 FLUSH PRIVILEGES;
 
 # Importer le schéma
-mysql -u djuser -p dj_queue < database/schema.sql
+mysql -u djuser -p dj_queue < db/db.sql
 ```
 
 ### 4. Configuration Spotify
@@ -236,7 +236,7 @@ POST   /api/spotify/play/:eventId           - Lire musique
 - ✅ Sanitization des inputs
 - ✅ Validation stricte des données
 - ✅ Sessions sécurisées (httpOnly, sameSite)
-- ✅ Protection CSRF
+- ✅ Protection CSRF (double-submit cookie + vérification serveur)
 - ✅ Requêtes SQL préparées
 - ✅ HTTPS obligatoire en production
 

@@ -5,17 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DJ Queue - QR Code</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
+      * {
+        font-family: "Inter", sans-serif;
+      }
+    </style>
   </head>
   <body
-    class="bg-gradient-to-br from-purple-600 to-blue-600 min-h-screen flex items-center justify-center p-4"
+    class="bg-[#0d0d0d] text-white min-h-screen flex items-center justify-center p-4"
   >
     <div class="max-w-2xl w-full">
       <!-- Carte QR Code -->
-      <div class="bg-white rounded-2xl shadow-2xl p-8 text-center">
-        <h1 id="eventName" class="text-3xl font-bold text-gray-800 mb-2">
+      <div class="bg-white/5 border border-white/10 rounded-2xl shadow-2xl p-8 text-center">
+        <h1 id="eventName" class="text-3xl font-extrabold text-white mb-2">
           Soirée
         </h1>
-        <p class="text-gray-600 mb-8">Scanne le QR code pour rejoindre !</p>
+        <p class="text-gray-400 mb-8">Scanne le QR code pour rejoindre !</p>
 
         <!-- QR Code -->
         <div class="flex justify-center mb-8">
@@ -23,23 +29,23 @@
             id="qrCode"
             src=""
             alt="QR Code"
-            class="w-80 h-80 border-4 border-purple-200 rounded-xl"
+            class="w-80 h-80 border-4 border-violet-400/40 rounded-xl bg-white p-2"
           />
         </div>
 
         <!-- URL -->
-        <div class="bg-gray-50 rounded-lg p-4 mb-6">
-          <p class="text-sm text-gray-600 mb-2">Ou partage ce lien :</p>
+        <div class="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+          <p class="text-sm text-gray-400 mb-2">Ou partage ce lien :</p>
           <div class="flex items-center gap-2">
             <input
               id="eventUrl"
               type="text"
               readonly
-              class="flex-1 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+              class="flex-1 px-4 py-2 bg-black/30 border border-white/20 rounded-xl text-sm text-white"
             />
             <button
               id="btnCopyUrl"
-              class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+              class="bg-violet-600 hover:bg-violet-500 text-white font-semibold py-2 px-6 rounded-xl transition"
             >
               📋 Copier
             </button>
@@ -50,19 +56,19 @@
         <div class="flex gap-3 justify-center">
           <button
             id="btnPrint"
-            class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition"
+            class="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-3 px-6 rounded-xl transition"
           >
             🖨️ Imprimer
           </button>
           <button
             id="btnGoToDJ"
-            class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition"
+            class="bg-violet-600 hover:bg-violet-500 text-white font-semibold py-3 px-6 rounded-xl transition"
           >
             🎧 Interface DJ
           </button>
           <button
             id="btnBackToDashboard"
-            class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition"
+            class="border border-white/20 bg-white/5 hover:bg-white/10 text-gray-100 font-semibold py-3 px-6 rounded-xl transition"
           >
             ← Dashboard
           </button>
@@ -70,30 +76,31 @@
       </div>
 
       <!-- Stats en temps réel -->
-      <div class="mt-6 bg-white rounded-xl shadow p-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">
+      <div class="mt-6 bg-white/5 border border-white/10 rounded-2xl shadow p-6">
+        <h2 class="text-xl font-bold text-white mb-4">
           📊 Stats en temps réel
         </h2>
         <div class="grid grid-cols-3 gap-4 text-center">
           <div>
-            <p class="text-3xl font-bold text-purple-600" id="pendingCount">
+            <p class="text-3xl font-extrabold text-violet-400" id="pendingCount">
               0
             </p>
-            <p class="text-sm text-gray-600">En attente</p>
+            <p class="text-sm text-gray-400">En attente</p>
           </div>
           <div>
-            <p class="text-3xl font-bold text-green-600" id="queueCount">0</p>
-            <p class="text-sm text-gray-600">Dans la queue</p>
+            <p class="text-3xl font-extrabold text-green-400" id="queueCount">0</p>
+            <p class="text-sm text-gray-400">Dans la queue</p>
           </div>
           <div>
-            <p class="text-3xl font-bold text-blue-600" id="playedCount">0</p>
-            <p class="text-sm text-gray-600">Jouées</p>
+            <p class="text-3xl font-extrabold text-cyan-400" id="playedCount">0</p>
+            <p class="text-sm text-gray-400">Jouées</p>
           </div>
         </div>
       </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/csrf.js"></script>
     <script>
       const eventId = window.location.pathname.split("/")[2];
       const socket = io();
@@ -183,12 +190,12 @@
         const originalText = btn.innerHTML;
         btn.innerHTML = "✅ Copié !";
         btn.classList.add("bg-green-600");
-        btn.classList.remove("bg-purple-600");
+        btn.classList.remove("bg-violet-600");
 
         setTimeout(() => {
           btn.innerHTML = originalText;
           btn.classList.remove("bg-green-600");
-          btn.classList.add("bg-purple-600");
+          btn.classList.add("bg-violet-600");
         }, 2000);
       }
 
@@ -209,12 +216,17 @@
       @media print {
         body {
           background: white;
+          color: black;
         }
         button {
           display: none;
         }
         .mt-6 {
           display: none;
+        }
+        #eventName,
+        p {
+          color: black !important;
         }
       }
     </style>

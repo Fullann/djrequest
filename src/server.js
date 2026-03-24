@@ -7,6 +7,7 @@ const io = require("socket.io")(http);
 app.set("io", io);
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
+const crypto = require("crypto");
 const path = require("path");
 
 // Config
@@ -34,6 +35,30 @@ const rateLimitService = require("./services/rateLimit.service");
 
 const PORT = process.env.PORT || 3000;
 
+function renderErrorPage(res, status, title, message) {
+  return res.status(status).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Erreur</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+      </head>
+      <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+        <div class="bg-white p-8 rounded-xl shadow-lg max-w-md">
+          <h1 class="text-2xl font-bold text-red-600 mb-4">${title}</h1>
+          <p class="text-gray-700 mb-4">${message}</p>
+          <button
+            onclick="window.location.href='/dashboard'"
+            class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
+          >
+            Retour au dashboard
+          </button>
+        </div>
+      </body>
+      </html>
+    `);
+}
+
 // === Middlewares de sécurité ===
 app.use(helmetConfig);
 app.use(express.json({ limit: "10kb" }));
@@ -48,6 +73,62 @@ if (process.env.NODE_ENV === "production") {
 
 // === Session ===
 app.use(session(sessionConfig));
+
+// === CSRF (Double Submit Cookie + Session token) ===
+const SAFE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function generateCsrfToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function isValidCsrfTokenFormat(token) {
+  return typeof token === "string" && /^[a-f0-9]{64}$/i.test(token);
+}
+
+app.use((req, res, next) => {
+  const providedToken =
+    req.get("x-csrf-token") || req.body?._csrf || req.query?._csrf;
+
+  // Transition support: if a mutative request arrives from an old session
+  // with a legacy cookie/header token, adopt it once for compatibility.
+  if (
+    !req.session.csrfToken &&
+    !SAFE_HTTP_METHODS.has(req.method) &&
+    isValidCsrfTokenFormat(providedToken)
+  ) {
+    req.session.csrfToken = providedToken;
+  }
+
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = generateCsrfToken();
+  }
+
+  res.cookie("XSRF-TOKEN", req.session.csrfToken, {
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    httpOnly: false,
+  });
+
+  if (SAFE_HTTP_METHODS.has(req.method)) {
+    return next();
+  }
+
+  if (!providedToken) {
+    return res.status(403).json({ error: "Token CSRF manquant" });
+  }
+
+  const expectedBuffer = Buffer.from(req.session.csrfToken, "utf8");
+  const providedBuffer = Buffer.from(providedToken, "utf8");
+  const isValid =
+    expectedBuffer.length === providedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+
+  if (!isValid) {
+    return res.status(403).json({ error: "Token CSRF invalide" });
+  }
+
+  return next();
+});
 
 // === Static files (pas de rate limit) ===
 app.use(express.static(path.join(__dirname, "/public")));
@@ -110,27 +191,7 @@ app.get("/dj/:eventId", async (req, res) => {
   const uuidRegex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!eventId || !uuidRegex.test(eventId)) {
-    return res.status(400).send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Erreur</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
-      <body class="bg-gray-100 min-h-screen flex items-center justify-center">
-        <div class="bg-white p-8 rounded-xl shadow-lg max-w-md">
-          <h1 class="text-2xl font-bold text-red-600 mb-4">Erreur</h1>
-          <p class="text-gray-700 mb-4">ID d'événement invalide</p>
-          <button 
-            onclick="window.location.href='/dashboard'"
-            class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
-          >
-            Retour au dashboard
-          </button>
-        </div>
-      </body>
-      </html>
-    `);
+    return renderErrorPage(res, 400, "Erreur", "ID d'événement invalide");
   }
 
   try {
@@ -140,27 +201,7 @@ app.get("/dj/:eventId", async (req, res) => {
     ]);
 
     if (rows.length === 0) {
-      return res.status(404).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Erreur</title>
-          <script src="https://cdn.tailwindcss.com"></script>
-        </head>
-        <body class="bg-gray-100 min-h-screen flex items-center justify-center">
-          <div class="bg-white p-8 rounded-xl shadow-lg max-w-md">
-            <h1 class="text-2xl font-bold text-red-600 mb-4">Erreur</h1>
-            <p class="text-gray-700 mb-4">Événement non trouvé</p>
-            <button 
-              onclick="window.location.href='/dashboard'"
-              class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
-            >
-              Retour au dashboard
-            </button>
-          </div>
-        </body>
-        </html>
-      `);
+      return renderErrorPage(res, 404, "Erreur", "Événement non trouvé");
     }
 
     // Si connecté, vérifier que c'est bien son événement
@@ -169,27 +210,12 @@ app.get("/dj/:eventId", async (req, res) => {
       rows[0].dj_id &&
       rows[0].dj_id !== req.session.djId
     ) {
-      return res.status(403).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Erreur</title>
-          <script src="https://cdn.tailwindcss.com"></script>
-        </head>
-        <body class="bg-gray-100 min-h-screen flex items-center justify-center">
-          <div class="bg-white p-8 rounded-xl shadow-lg max-w-md">
-            <h1 class="text-2xl font-bold text-red-600 mb-4">Accès refusé</h1>
-            <p class="text-gray-700 mb-4">Ce n'est pas votre événement</p>
-            <button 
-              onclick="window.location.href='/dashboard'"
-              class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
-            >
-              Retour au dashboard
-            </button>
-          </div>
-        </body>
-        </html>
-      `);
+      return renderErrorPage(
+        res,
+        403,
+        "Accès refusé",
+        "Ce n'est pas votre événement",
+      );
     }
 
     res.sendFile(path.join(__dirname, "/views/dj.html"));
