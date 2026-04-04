@@ -1,136 +1,97 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Merci ! - DJ Queue</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body
-    class="bg-gradient-to-br from-purple-600 to-pink-500 min-h-screen flex items-center justify-center p-4"
-  >
-    <div class="max-w-2xl w-full">
-      <div
-        class="bg-white rounded-3xl shadow-2xl p-8 text-center transform animate-fade-in"
-      >
-        <!-- Animation confettis -->
-        <div class="text-8xl mb-6 animate-bounce">🎉</div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soirée terminée — DJ Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4" style="background:var(--bg-base)">
 
-        <h1 class="text-4xl font-bold text-gray-800 mb-4">
-          La soirée est terminée !
-        </h1>
+  <div class="w-full max-w-lg fade-in">
+    <div class="card p-8 text-center">
+      <!-- Icon -->
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6" style="background:var(--accent-dim);border:1px solid rgba(124,92,252,0.2)">
+        <svg class="w-8 h-8" style="color:var(--accent)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18V5l12-2v13"/>
+          <circle cx="6" cy="18" r="3"/>
+          <circle cx="18" cy="16" r="3"/>
+        </svg>
+      </div>
 
-        <p class="text-xl text-gray-600 mb-8" id="eventName">Chargement...</p>
+      <h1 class="text-2xl font-bold mb-2" style="color:var(--text-primary)">La soirée est terminée</h1>
+      <p id="eventName" class="text-sm mb-6" style="color:var(--text-secondary)">Chargement...</p>
 
-        <div class="bg-purple-50 rounded-xl p-6 mb-8">
-          <p class="text-lg text-gray-700 leading-relaxed" id="thankYouMessage">
-            Merci d'avoir participé ! 🎵<br />
-            On espère que vous avez passé un excellent moment.<br />
-            À très bientôt pour une nouvelle soirée ! 🚀
-          </p>
+      <!-- Thank you message -->
+      <div class="rounded-xl p-5 mb-6 text-left" style="background:var(--bg-elevated);border:1px solid var(--border)">
+        <p class="text-sm leading-relaxed" style="color:var(--text-secondary)" id="thankYouMessage">
+          Merci d'avoir participé ! On espère que vous avez passé un excellent moment.
+        </p>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-3 mb-8">
+        <div class="rounded-xl p-4" style="background:var(--green-dim);border:1px solid rgba(34,197,94,0.15)">
+          <p class="text-2xl font-bold" id="totalPlayed" style="color:var(--green)">—</p>
+          <p class="text-xs mt-1" style="color:var(--text-muted)">Jouées</p>
         </div>
-
-        <!-- Stats de la soirée -->
-        <div class="grid grid-cols-3 gap-4 mb-8">
-          <div
-            class="bg-gradient-to-br from-green-400 to-green-600 rounded-xl p-4 text-white"
-          >
-            <div class="text-3xl font-bold" id="totalPlayed">-</div>
-            <div class="text-sm">Chansons jouées</div>
-          </div>
-
-          <div
-            class="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-4 text-white"
-          >
-            <div class="text-3xl font-bold" id="totalRequests">-</div>
-            <div class="text-sm">Demandes</div>
-          </div>
-
-          <div
-            class="bg-gradient-to-br from-pink-400 to-pink-600 rounded-xl p-4 text-white"
-          >
-            <div class="text-3xl font-bold" id="duration">-</div>
-            <div class="text-sm">Durée</div>
-          </div>
+        <div class="rounded-xl p-4" style="background:var(--accent-dim);border:1px solid rgba(124,92,252,0.15)">
+          <p class="text-2xl font-bold" id="totalRequests" style="color:var(--accent)">—</p>
+          <p class="text-xs mt-1" style="color:var(--text-muted)">Demandes</p>
         </div>
-
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-          <a
-            href="/"
-            class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition transform hover:scale-105"
-          >
-            ← Retour à l'accueil
-          </a>
+        <div class="rounded-xl p-4" style="background:var(--cyan-dim);border:1px solid rgba(6,182,212,0.15)">
+          <p class="text-2xl font-bold" id="duration" style="color:var(--cyan)">—</p>
+          <p class="text-xs mt-1" style="color:var(--text-muted)">Durée</p>
         </div>
       </div>
+
+      <a href="/" class="btn btn-ghost btn-full">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Retour à l'accueil
+      </a>
     </div>
+  </div>
 
-    <style>
-      @keyframes fade-in {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
+  <button data-theme-toggle class="fixed bottom-4 right-4 btn btn-ghost btn-icon" title="Passer en mode clair" style="background:var(--bg-surface);border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.15)">
+    <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    <svg class="w-4 h-4 icon-moon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+
+  <script src="/js/time-utils.js"></script>
+  <script>
+    const eventId = window.location.pathname.split("/")[2];
+    let eventData = null;
+
+    function updateEventDurationDisplay() {
+      if (!eventData?.created_at) return;
+      const startedAt = new Date(eventData.created_at);
+      const endedAt   = eventData.ended_at ? new Date(eventData.ended_at) : new Date();
+      const durationMinutes = Math.floor((endedAt - startedAt) / (1000 * 60));
+      document.getElementById("duration").textContent = window.TimeUtils.formatMinutes(durationMinutes);
+    }
+
+    fetch(`/api/events/${eventId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        eventData = data;
+        document.getElementById("eventName").textContent = data.name;
+        if (data.thank_you_message) {
+          document.getElementById("thankYouMessage").innerHTML = data.thank_you_message.replace(/\n/g, "<br>");
         }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .animate-fade-in {
-        animation: fade-in 0.6s ease-out;
-      }
-    </style>
+        updateEventDurationDisplay();
+      })
+      .catch(console.error);
 
-    <script src="/js/time-utils.js"></script>
-    <script>
-      const eventId = window.location.pathname.split("/")[2];
-      let eventData = null;
-
-      function updateEventDurationDisplay() {
-        if (!eventData?.created_at) return;
-
-        const startedAt = new Date(eventData.created_at);
-        const endedAt = eventData.ended_at
-          ? new Date(eventData.ended_at)
-          : new Date();
-
-        const durationMinutes = Math.floor((endedAt - startedAt) / (1000 * 60));
-        document.getElementById("duration").textContent =
-          window.TimeUtils.formatMinutes(durationMinutes);
-      }
-
-      // Charger les infos de l'événement terminé
-      fetch(`/api/events/${eventId}`)
-        .then((r) => r.json())
-        .then((data) => {
-          eventData = data;
-          document.getElementById("eventName").textContent = data.name;
-
-          // Message personnalisé du DJ (si disponible)
-          if (data.thank_you_message) {
-            document.getElementById("thankYouMessage").innerHTML =
-              data.thank_you_message.replace(/\n/g, "<br>");
-          }
-
-          updateEventDurationDisplay();
-        })
-        .catch((err) => {
-          console.error("Erreur chargement event:", err);
-        });
-
-      // Charger les stats
-      fetch(`/api/events/${eventId}/stats`)
-        .then((r) => r.json())
-        .then((data) => {
-          document.getElementById("totalPlayed").textContent =
-            data.stats.played_count || 0;
-          document.getElementById("totalRequests").textContent =
-            data.stats.total_requests || 0;
-          updateEventDurationDisplay();
-        })
-        .catch((err) => {
-          console.error("Erreur chargement stats:", err);
-        });
-    </script>
-  </body>
+    fetch(`/api/events/${eventId}/stats`)
+      .then((r) => r.json())
+      .then((data) => {
+        document.getElementById("totalPlayed").textContent   = data.stats.played_count   || 0;
+        document.getElementById("totalRequests").textContent = data.stats.total_requests || 0;
+        updateEventDurationDisplay();
+      })
+      .catch(console.error);
+  </script>
+</body>
 </html>

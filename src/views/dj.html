@@ -1,1776 +1,1307 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DJ Queue - Interface DJ</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    <script src="https://sdk.scdn.co/spotify-player.js"></script>
-    <script src="/js/time-utils.js"></script>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
-      * { font-family: "Inter", sans-serif; }
-    </style>
-    <script src="/js/csrf.js"></script>
-    <script>
-      tailwind.config = { darkMode: "class" };
-      if (localStorage.getItem("darkMode") === "true") {
-        document.documentElement.classList.add("dark");
-      }
-    </script>
-  </head>
-  <body
-    class="bg-[#0d0d0d] text-white min-h-screen transition-colors duration-300"
-  >
-    <!-- Header -->
-    <div
-      class="border-b border-white/10 bg-[#0d0d0d]/90 backdrop-blur text-white p-4 sm:p-6 shadow-lg transition-colors duration-300"
-    >
-      <div
-        class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
-      >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interface DJ — DJ Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <script src="/js/time-utils.js"></script>
+  <script src="/js/csrf.js"></script>
+</head>
+<body style="background:var(--bg-base);color:var(--text-primary)">
+
+<!-- ─── Top header ──────────────────────────────────────────── -->
+<header class="sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 py-3.5" style="background:var(--bg-surface);border-bottom:1px solid var(--border)">
+  <div class="flex items-center gap-2.5 flex-1 min-w-0">
+    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:var(--accent)">
+      <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+        <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
+        <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+      </svg>
+    </div>
+    <div class="min-w-0">
+      <p id="eventName" class="text-sm font-semibold truncate" style="color:var(--text-primary)">Chargement...</p>
+      <p class="text-xs" style="color:var(--text-muted)">Interface DJ</p>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+    <button id="showQRCode" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="QR Code">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
+      <span class="hidden sm:inline">QR Code</span>
+    </button>
+    <button id="openPublicDisplay" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="Ecran public" style="color:var(--cyan)">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span class="hidden sm:inline">Ecran</span>
+    </button>
+    <button id="addSongBtn" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="Ajouter une chanson">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="hidden sm:inline">Ajouter</span>
+    </button>
+    <a id="liveStatsBtn" href="#" target="_blank" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="Stats live" style="color:var(--green)">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="hidden sm:inline">Stats</span>
+    </a>
+    <button id="showSettings" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="Paramètres">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="hidden sm:inline">Réglages</span>
+    </button>
+    <button data-theme-toggle class="btn btn-ghost btn-icon btn-sm" title="Passer en mode clair">
+      <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="w-4 h-4 icon-moon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <button id="endEvent" class="btn btn-danger btn-sm">Terminer</button>
+    <!-- Indicateur Spotify (lecture seule, connexion automatique) -->
+    <span id="spotifyStatus" class="hidden btn btn-sm" style="pointer-events:none;background:var(--green-dim);color:var(--green);border:1px solid rgba(34,197,94,0.2)">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      <span class="hidden sm:inline">Connecté</span>
+    </span>
+  </div>
+</header>
+
+<!-- ─── Spotify Player (hidden until connected) ──────────── -->
+<div id="spotifyPlayer" class="hidden px-4 sm:px-6 py-4" style="background:var(--bg-surface);border-bottom:1px solid var(--border)">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex items-center gap-4">
+      <!-- Album art -->
+      <img id="currentTrackImage" src="" alt="" class="w-14 h-14 rounded-lg object-cover hidden shrink-0" />
+      <div id="currentTrackPlaceholder" class="w-14 h-14 rounded-lg shrink-0 flex items-center justify-center" style="background:var(--bg-elevated);border:1px solid var(--border)">
+        <svg class="w-6 h-6" style="color:var(--text-muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+
+      <!-- Track info + progress -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-baseline gap-2 mb-1">
+          <p id="currentTrackName" class="text-sm font-semibold truncate" style="color:var(--text-primary)">Aucune lecture</p>
+          <p id="currentTrackArtist" class="text-xs truncate shrink-0" style="color:var(--text-secondary)">—</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="currentTime" class="text-xs font-mono shrink-0" style="color:var(--text-muted)">0:00</span>
+          <div id="progressBar" class="progress-bar flex-1 cursor-pointer relative group">
+            <div id="progressFill" class="progress-fill" style="width:0%"></div>
+            <div id="progressHover" class="absolute top-0 h-full hidden group-hover:block pointer-events-none" style="background:rgba(124,92,252,0.3);width:0%;left:0"></div>
+          </div>
+          <span id="totalTime" class="text-xs font-mono shrink-0" style="color:var(--text-muted)">0:00</span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btnPrevious" class="btn btn-ghost btn-icon btn-sm" title="Précédent">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button id="playPauseBtn" class="btn btn-primary btn-icon w-10 h-10" title="Play/Pause">
+          <svg id="playIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg id="pauseIcon" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+        <button id="btnNext" class="btn btn-ghost btn-icon btn-sm" title="Suivant">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+      </div>
+
+      <!-- Spotify badge -->
+      <span class="hidden sm:inline-flex badge badge-accent shrink-0">Spotify</span>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Main content ─────────────────────────────────────────── -->
+<div class="max-w-7xl mx-auto p-4 sm:p-6">
+  <div id="autoAcceptBanner" class="hidden mb-4 px-4 py-3 rounded-lg text-sm font-medium" style="background:var(--green-dim);border:1px solid rgba(34,197,94,0.2);color:var(--green)">
+    Mode automatique activé — toutes les demandes sont acceptées automatiquement
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+    <!-- Demandes en attente -->
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" style="color:var(--amber)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Demandes en attente</h2>
+          <span id="pendingCount" class="badge badge-neutral text-xs">(0)</span>
+        </div>
+        <button id="sortByBPM" class="btn btn-ghost btn-sm" title="Trier par BPM ou popularité">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          Trier
+        </button>
+      </div>
+      <div id="pendingRequests" class="divide-y" style="border-color:var(--border)">
+        <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune demande</div>
+      </div>
+    </div>
+
+    <!-- Queue de lecture -->
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" style="color:var(--accent)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Queue de lecture</h2>
+          <span id="queueCount" class="badge badge-neutral text-xs">(0)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="autoPlayToggle" class="hidden items-center gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="autoPlay" class="sr-only" checked />
+              <span class="toggle-track"></span>
+              <span class="text-xs" style="color:var(--text-secondary)">Auto</span>
+            </label>
+          </div>
+          <button id="sortByVotes" class="btn btn-ghost btn-sm">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Votes
+          </button>
+        </div>
+      </div>
+      <p class="px-5 py-2 text-xs" style="color:var(--text-muted);border-bottom:1px solid var(--border)">Glisser-déposer pour réorganiser</p>
+      <div id="queue" class="divide-y" style="border-color:var(--border)">
+        <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Queue vide</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── Modal: Réglages ─────────────────────────────────────── -->
+<div id="settingsPanel" class="hidden modal-backdrop">
+  <div class="modal max-w-xl">
+    <div class="flex items-center justify-between px-6 py-5" style="border-bottom:1px solid var(--border)">
+      <h2 class="text-base font-semibold" style="color:var(--text-primary)">Paramètres de la soirée</h2>
+      <button id="closeSettings" class="btn btn-ghost btn-icon btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+
+      <!-- Votes toggle -->
+      <div class="flex items-start justify-between gap-4 p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
         <div>
-          <h1 class="text-2xl sm:text-3xl font-bold">🎧 Interface DJ</h1>
-          <p id="eventName" class="text-gray-400 mt-1 text-sm sm:text-base">
-            Chargement...
-          </p>
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Système de votes</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Permet aux invités de voter pour leurs chansons préférées</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button
-            id="darkModeToggle"
-            class="border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold py-2 px-4 rounded-xl transition"
-          >
-            <span id="darkModeIcon">🌙</span>
-          </button>
-          <button
-            id="showQRCode"
-            class="border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold py-2 px-4 rounded-xl transition"
-          >
-            📱 QR Code
-          </button>
-          <button
-            id="openPublicDisplay"
-            class="border border-cyan-400/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-200 font-semibold py-2 px-4 rounded-xl transition"
-          >
-            🖥️ Ecran public
-          </button>
-          <button
-            id="addSongBtn"
-            class="border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold py-2 px-4 rounded-xl transition"
-          >
-            ➕ Ajouter
-          </button>
-          <button
-            id="showSettings"
-            class="border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold py-2 px-4 rounded-xl transition"
-          >
-            ⚙️ Réglages
-          </button>
-          <button
-            id="endEvent"
-            class="border border-red-400/50 bg-red-500/20 hover:bg-red-500/30 text-red-200 font-semibold py-2 px-4 rounded-xl transition"
-          >
-            🏁 Terminer
-          </button>
-          <button
-            id="connectSpotify"
-            class="bg-violet-600 hover:bg-violet-500 text-white font-semibold py-2 px-4 sm:px-6 rounded-xl transition text-sm sm:text-base"
-          >
-            🎵 Connecter Spotify
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Panneau de réglages -->
-    <div
-      id="settingsPanel"
-      class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-    >
-      <div
-        class="bg-[#151515] border border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transition-colors duration-300"
-      >
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-white">
-              ⚙️ Paramètres de la soirée
-            </h2>
-            <button
-              id="closeSettings"
-              class="text-gray-400 hover:text-white text-2xl"
-            >
-              ×
-            </button>
-          </div>
-
-          <!-- Toggle votes -->
-          <div class="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl">
-            <h3 class="font-bold text-white mb-3">
-              👍 Système de votes
-            </h3>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <div class="relative">
-                <input
-                  type="checkbox"
-                  id="votesToggle"
-                  class="sr-only"
-                  checked
-                />
-                <div
-                  class="w-14 h-8 bg-white/20 rounded-full transition"
-                ></div>
-                <div
-                  class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"
-                ></div>
-              </div>
-              <span class="text-gray-200 font-medium">
-                Activer les votes des utilisateurs
-              </span>
-            </label>
-            <p class="text-sm text-gray-400 mt-2">
-              Permet aux invités de voter pour leurs chansons préférées
-            </p>
-          </div>
-
-          <!-- Toggle doublons -->
-          <div class="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl">
-            <h3 class="font-bold text-white mb-3">
-              🚫 Doublons
-            </h3>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <div class="relative">
-                <input type="checkbox" id="duplicatesToggle" class="sr-only" />
-                <div
-                  class="w-14 h-8 bg-white/20 rounded-full transition"
-                ></div>
-                <div
-                  class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"
-                ></div>
-              </div>
-              <span class="text-gray-200 font-medium">
-                Autoriser les doublons
-              </span>
-            </label>
-            <p class="text-sm text-gray-400 mt-2">
-              Permet d'ajouter la même chanson plusieurs fois
-            </p>
-          </div>
-
-          <!-- Mode automatique -->
-          <div class="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl">
-            <h3 class="font-bold text-white mb-3">
-              🤖 Mode automatique
-            </h3>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <div class="relative">
-                <input type="checkbox" id="autoAcceptToggle" class="sr-only" />
-                <div
-                  class="w-14 h-8 bg-white/20 rounded-full transition"
-                ></div>
-                <div
-                  class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"
-                ></div>
-              </div>
-              <span class="text-gray-200 font-medium">
-                Accepter automatiquement toutes les demandes
-              </span>
-            </label>
-            <p class="text-sm text-gray-400 mt-2">
-              ⚠️ Toutes les demandes seront ajoutées à la queue sans validation
-            </p>
-          </div>
-
-          <!-- Rate limiting -->
-          <div class="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl">
-            <h3 class="font-bold text-white mb-3">
-              ⏱️ Rate Limiting
-            </h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label
-                  class="block text-sm font-medium text-gray-300 mb-2"
-                >
-                  Max demandes
-                </label>
-                <input
-                  type="number"
-                  id="rateLimitMax"
-                  min="1"
-                  max="20"
-                  value="3"
-                  class="w-full px-4 py-2 border border-white/20 bg-black/30 text-white rounded-xl focus:ring-2 focus:ring-violet-500 outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  class="block text-sm font-medium text-gray-300 mb-2"
-                >
-                  Fenêtre (minutes)
-                </label>
-                <input
-                  type="number"
-                  id="rateLimitWindow"
-                  min="5"
-                  max="60"
-                  value="15"
-                  class="w-full px-4 py-2 border border-white/20 bg-black/30 text-white rounded-xl focus:ring-2 focus:ring-violet-500 outline-none"
-                />
-              </div>
-            </div>
-            <button
-              id="btnUpdateRateLimit"
-              class="mt-4 w-full bg-violet-600 hover:bg-violet-500 text-white font-semibold py-2 px-4 rounded-xl transition"
-            >
-              Mettre à jour le rate limiting
-            </button>
-            <p class="text-sm text-gray-400 mt-2">
-              Limite le nombre de demandes par personne
-            </p>
-          </div>
-          <!-- Message de remerciement -->
-          <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <h3 class="font-bold text-white flex items-center gap-2">
-                  💌 Message de fin de soirée
-                </h3>
-                <p class="text-sm text-gray-400">
-                  Personnalise le message affiché aux invités
-                </p>
-              </div>
-            </div>
-
-            <textarea
-              id="thankYouMessage"
-              rows="4"
-              class="w-full px-4 py-3 border border-white/20 bg-black/30 text-white rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none resize-none"
-              placeholder="Merci d'avoir participé ! 🎵&#10;On espère que vous avez passé un excellent moment.&#10;À très bientôt pour une nouvelle soirée ! 🚀"
-            ></textarea>
-
-            <div class="flex justify-end gap-2 mt-3">
-              <button
-                id="btnResetMessage"
-                class="px-4 py-2 border border-white/20 bg-white/5 hover:bg-white/10 text-gray-200 rounded-xl transition"
-              >
-                Réinitialiser
-              </button>
-              <button
-                id="btnSaveMessage"
-                class="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl transition"
-              >
-                Enregistrer
-              </button>
-            </div>
-          </div>
-
-          <button
-            id="closeSettingsBottom"
-            class="w-full border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-xl transition"
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    </div>
-    <!-- Panneau QR Code -->
-    <div
-      id="qrCodePanel"
-      class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-    >
-      <div
-        class="bg-[#151515] border border-white/10 rounded-2xl shadow-2xl max-w-md w-full transition-colors duration-300"
-      >
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-white">
-              📱 Partager la soirée
-            </h2>
-            <button
-              id="closeQRCode"
-              class="text-gray-400 hover:text-white text-2xl"
-            >
-              ×
-            </button>
-          </div>
-
-          <!-- QR Code -->
-          <div class="flex justify-center mb-6">
-            <div class="bg-white/5 border border-white/10 p-4 rounded-xl">
-              <img id="qrCodeImage" src="" alt="QR Code" class="w-64 h-64" />
-            </div>
-          </div>
-
-          <!-- Lien -->
-          <div class="mb-6">
-            <label
-              class="block text-sm font-medium text-gray-300 mb-2"
-            >
-              Lien pour les invités
-            </label>
-            <div class="flex gap-2">
-              <input
-                type="text"
-                id="userLinkInput"
-                readonly
-                class="flex-1 px-4 py-2 border border-white/20 bg-black/30 text-white rounded-xl text-sm"
-              />
-              <button
-                id="copyLinkBtn"
-                class="bg-violet-600 hover:bg-violet-500 text-white font-semibold py-2 px-4 rounded-xl transition"
-              >
-                📋 Copier
-              </button>
-            </div>
-          </div>
-
-          <div class="mb-6">
-            <label
-              class="block text-sm font-medium text-gray-300 mb-2"
-            >
-              Lien écran public (grand écran)
-            </label>
-            <div class="flex gap-2">
-              <input
-                type="text"
-                id="publicDisplayLinkInput"
-                readonly
-                class="flex-1 px-4 py-2 border border-white/20 bg-black/30 text-white rounded-xl text-sm"
-              />
-              <button
-                id="openPublicDisplayFromQR"
-                class="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 px-4 rounded-xl transition"
-              >
-                Ouvrir
-              </button>
-            </div>
-          </div>
-
-          <!-- Instructions -->
-          <div
-            class="bg-cyan-500/10 border border-cyan-400/30 rounded-xl p-4 mb-4"
-          >
-            <p class="text-sm text-cyan-200">
-              💡 <strong>Comment partager :</strong><br />
-              1. Scannez le QR code avec un smartphone<br />
-              2. Ou copiez le lien et envoyez-le à vos invités
-            </p>
-          </div>
-
-          <button
-            id="closeQRCodeBottom"
-            class="w-full border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-xl transition"
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Panneau Ajouter une chanson -->
-    <div
-      id="addSongPanel"
-      class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-    >
-      <div
-        class="bg-[#151515] border border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transition-colors duration-300"
-      >
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-white">
-              ➕ Ajouter une chanson (DJ)
-            </h2>
-            <button
-              id="closeAddSong"
-              class="text-gray-400 hover:text-white text-2xl"
-            >
-              ×
-            </button>
-          </div>
-
-          <!-- Barre de recherche -->
-          <div class="mb-4">
-            <label
-              class="block text-sm font-medium text-gray-300 mb-2"
-            >
-              🔍 Rechercher sur Spotify
-            </label>
-            <input
-              type="text"
-              id="djSearchInput"
-              placeholder="Titre, artiste..."
-              class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-            />
-          </div>
-
-          <!-- Résultats de recherche -->
-          <div
-            id="djSearchResults"
-            class="space-y-2 max-h-96 overflow-y-auto"
-          ></div>
-
-          <button
-            id="closeAddSongBottom"
-            class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 rounded-lg transition"
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Player Spotify -->
-    <!-- Player Spotify -->
-    <div
-      id="spotifyPlayer"
-      class="hidden bg-white/5 border border-white/10 rounded-2xl shadow-lg p-4 transition-colors duration-300"
-    >
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-white font-bold text-lg">🎵 Lecture en cours</h3>
-        <span class="text-xs text-violet-300 border border-violet-400/30 bg-violet-500/10 px-2 py-1 rounded-full">Spotify</span>
+        <label class="flex items-center gap-0 cursor-pointer shrink-0">
+          <input type="checkbox" id="votesToggle" class="sr-only" checked />
+          <span class="toggle-track"></span>
+        </label>
       </div>
 
-      <div class="flex items-center gap-4 mb-4 bg-white/[0.03] border border-white/10 rounded-xl p-3">
-        <img
-          id="currentTrackImage"
-          src=""
-          alt=""
-          class="w-16 h-16 rounded-xl shadow-lg hidden"
+      <!-- Duplicates toggle -->
+      <div class="flex items-start justify-between gap-4 p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div>
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Autoriser les doublons</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Permet d'ajouter la même chanson plusieurs fois</p>
+        </div>
+        <label class="flex items-center gap-0 cursor-pointer shrink-0">
+          <input type="checkbox" id="duplicatesToggle" class="sr-only" />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <!-- Auto accept toggle -->
+      <div class="flex items-start justify-between gap-4 p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div>
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Mode automatique</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Accepter automatiquement toutes les demandes sans validation</p>
+        </div>
+        <label class="flex items-center gap-0 cursor-pointer shrink-0">
+          <input type="checkbox" id="autoAcceptToggle" class="sr-only" />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <!-- Rate limiting -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p class="text-sm font-medium mb-3" style="color:var(--text-primary)">Limitation des demandes</p>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="label">Max demandes</label>
+            <input type="number" id="rateLimitMax" min="1" max="20" value="3" class="input" />
+          </div>
+          <div>
+            <label class="label">Fenêtre (minutes)</label>
+            <input type="number" id="rateLimitWindow" min="5" max="60" value="15" class="input" />
+          </div>
+        </div>
+        <button id="btnUpdateRateLimit" class="btn btn-primary btn-sm btn-full">Mettre à jour</button>
+      </div>
+
+      <!-- Thank you message -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Message de fin de soirée</p>
+        <p class="text-xs mb-3" style="color:var(--text-muted)">Affiché aux invités quand la soirée se termine</p>
+        <textarea id="thankYouMessage" rows="3" class="input resize-none mb-3" placeholder="Merci d'avoir participé !&#10;On espère que vous avez passé un excellent moment."></textarea>
+        <div class="flex justify-end gap-2">
+          <button id="btnResetMessage" class="btn btn-ghost btn-sm">Réinitialiser</button>
+          <button id="btnSaveMessage" class="btn btn-primary btn-sm">Enregistrer</button>
+        </div>
+      </div>
+
+      <!-- Playlist de secours -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="flex items-center justify-between mb-1">
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Playlist de secours</p>
+          <span id="fallbackPlaylistBadge" class="text-xs font-semibold px-2 py-0.5 rounded-full hidden"
+                style="background:var(--green-dim);color:var(--green)">Active</span>
+        </div>
+        <p class="text-xs mb-3" style="color:var(--text-muted)">
+          Joue une chanson aléatoire de cette playlist quand la queue est vide (auto-play activé requis).
+          Accepte une URL ou URI Spotify.
+        </p>
+        <input
+          type="text"
+          id="fallbackPlaylistInput"
+          class="input mb-2"
+          placeholder="https://open.spotify.com/playlist/... ou spotify:playlist:..."
+          autocomplete="off"
         />
-        <div class="flex-1 min-w-0">
-          <h4
-            id="currentTrackName"
-            class="text-white font-semibold text-base truncate"
-          >
-            Aucune lecture
-          </h4>
-          <p id="currentTrackArtist" class="text-gray-300 text-sm truncate">
-            -
-          </p>
+        <div class="flex gap-2">
+          <button id="btnSaveFallbackPlaylist" class="btn btn-primary btn-sm flex-1">Enregistrer</button>
+          <button id="btnClearFallbackPlaylist" class="btn btn-ghost btn-sm" title="Retirer la playlist">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       </div>
 
-      <!-- Barre de progression -->
-      <div class="mb-3">
-        <div class="flex justify-between text-xs text-gray-300 mb-1">
-          <span id="currentTime">0:00</span>
-          <span id="totalTime">0:00</span>
+      <!-- Crossfade -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="flex items-center justify-between mb-1">
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Transition douce (Crossfade)</p>
+          <span id="crossfadeValue" class="text-sm font-bold" style="color:var(--accent)">0 s</span>
         </div>
-        <div
-          id="progressBar"
-          class="w-full h-2 bg-white/10 rounded-full cursor-pointer relative overflow-hidden group"
-        >
-          <div
-            id="progressFill"
-            class="h-full bg-violet-400 rounded-full transition-all duration-300"
-            style="width: 0%"
-          ></div>
-          <!-- Hover indicator -->
-          <div
-            id="progressHover"
-            class="absolute top-0 h-full bg-violet-300 opacity-30 hidden group-hover:block pointer-events-none"
-            style="width: 0%; left: 0%"
-          ></div>
+        <p class="text-xs mb-3" style="color:var(--text-muted)">Fondu enchaîné entre les morceaux au moment de jouer le suivant. 0 = désactivé.</p>
+        <input type="range" id="crossfadeSlider" min="0" max="12" step="1" value="0"
+               class="w-full" style="accent-color:var(--accent)" />
+        <div class="flex justify-between text-xs mt-1" style="color:var(--text-muted)">
+          <span>Désactivé</span><span>6 s</span><span>12 s</span>
         </div>
       </div>
 
-      <!-- Contrôles -->
-      <div class="flex justify-center gap-3">
-        <button
-          id="btnPrevious"
-          class="border border-white/20 bg-white/5 text-white hover:bg-white/10 font-semibold py-2 px-4 rounded-xl transition"
-        >
-          ⏮️
-        </button>
-        <button
-          id="playPauseBtn"
-          class="bg-violet-600 text-white hover:bg-violet-500 font-semibold py-3 px-6 rounded-xl transition text-lg"
-        >
-          ▶️
-        </button>
-        <button
-          id="btnNext"
-          class="border border-white/20 bg-white/5 text-white hover:bg-white/10 font-semibold py-2 px-4 rounded-xl transition"
-        >
-          ⏭️
-        </button>
-      </div>
+      <button id="closeSettingsBottom" class="btn btn-ghost btn-full">Fermer</button>
     </div>
+  </div>
+</div>
 
-    <div class="max-w-7xl mx-auto p-4 sm:p-6">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <!-- Demandes en attente -->
-        <div
-          class="bg-white/5 border border-white/10 rounded-2xl shadow-lg p-4 sm:p-6 transition-colors duration-300"
-        >
-          <h2
-            class="text-xl sm:text-2xl font-bold text-white mb-4"
-          >
-            📬 Demandes en attente
-            <span
-              id="pendingCount"
-              class="text-sm font-normal text-gray-400"
-              >(0)</span
-            >
-          </h2>
-          <div
-            id="autoAcceptBanner"
-            class="hidden mb-4 p-3 bg-green-500/10 border border-green-400/30 rounded-xl"
-          >
-            <p class="text-sm font-semibold text-green-200">
-              🤖 Mode automatique activé - Toutes les demandes sont acceptées
-              automatiquement
-            </p>
-          </div>
-          <div id="pendingRequests" class="space-y-3">
-            <p class="text-gray-400 text-center py-8">
-              Aucune demande
-            </p>
-          </div>
+<!-- ─── Modal: QR Code ─────────────────────────────────────── -->
+<div id="qrCodePanel" class="hidden modal-backdrop">
+  <div class="modal max-w-sm">
+    <div class="flex items-center justify-between px-6 py-5" style="border-bottom:1px solid var(--border)">
+      <h2 class="text-base font-semibold" style="color:var(--text-primary)">Partager la soirée</h2>
+      <button id="closeQRCode" class="btn btn-ghost btn-icon btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-6">
+      <div class="flex justify-center mb-5">
+        <div class="p-3 rounded-xl" style="background:#fff">
+          <img id="qrCodeImage" src="" alt="QR Code" class="w-52 h-52" />
         </div>
-
-        <!-- Queue de lecture -->
-        <div
-          class="bg-white/5 border border-white/10 rounded-2xl shadow-lg p-4 sm:p-6 transition-colors duration-300"
-        >
-          <div
-            class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2"
-          >
-            <h2
-              class="text-xl sm:text-2xl font-bold text-white"
-            >
-              🎵 Queue de lecture
-              <span
-                id="queueCount"
-                class="text-sm font-normal text-gray-400"
-                >(0)</span
-              >
-            </h2>
-            <button
-              id="sortByVotes"
-              class="bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-semibold py-2 px-3 sm:px-4 rounded-xl transition"
-            >
-              📊 Trier par votes
+      </div>
+      <div class="space-y-3 mb-5">
+        <div>
+          <label class="label">Lien pour les invités</label>
+          <div class="input-group">
+            <input type="text" id="userLinkInput" readonly class="input" />
+            <button id="copyLinkBtn" class="btn btn-ghost btn-sm shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copier
             </button>
           </div>
-          <p class="text-xs sm:text-sm text-gray-400 mb-4">
-            Drag & drop pour réorganiser
-          </p>
-          <div id="autoPlayToggle" class="mb-4 hidden">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" id="autoPlay" class="w-5 h-5" checked />
-              <span class="text-sm font-medium text-gray-300"
-                >Lecture automatique</span
-              >
-            </label>
-          </div>
-          <div id="queue" class="space-y-3">
-            <p class="text-gray-400 text-center py-8">
-              Queue vide
-            </p>
+        </div>
+        <div>
+          <label class="label">Ecran public (grand écran)</label>
+          <div class="input-group">
+            <input type="text" id="publicDisplayLinkInput" readonly class="input" />
+            <button id="openPublicDisplayFromQR" class="btn btn-ghost btn-sm shrink-0">Ouvrir</button>
           </div>
         </div>
       </div>
+      <div class="rounded-lg p-3 mb-4 text-xs" style="background:var(--accent-dim);border:1px solid rgba(124,92,252,0.15);color:var(--text-secondary)">
+        Scannez le QR code ou copiez le lien pour inviter vos guests.
+      </div>
+      <button id="closeQRCodeBottom" class="btn btn-ghost btn-full">Fermer</button>
     </div>
+  </div>
+</div>
 
-    <style>
-      #votesToggle:checked ~ div {
-        background-color: #10b981;
-      }
-      #votesToggle:checked ~ div .dot {
-        transform: translateX(100%);
-      }
-      #duplicatesToggle:checked ~ div {
-        background-color: #10b981;
-      }
-      #duplicatesToggle:checked ~ div .dot {
-        transform: translateX(100%);
-      }
-      #autoAcceptToggle:checked ~ div {
-        background-color: #10b981;
-      }
-      #autoAcceptToggle:checked ~ div .dot {
-        transform: translateX(100%);
-      }
-    </style>
+<!-- ─── Modal: Ajouter une chanson ─────────────────────────── -->
+<div id="addSongPanel" class="hidden modal-backdrop">
+  <div class="modal max-w-xl">
+    <div class="flex items-center justify-between px-6 py-5" style="border-bottom:1px solid var(--border)">
+      <h2 class="text-base font-semibold" style="color:var(--text-primary)">Ajouter une chanson (DJ)</h2>
+      <button id="closeAddSong" class="btn btn-ghost btn-icon btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-6">
+      <div class="relative mb-3">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color:var(--text-muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="djSearchInput" placeholder="Titre, artiste..." class="input" style="padding-left:2.5rem" autocomplete="off" />
+      </div>
+      <div id="djSearchResults" class="space-y-1.5 max-h-80 overflow-y-auto"></div>
+      <button id="closeAddSongBottom" class="btn btn-ghost btn-full mt-4">Fermer</button>
+    </div>
+  </div>
+</div>
 
-    <script>
-      // Extraire et valider l'eventId
-      const eventId = window.location.pathname.split("/")[2];
+<!-- ─── Toast notification ─────────────────────────────────── -->
+<div id="toast" class="hidden fixed top-20 right-4 z-50 px-4 py-3 rounded-xl text-sm font-medium shadow-lg" style="background:var(--accent);color:#fff;max-width:300px"></div>
 
-      // Vérifier que l'eventId existe
-      if (!eventId || eventId === "undefined") {
-        console.error("EventId manquant dans l'URL");
-        alert("Erreur: ID d'événement manquant");
-        window.location.href = "/dashboard";
-        throw new Error("EventId manquant");
-      }
+<script>
+  const eventId = window.location.pathname.split("/")[2];
+  if (!eventId || eventId === "undefined") {
+    alert("ID d'événement manquant");
+    window.location.href = "/dashboard";
+    throw new Error("EventId manquant");
+  }
 
-      const socket = io();
+  const socket = io();
+  let pendingRequests  = [];
+  let queue            = [];
+  let queueSortable    = null; // instance SortableJS unique pour la queue
+  let spotifyPlayer    = null;
+  let deviceId         = null;
+  let isPlaying        = false;
+  let autoPlayEnabled  = true;
+  let allowDuplicates  = false;
+  let votesEnabled     = true;
+  let autoAcceptEnabled= false;
+  let searchTimeout;
+  let currentPosition  = 0;
+  let currentDuration  = 0;
+  let progressInterval = null;
+  let spotifyToken     = null;
+  let audioFeatures       = {};
+  let currentVolume       = 0.8;
+  let isCrossfading       = false;
+  let crossfadeDuration   = parseInt(localStorage.getItem("djq-crossfade") || "0");
+  let fallbackPlaylistUri  = null;
+  let isFallbackFetching   = false;
+  let isAutoPlayLocked     = false;
 
-      let pendingRequests = [];
-      let queue = [];
-      let spotifyPlayer = null;
-      let deviceId = null;
-      let isPlaying = false;
-      let autoPlayEnabled = true;
-      let allowDuplicates = false;
-      let votesEnabled = true;
-      let autoAcceptEnabled = false;
-      let searchTimeout;
-      let currentPosition = 0;
-      let currentDuration = 0;
-      let progressInterval = null;
-      // ========== Spotify Player - DÉFINIR EN PREMIER ==========
+  // ── Spotify SDK ──
+  window.onSpotifyWebPlaybackSDKReady = () => {
+    if (!spotifyToken) return;
+    initializePlayer();
+  };
 
-      // Variable pour stocker le token (sera rempli plus tard)
-      let spotifyToken = null;
-
-      // Définir IMMÉDIATEMENT la fonction callback (avant que le SDK ne charge)
-      window.onSpotifyWebPlaybackSDKReady = () => {
-        if (!spotifyToken) {
-          return;
-        }
-
-        initializePlayer();
-      };
-
-      // Fonction pour initialiser le player avec le token
-      function initializePlayer() {
-        spotifyPlayer = new Spotify.Player({
-          name: "DJ Queue Player",
-          getOAuthToken: (cb) => {
-            cb(spotifyToken);
-          },
-          volume: 0.8,
-        });
-
-        spotifyPlayer.addListener("ready", ({ device_id }) => {
-          deviceId = device_id;
-          document.getElementById("spotifyPlayer").classList.remove("hidden");
-          document.getElementById("autoPlayToggle").classList.remove("hidden");
-        });
-
-        spotifyPlayer.addListener("player_state_changed", (state) => {
-          if (!state) return;
-
-          const track = state.track_window.current_track;
-          document.getElementById("currentTrackName").textContent = track.name;
-          document.getElementById("currentTrackArtist").textContent =
-            track.artists.map((a) => a.name).join(", ");
-          document.getElementById("currentTrackImage").src =
-            track.album.images[0].url;
-          document
-            .getElementById("currentTrackImage")
-            .classList.remove("hidden");
-
-          isPlaying = !state.paused;
-          document.getElementById("playPauseBtn").textContent = isPlaying
-            ? "⏸️"
-            : "▶️";
-
-          // Mise à jour de la progression
-          currentPosition = state.position;
-          currentDuration = state.duration;
-          updateProgress();
-
-          // Démarrer/arrêter l'update automatique
-          if (isPlaying) {
-            startProgressUpdate();
-          } else {
-            stopProgressUpdate();
-          }
-
-          // Auto-play suivant
-          if (
-            state.position === 0 &&
-            state.paused &&
-            autoPlayEnabled &&
-            queue.length > 0
-          ) {
-            playNextInQueue();
-          }
-        });
-
-        spotifyPlayer.addListener("initialization_error", ({ message }) => {
-          console.error("❌ Erreur initialisation player:", message);
-        });
-
-        spotifyPlayer.addListener("authentication_error", ({ message }) => {
-          console.error("❌ Erreur authentification player:", message);
-          alert("Erreur d'authentification Spotify. Reconnectez-vous.");
-        });
-
-        spotifyPlayer.addListener("account_error", ({ message }) => {
-          console.error("❌ Erreur compte player:", message);
-          alert("Erreur: Compte Spotify Premium requis");
-        });
-
-        spotifyPlayer.connect();
-      }
-      // ========== Gestion de la progression ==========
-
-      function updateProgress() {
-        if (currentDuration === 0) return;
-
-        const percent = (currentPosition / currentDuration) * 100;
-        document.getElementById("progressFill").style.width = percent + "%";
-
-        document.getElementById("currentTime").textContent =
-          formatTime(currentPosition);
-        document.getElementById("totalTime").textContent =
-          formatTime(currentDuration);
-      }
-
-      function startProgressUpdate() {
-        stopProgressUpdate(); // Clear any existing interval
-
-        progressInterval = setInterval(() => {
-          if (isPlaying && currentDuration > 0) {
-            currentPosition += 1000; // Incrémenter de 1 seconde
-
-            // Ne pas dépasser la durée totale
-            if (currentPosition > currentDuration) {
-              currentPosition = currentDuration;
-            }
-
-            updateProgress();
-          }
-        }, 1000);
-      }
-
-      function stopProgressUpdate() {
-        if (progressInterval) {
-          clearInterval(progressInterval);
-          progressInterval = null;
-        }
-      }
-
-      function formatTime(ms) {
-        const totalSeconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-      }
-
-      function getTrackDurationMs(request) {
-        return window.TimeUtils.getDurationMs(request?.duration_ms);
-      }
-
-      function getQueueWaitMinutes(index) {
-        return window.TimeUtils.estimateQueueWaitMinutes(queue, index);
-      }
-
-      function getQueueTotalWaitMinutes() {
-        if (!Array.isArray(queue) || queue.length === 0) {
-          return 1;
-        }
-
-        const totalMs = queue.reduce((sum, request) => {
-          return sum + window.TimeUtils.getDurationMs(request?.duration_ms);
-        }, 0);
-
-        return Math.max(1, Math.ceil(totalMs / 60000));
-      }
-
-      async function seekToPosition(positionMs) {
-        if (!spotifyPlayer || !deviceId) {
-          return;
-        }
-
+  function initializePlayer() {
+    spotifyPlayer = new Spotify.Player({
+      name: "DJ Queue Player",
+      // Toujours récupérer un token frais via le backend (qui rafraîchit automatiquement si expiré)
+      getOAuthToken: async (cb) => {
         try {
-          await spotifyPlayer.seek(positionMs);
-          currentPosition = positionMs;
-          updateProgress();
-        } catch (error) {
-          console.error("❌ Erreur seek:", error);
-        }
-      }
-
-      // ========== Event Listeners ==========
-
-      // Header buttons
-      document
-        .getElementById("darkModeToggle")
-        .addEventListener("click", toggleDarkMode);
-      document
-        .getElementById("showSettings")
-        .addEventListener("click", toggleSettings);
-      document
-        .getElementById("connectSpotify")
-        .addEventListener("click", connectSpotify);
-      // Message de remerciement
-      document
-        .getElementById("btnSaveMessage")
-        .addEventListener("click", saveThankYouMessage);
-      document
-        .getElementById("btnResetMessage")
-        .addEventListener("click", resetThankYouMessage);
-
-      // Settings panel
-      document
-        .getElementById("closeSettings")
-        .addEventListener("click", toggleSettings);
-      document
-        .getElementById("closeSettingsBottom")
-        .addEventListener("click", toggleSettings);
-      document
-        .getElementById("settingsPanel")
-        .addEventListener("click", (e) => {
-          if (e.target.id === "settingsPanel") {
-            toggleSettings();
+          const res  = await fetch(`/api/spotify/token/${eventId}`);
+          const data = await res.json();
+          if (data.access_token) {
+            spotifyToken = data.access_token;
+            cb(data.access_token);
+          } else if (spotifyToken) {
+            cb(spotifyToken); // fallback sur le token en mémoire
           }
-        });
-
-      // Settings toggles
-      document
-        .getElementById("votesToggle")
-        .addEventListener("change", toggleVotes);
-      document
-        .getElementById("duplicatesToggle")
-        .addEventListener("change", toggleDuplicates);
-      document
-        .getElementById("autoAcceptToggle")
-        .addEventListener("change", toggleAutoAccept);
-      document
-        .getElementById("btnUpdateRateLimit")
-        .addEventListener("click", updateRateLimit);
-
-      // Spotify player controls
-      document
-        .getElementById("playPauseBtn")
-        .addEventListener("click", togglePlayPause);
-      document
-        .getElementById("btnPrevious")
-        .addEventListener("click", previousTrack);
-      document.getElementById("btnNext").addEventListener("click", nextTrack);
-
-      // Queue controls
-      document
-        .getElementById("sortByVotes")
-        .addEventListener("click", sortQueueByVotes);
-
-      // Auto play toggle
-      document.getElementById("autoPlay")?.addEventListener("change", (e) => {
-        autoPlayEnabled = e.target.checked;
-      });
-      // Nouveaux boutons header
-      document
-        .getElementById("showQRCode")
-        .addEventListener("click", showQRCodePanel);
-      document
-        .getElementById("openPublicDisplay")
-        .addEventListener("click", openPublicDisplay);
-      document
-        .getElementById("addSongBtn")
-        .addEventListener("click", showAddSongPanel);
-      document
-        .getElementById("endEvent")
-        .addEventListener("click", endEventConfirm);
-
-      // QR Code panel
-      document
-        .getElementById("closeQRCode")
-        .addEventListener("click", closeQRCodePanel);
-      document
-        .getElementById("closeQRCodeBottom")
-        .addEventListener("click", closeQRCodePanel);
-      document.getElementById("qrCodePanel").addEventListener("click", (e) => {
-        if (e.target.id === "qrCodePanel") {
-          closeQRCodePanel();
+        } catch (err) {
+          console.error("Erreur refresh token SDK Spotify:", err);
+          if (spotifyToken) cb(spotifyToken);
         }
-      });
-      document
-        .getElementById("copyLinkBtn")
-        .addEventListener("click", copyUserLink);
-      document
-        .getElementById("openPublicDisplayFromQR")
-        .addEventListener("click", openPublicDisplay);
+      },
+      volume: 0.8,
+    });
+    spotifyPlayer.addListener("ready", ({ device_id }) => {
+      deviceId = device_id;
+      document.getElementById("spotifyPlayer").classList.remove("hidden");
+      document.getElementById("autoPlayToggle").classList.remove("hidden");
+      document.getElementById("autoPlayToggle").style.display = "flex";
+      // Démarrer le fallback si la queue est déjà vide au moment où le player est prêt
+      tryStartFallback();
+    });
+    spotifyPlayer.addListener("player_state_changed", (state) => {
+      if (!state) return;
+      const track = state.track_window.current_track;
+      document.getElementById("currentTrackName").textContent   = track.name;
+      document.getElementById("currentTrackArtist").textContent = track.artists.map((a) => a.name).join(", ");
+      const img = document.getElementById("currentTrackImage");
+      img.src   = track.album.images[0].url;
+      img.classList.remove("hidden");
+      document.getElementById("currentTrackPlaceholder").classList.add("hidden");
 
-      // Add Song panel
-      document
-        .getElementById("closeAddSong")
-        .addEventListener("click", closeAddSongPanel);
-      document
-        .getElementById("closeAddSongBottom")
-        .addEventListener("click", closeAddSongPanel);
-      document.getElementById("addSongPanel").addEventListener("click", (e) => {
-        if (e.target.id === "addSongPanel") {
-          closeAddSongPanel();
-        }
-      });
+      isPlaying = !state.paused;
+      document.getElementById("playIcon").classList.toggle("hidden", isPlaying);
+      document.getElementById("pauseIcon").classList.toggle("hidden", !isPlaying);
 
-      // DJ Search
-      document
-        .getElementById("djSearchInput")
-        .addEventListener("input", (e) => {
-          const query = e.target.value.trim();
-          clearTimeout(searchTimeout);
+      currentPosition = state.position;
+      currentDuration = state.duration;
+      updateProgress();
 
-          if (query.length < 2) {
-            document.getElementById("djSearchResults").innerHTML = "";
-            return;
-          }
+      if (isPlaying) startProgressUpdate();
+      else stopProgressUpdate();
 
-          searchTimeout = setTimeout(() => {
-            searchSpotifyForDJ(query);
-          }, 500);
-        });
-
-      // Délégation pour les résultats DJ
-      document
-        .getElementById("djSearchResults")
-        .addEventListener("click", (e) => {
-          const trackDiv = e.target.closest("[data-dj-track]");
-          if (trackDiv) {
-            const track = JSON.parse(trackDiv.dataset.djTrack);
-            addSongDirectlyToQueue(track);
-          }
-        });
-
-      // Délégation d'événements pour les boutons dynamiques (pending requests)
-      document
-        .getElementById("pendingRequests")
-        .addEventListener("click", (e) => {
-          const button = e.target.closest("button");
-          if (!button) return;
-
-          const action = button.dataset.action;
-          const requestId = button.dataset.requestId;
-
-          if (action === "accept") {
-            acceptRequest(requestId);
-          } else if (action === "reject") {
-            rejectRequest(requestId);
-          }
-        });
-
-      // Délégation d'événements pour la queue
-      document.getElementById("queue").addEventListener("click", (e) => {
-        const button = e.target.closest("button");
-        if (!button) return;
-
-        const action = button.dataset.action;
-        const requestId = button.dataset.requestId;
-        const spotifyUri = button.dataset.spotifyUri;
-
-        if (action === "play" && spotifyUri) {
-          playTrack(spotifyUri, requestId);
-        } else if (action === "mark-played") {
-          markPlayed(requestId);
-        }
-      });
-
-      // Support touche Escape pour fermer le panneau de réglages
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-          const panel = document.getElementById("settingsPanel");
-          if (!panel.classList.contains("hidden")) {
-            toggleSettings();
-          }
-        }
-      });
-      // Progress bar interactions
-      document.getElementById("progressBar").addEventListener("click", (e) => {
-        const bar = e.currentTarget;
-        const rect = bar.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const percent = clickX / rect.width;
-        const newPosition = Math.floor(percent * currentDuration);
-
-        seekToPosition(newPosition);
-      });
-
-      document
-        .getElementById("progressBar")
-        .addEventListener("mousemove", (e) => {
-          const bar = e.currentTarget;
-          const rect = bar.getBoundingClientRect();
-          const hoverX = e.clientX - rect.left;
-          const percent = (hoverX / rect.width) * 100;
-
-          const hoverIndicator = document.getElementById("progressHover");
-          hoverIndicator.style.width = percent + "%";
-        });
-
-      document
-        .getElementById("progressBar")
-        .addEventListener("mouseleave", () => {
-          document.getElementById("progressHover").style.width = "0%";
-        });
-
-      // ========== Initialisation ==========
-
-      socket.emit("join-event", eventId);
-      updateDarkModeIcon();
-
-      // Vérifier si Spotify vient d'être connecté
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("spotify") === "connected") {
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname,
-        );
-        setTimeout(() => {
-          alert("✅ Spotify connecté avec succès !");
-        }, 500);
-      }
-
-      if (urlParams.get("error") === "spotify_auth_failed") {
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname,
-        );
-        alert("❌ Erreur lors de la connexion à Spotify");
-      }
-
-      // Charger l'événement
-      fetch(`/api/events/${eventId}`)
-        .then((r) => r.json())
-        .then((data) => {
-          document.getElementById("eventName").textContent = data.name;
-          queue = data.queue || [];
-          allowDuplicates = data.allow_duplicates || false;
-          votesEnabled = data.votes_enabled !== false;
-          autoAcceptEnabled = data.auto_accept_enabled || false;
-
-          document.getElementById("votesToggle").checked = votesEnabled;
-          document.getElementById("duplicatesToggle").checked = allowDuplicates;
-          document.getElementById("autoAcceptToggle").checked =
-            autoAcceptEnabled;
-          document.getElementById("rateLimitMax").value =
-            data.rate_limit_max || 3;
-          document.getElementById("rateLimitWindow").value =
-            data.rate_limit_window_minutes || 15;
-          document.getElementById("thankYouMessage").value =
-            data.thank_you_message || "";
-          if (autoAcceptEnabled) {
-            document
-              .getElementById("autoAcceptBanner")
-              .classList.remove("hidden");
-          }
-
-          renderQueue();
-          loadPendingRequests(); // ← Appeler ici
-        })
-        .catch((error) => {
-          console.error("Erreur chargement événement:", error);
-        });
-
-      // Vérifier le statut Spotify
-      checkSpotifyStatus();
-
-      // ========== Fonctions ==========
-
-      async function loadPendingRequests() {
-        try {
-          const response = await fetch(`/api/events/${eventId}/pending`);
-          const data = await response.json();
-
-          if (data.pending && data.pending.length > 0) {
-            pendingRequests = data.pending;
-            renderPending();
-          }
-        } catch (error) {
-          console.error("Erreur chargement pending:", error);
-        }
-      }
-
-      async function loadQueue() {
-        try {
-          const response = await fetch(`/api/events/${eventId}`);
-          const data = await response.json();
-
-          queue = data.queue || [];
-          renderQueue();
-        } catch (error) {
-          console.error("Erreur chargement queue:", error);
-        }
-      }
-
-      function toggleDarkMode() {
-        const isDark = document.documentElement.classList.toggle("dark");
-        localStorage.setItem("darkMode", isDark);
-        updateDarkModeIcon();
-      }
-
-      function updateDarkModeIcon() {
-        const isDark = document.documentElement.classList.contains("dark");
-        document.getElementById("darkModeIcon").textContent = isDark
-          ? "☀️"
-          : "🌙";
-      }
-
-      function toggleSettings() {
-        document.getElementById("settingsPanel").classList.toggle("hidden");
-      }
-
-      async function checkSpotifyStatus() {
-        try {
-          const response = await fetch(`/api/spotify/status/${eventId}`);
-          const data = await response.json();
-
-          if (data.connected) {
-            document.getElementById("connectSpotify").textContent =
-              "✅ Spotify connecté";
-            document
-              .getElementById("connectSpotify")
-              .classList.remove("bg-green-500", "hover:bg-green-600");
-            document
-              .getElementById("connectSpotify")
-              .classList.add("bg-green-700");
-            initSpotifyPlayer();
-          }
-        } catch (error) {
-          console.error("Erreur vérification Spotify:", error);
-        }
-      }
-
-      async function connectSpotify() {
-        try {
-          const response = await fetch(`/api/spotify/login/${eventId}`);
-          const data = await response.json();
-          window.location.href = data.authUrl;
-        } catch (error) {
-          console.error("Erreur connexion Spotify:", error);
-          alert("Erreur de connexion à Spotify");
-        }
-      }
-
-      async function toggleVotes() {
-        const newState = !votesEnabled;
-
-        try {
-          const response = await fetch(`/api/events/${eventId}/settings`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ votes_enabled: newState }),
-          });
-
-          if (response.ok) {
-            votesEnabled = newState;
-            updateVotesToggleUI();
-
-            // Notifier tous les clients via socket
-            socket.emit("update-event-settings", {
-              eventId,
-              votesEnabled: newState,
-            });
-          }
-        } catch (error) {
-          console.error("❌ Erreur toggle votes:", error);
-        }
-      }
-
-      async function toggleDuplicates() {
-        try {
-          const response = await fetch(
-            `/api/events/${eventId}/toggle-duplicates`,
-            {
-              method: "POST",
-            },
-          );
-
-          const data = await response.json();
-          allowDuplicates = data.allow_duplicates;
-        } catch (error) {
-          console.error("Erreur toggle duplicates:", error);
-        }
-      }
-
-      async function toggleAutoAccept() {
-        const enabled = document.getElementById("autoAcceptToggle").checked;
-        try {
-          const response = await fetch(
-            `/api/events/${eventId}/toggle-auto-accept`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ enabled }),
-            },
-          );
-
-          const data = await response.json();
-          autoAcceptEnabled = data.autoAcceptEnabled;
-
-          if (autoAcceptEnabled) {
-            document
-              .getElementById("autoAcceptBanner")
-              .classList.remove("hidden");
-          } else {
-            document.getElementById("autoAcceptBanner").classList.add("hidden");
-          }
-        } catch (error) {
-          console.error("Erreur toggle auto-accept:", error);
-        }
-      }
-
-      async function updateRateLimit() {
-        const max = parseInt(document.getElementById("rateLimitMax").value);
-        const window = parseInt(
-          document.getElementById("rateLimitWindow").value,
-        );
-
-        try {
-          const response = await fetch(
-            `/api/events/${eventId}/update-rate-limit`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ max, window }),
-            },
-          );
-
-          const data = await response.json();
-
-          if (data.success) {
-            alert(
-              "✅ Rate limit mis à jour !\n\nNouveau: " +
-                max +
-                " demandes / " +
-                window +
-                " minutes",
-            );
-          }
-        } catch (error) {
-          console.error("Erreur update rate limit:", error);
-          alert("Erreur lors de la mise à jour");
-        }
-      }
-
-      function sortQueueByVotes() {
-        const sortedQueue = [...queue].sort((a, b) => {
-          const netA = (a.upvotes || 0) - (a.downvotes || 0);
-          const netB = (b.upvotes || 0) - (b.downvotes || 0);
-          return netB - netA;
-        });
-
-        socket.emit("reorder-queue", { eventId, newQueue: sortedQueue });
-      }
-
-      // ========== Spotify Player Functions ==========
-
-      async function initSpotifyPlayer() {
-        try {
-          const response = await fetch(`/api/spotify/token/${eventId}`);
-          const data = await response.json();
-
-          if (data.error) {
-            console.error("❌ Erreur token:", data.error);
-            return;
-          }
-
-          spotifyToken = data.access_token;
-
-          // Si le SDK est déjà chargé, initialiser immédiatement
-          if (window.Spotify) {
-            window.onSpotifyWebPlaybackSDKReady();
-          }
-        } catch (error) {
-          console.error("❌ Erreur init player:", error);
-        }
-      }
-
-      async function playTrack(uri, requestId) {
-        // Vérifier que le player est prêt
-        if (!deviceId) {
-          const retry = confirm(
-            "⏳ Player Spotify en cours d'initialisation...\n\n" +
-              "Voulez-vous réessayer dans quelques secondes ?\n\n" +
-              "Si le problème persiste :\n" +
-              "1. Vérifiez que vous avez Spotify Premium\n" +
-              "2. Rafraîchissez la page (F5)",
-          );
-
-          if (retry) {
-            setTimeout(() => playTrack(uri, requestId), 3000);
-          }
-          return;
-        }
-
-        try {
-          const response = await fetch(`/api/spotify/play/${eventId}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ uri, device_id: deviceId }),
-          });
-
-          if (!response.ok) {
-            const data = await response.json();
-
-            if (response.status === 404) {
-              alert(
-                "❌ Erreur de lecture\n\n" +
-                  "Le player Web n'est pas actif.\n\n" +
-                  "Essayez de :\n" +
-                  "1. Rafraîchir la page (F5)\n" +
-                  "2. Vous reconnecter à Spotify\n" +
-                  "3. Vérifier que vous avez Spotify Premium",
-              );
-            } else if (response.status === 403) {
-              alert("❌ Spotify Premium requis pour utiliser le player Web");
-            } else {
-              alert("Erreur: " + (data.error || "Erreur inconnue"));
-            }
-            return;
-          }
-
-          // Marquer comme jouée après 2 secondes
-          setTimeout(() => {
-            socket.emit("mark-played", { eventId, requestId });
-          }, 2000);
-        } catch (error) {
-          console.error("Erreur lecture:", error);
-          alert("Erreur de connexion. Vérifiez votre connexion internet.");
-        }
-      }
-
-      function playNextInQueue() {
+      if (state.position === 0 && state.paused && autoPlayEnabled && !isAutoPlayLocked && !isCrossfading) {
+        isAutoPlayLocked = true;
+        setTimeout(() => { isAutoPlayLocked = false; }, 5000);
         if (queue.length > 0) {
-          const nextTrack = queue[0];
-          playTrack(nextTrack.spotify_uri, nextTrack.id);
+          playNextInQueue();
+        } else if (fallbackPlaylistUri) {
+          playFallbackTrack();
         }
       }
+    });
+    spotifyPlayer.addListener("authentication_error", () => alert("Erreur d'authentification Spotify. Reconnectez-vous."));
+    spotifyPlayer.addListener("account_error", () => alert("Compte Spotify Premium requis"));
+    spotifyPlayer.connect();
+  }
 
-      function togglePlayPause() {
-        if (spotifyPlayer) {
-          spotifyPlayer.togglePlay();
-        }
+  // ── Progress ──
+  function updateProgress() {
+    if (currentDuration === 0) return;
+    const percent = (currentPosition / currentDuration) * 100;
+    document.getElementById("progressFill").style.width  = percent + "%";
+    document.getElementById("currentTime").textContent   = formatTime(currentPosition);
+    document.getElementById("totalTime").textContent     = formatTime(currentDuration);
+  }
+  function startProgressUpdate() {
+    stopProgressUpdate();
+    progressInterval = setInterval(() => {
+      if (isPlaying && currentDuration > 0) {
+        currentPosition = Math.min(currentPosition + 1000, currentDuration);
+        updateProgress();
       }
+    }, 1000);
+  }
+  function stopProgressUpdate() {
+    if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+  }
+  function formatTime(ms) {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`;
+  }
 
-      function nextTrack() {
-        if (spotifyPlayer) {
-          spotifyPlayer.nextTrack();
-        }
+  // ── Event listeners ──
+  document.getElementById("showSettings").addEventListener("click", () => toggleSettings());
+  document.getElementById("closeSettings").addEventListener("click", () => toggleSettings());
+  document.getElementById("closeSettingsBottom").addEventListener("click", () => toggleSettings());
+  document.getElementById("settingsPanel").addEventListener("click", (e) => { if (e.target.id === "settingsPanel") toggleSettings(); });
+
+  document.getElementById("showQRCode").addEventListener("click", showQRCodePanel);
+  document.getElementById("closeQRCode").addEventListener("click", closeQRCodePanel);
+  document.getElementById("closeQRCodeBottom").addEventListener("click", closeQRCodePanel);
+  document.getElementById("qrCodePanel").addEventListener("click", (e) => { if (e.target.id === "qrCodePanel") closeQRCodePanel(); });
+  document.getElementById("copyLinkBtn").addEventListener("click", copyUserLink);
+  document.getElementById("liveStatsBtn").href = `/event/${eventId}/stats`;
+  document.getElementById("openPublicDisplay").addEventListener("click", openPublicDisplay);
+  document.getElementById("openPublicDisplayFromQR").addEventListener("click", openPublicDisplay);
+
+  document.getElementById("addSongBtn").addEventListener("click", showAddSongPanel);
+  document.getElementById("closeAddSong").addEventListener("click", closeAddSongPanel);
+  document.getElementById("closeAddSongBottom").addEventListener("click", closeAddSongPanel);
+  document.getElementById("addSongPanel").addEventListener("click", (e) => { if (e.target.id === "addSongPanel") closeAddSongPanel(); });
+
+  // Pas de bouton connectSpotify — connexion automatique au chargement
+  document.getElementById("votesToggle").addEventListener("change", toggleVotes);
+  document.getElementById("duplicatesToggle").addEventListener("change", toggleDuplicates);
+  document.getElementById("autoAcceptToggle").addEventListener("change", toggleAutoAccept);
+  document.getElementById("btnUpdateRateLimit").addEventListener("click", updateRateLimit);
+  document.getElementById("btnSaveMessage").addEventListener("click", saveThankYouMessage);
+  document.getElementById("btnResetMessage").addEventListener("click", resetThankYouMessage);
+
+  document.getElementById("playPauseBtn").addEventListener("click", () => { if (spotifyPlayer) spotifyPlayer.togglePlay(); });
+  document.getElementById("btnPrevious").addEventListener("click", () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); });
+  document.getElementById("btnNext").addEventListener("click", () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); });
+  document.getElementById("autoPlay")?.addEventListener("change", (e) => { autoPlayEnabled = e.target.checked; });
+  document.getElementById("sortByVotes").addEventListener("click", sortQueueByVotes);
+  document.getElementById("endEvent").addEventListener("click", endEventConfirm);
+
+  document.getElementById("progressBar").addEventListener("click", (e) => {
+    const bar  = e.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    seekToPosition(Math.floor((e.clientX - rect.left) / rect.width * currentDuration));
+  });
+  document.getElementById("progressBar").addEventListener("mousemove", (e) => {
+    const bar  = e.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    const hover= document.getElementById("progressHover");
+    hover.style.width = ((e.clientX - rect.left) / rect.width * 100) + "%";
+  });
+  document.getElementById("progressBar").addEventListener("mouseleave", () => {
+    document.getElementById("progressHover").style.width = "0%";
+  });
+
+  document.getElementById("djSearchInput").addEventListener("input", (e) => {
+    const query = e.target.value.trim();
+    clearTimeout(searchTimeout);
+    if (query.length < 2) { document.getElementById("djSearchResults").innerHTML = ""; return; }
+    searchTimeout = setTimeout(() => searchSpotifyForDJ(query), 500);
+  });
+
+  document.getElementById("djSearchResults").addEventListener("click", (e) => {
+    const trackDiv = e.target.closest("[data-dj-track]");
+    if (trackDiv) addSongDirectlyToQueue(JSON.parse(trackDiv.dataset.djTrack));
+  });
+
+  document.getElementById("pendingRequests").addEventListener("click", (e) => {
+    const button = e.target.closest("button");
+    if (!button) return;
+    const { action, requestId } = button.dataset;
+    if (action === "accept") acceptRequest(requestId);
+    else if (action === "reject") rejectRequest(requestId);
+  });
+
+  document.getElementById("queue").addEventListener("click", (e) => {
+    const button = e.target.closest("button");
+    if (!button) return;
+    const { action, requestId, spotifyUri } = button.dataset;
+    if (action === "play" && spotifyUri) playTrack(spotifyUri, requestId);
+    else if (action === "mark-played") markPlayed(requestId);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      toggleSettings(true);
+      closeQRCodePanel();
+      closeAddSongPanel();
+    }
+  });
+
+  document.getElementById("sortByBPM").addEventListener("click", sortPendingByBPM);
+
+  document.getElementById("btnSaveFallbackPlaylist").addEventListener("click", saveFallbackPlaylist);
+  document.getElementById("btnClearFallbackPlaylist").addEventListener("click", () => {
+    document.getElementById("fallbackPlaylistInput").value = "";
+    saveFallbackPlaylist();
+  });
+
+  // Crossfade slider
+  (function initCrossfadeSlider() {
+    const slider = document.getElementById("crossfadeSlider");
+    const label  = document.getElementById("crossfadeValue");
+    slider.value = crossfadeDuration;
+    label.textContent = crossfadeDuration === 0 ? "Désactivé" : `${crossfadeDuration} s`;
+    slider.addEventListener("input", () => {
+      crossfadeDuration = parseInt(slider.value);
+      localStorage.setItem("djq-crossfade", crossfadeDuration);
+      label.textContent = crossfadeDuration === 0 ? "Désactivé" : `${crossfadeDuration} s`;
+    });
+  })();
+
+
+  // ── Init ──
+  // Rejoindre la room à chaque connexion/reconnexion Socket.IO
+  socket.on("connect", () => {
+    socket.emit("join-event", eventId);
+    // Après une reconnexion, resynchroniser l'état complet
+    if (socket._reconnecting) {
+      loadPendingRequests();
+      loadQueue();
+    }
+  });
+  // Variable pour détecter les reconnexions
+  socket._reconnecting = false;
+  socket.on("disconnect", () => { socket._reconnecting = true; });
+
+  // Appel immédiat si la socket est déjà connectée (cas fréquent au chargement)
+  if (socket.connected) {
+    socket.emit("join-event", eventId);
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("spotify") === "connected") {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    setTimeout(() => showToast("Spotify connecté avec succès !"), 500);
+  }
+  if (urlParams.get("error") === "spotify_auth_failed") {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    showToast("Erreur lors de la connexion à Spotify", "error");
+  }
+
+  fetch(`/api/events/${eventId}`)
+    .then((r) => r.json())
+    .then((data) => {
+      document.getElementById("eventName").textContent = data.name;
+      queue             = data.queue || [];
+      allowDuplicates   = data.allow_duplicates || false;
+      votesEnabled      = data.votes_enabled !== false;
+      autoAcceptEnabled = data.auto_accept_enabled || false;
+
+      document.getElementById("votesToggle").checked      = votesEnabled;
+      document.getElementById("duplicatesToggle").checked = allowDuplicates;
+      document.getElementById("autoAcceptToggle").checked = autoAcceptEnabled;
+      document.getElementById("rateLimitMax").value       = data.rate_limit_max || 3;
+      document.getElementById("rateLimitWindow").value    = data.rate_limit_window_minutes || 15;
+      document.getElementById("thankYouMessage").value    = data.thank_you_message || "";
+      if (autoAcceptEnabled) document.getElementById("autoAcceptBanner").classList.remove("hidden");
+
+      // Playlist de secours
+      fallbackPlaylistUri = data.fallback_playlist_uri || null;
+      const playlistInput = document.getElementById("fallbackPlaylistInput");
+      if (playlistInput) playlistInput.value = fallbackPlaylistUri || "";
+      updateFallbackPlaylistUI();
+
+      renderQueue();
+      loadPendingRequests();
+      // Démarrer le fallback si queue vide et player déjà prêt
+      tryStartFallback();
+    })
+    .catch(console.error);
+
+  checkSpotifyStatus();
+
+  // ── Functions ──
+
+  async function loadPendingRequests() {
+    try {
+      const response = await fetch(`/api/events/${eventId}/pending`);
+      const data     = await response.json();
+      if (data.pending && data.pending.length > 0) { pendingRequests = data.pending; renderPending(); }
+    } catch (error) { console.error("Erreur chargement pending:", error); }
+  }
+
+  async function loadQueue() {
+    try {
+      const response = await fetch(`/api/events/${eventId}`);
+      const data     = await response.json();
+      queue = data.queue || [];
+      renderQueue();
+    } catch (error) { console.error("Erreur chargement queue:", error); }
+  }
+
+  function toggleSettings(close = false) {
+    const panel = document.getElementById("settingsPanel");
+    if (close === true) panel.classList.add("hidden");
+    else panel.classList.toggle("hidden");
+  }
+
+  async function checkSpotifyStatus() {
+    try {
+      const response = await fetch(`/api/spotify/status/${eventId}`);
+      const data     = await response.json();
+      if (data.connected) {
+        document.getElementById("spotifyStatus").classList.remove("hidden");
+        initSpotifyPlayer();
       }
+      // Si non connecté, rien à faire — les tokens ont été copiés à la création de l'événement.
+      // Si le token est expiré, il faudra se reconnecter via le dashboard Spotify (rafraîchissement futur).
+    } catch (error) { console.error("Erreur vérification Spotify:", error); }
+  }
 
-      function previousTrack() {
-        if (spotifyPlayer) {
-          spotifyPlayer.previousTrack();
-        }
+  async function initSpotifyPlayer() {
+    try {
+      const response = await fetch(`/api/spotify/token/${eventId}`);
+      const data     = await response.json();
+      if (data.error) { console.error("Erreur token:", data.error); return; }
+      spotifyToken = data.access_token;
+      if (window.Spotify) window.onSpotifyWebPlaybackSDKReady();
+    } catch (error) { console.error("Erreur init player:", error); }
+  }
+
+  async function seekToPosition(positionMs) {
+    if (!spotifyPlayer || !deviceId) return;
+    try {
+      await spotifyPlayer.seek(positionMs);
+      currentPosition = positionMs;
+      updateProgress();
+    } catch (error) { console.error("Erreur seek:", error); }
+  }
+
+  async function toggleVotes() {
+    const newState = !votesEnabled;
+    try {
+      const response = await fetch(`/api/events/${eventId}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ votes_enabled: newState }),
+      });
+      if (response.ok) {
+        votesEnabled = newState;
+        socket.emit("update-event-settings", { eventId, votesEnabled: newState });
       }
-      // ========== Nouvelles fonctions ==========
+    } catch (error) { console.error("Erreur toggle votes:", error); }
+  }
 
-      // QR Code
-      async function showQRCodePanel() {
-        try {
-          const response = await fetch(`/api/events/${eventId}/qrcode`);
-          const data = await response.json();
+  async function toggleDuplicates() {
+    try {
+      const response = await fetch(`/api/events/${eventId}/toggle-duplicates`, { method: "POST" });
+      const data     = await response.json();
+      allowDuplicates = data.allow_duplicates;
+    } catch (error) { console.error("Erreur toggle duplicates:", error); }
+  }
 
-          document.getElementById("qrCodeImage").src = data.qrCode;
-          document.getElementById("userLinkInput").value = data.userUrl;
-          document.getElementById("publicDisplayLinkInput").value =
-            `${window.location.origin}/event/${eventId}/qr`;
-          document.getElementById("qrCodePanel").classList.remove("hidden");
-        } catch (error) {
-          console.error("Erreur chargement QR code:", error);
-          alert("Erreur lors du chargement du QR code");
-        }
+  async function toggleAutoAccept() {
+    const enabled = document.getElementById("autoAcceptToggle").checked;
+    try {
+      const response = await fetch(`/api/events/${eventId}/toggle-auto-accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      const data = await response.json();
+      autoAcceptEnabled = data.autoAcceptEnabled;
+      document.getElementById("autoAcceptBanner").classList.toggle("hidden", !autoAcceptEnabled);
+    } catch (error) { console.error("Erreur toggle auto-accept:", error); }
+  }
+
+  async function updateRateLimit() {
+    const max    = parseInt(document.getElementById("rateLimitMax").value);
+    const window = parseInt(document.getElementById("rateLimitWindow").value);
+    try {
+      const response = await fetch(`/api/events/${eventId}/update-rate-limit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ max, window }),
+      });
+      const data = await response.json();
+      if (data.success) showToast(`Rate limit: ${max} demandes / ${window} min`);
+    } catch { showToast("Erreur lors de la mise à jour", "error"); }
+  }
+
+  function sortQueueByVotes() {
+    const sorted = [...queue].sort((a, b) => ((b.upvotes||0)-(b.downvotes||0)) - ((a.upvotes||0)-(a.downvotes||0)));
+    socket.emit("reorder-queue", { eventId, newQueue: sorted });
+  }
+
+  async function showQRCodePanel() {
+    try {
+      const response = await fetch(`/api/events/${eventId}/qrcode`);
+      const data     = await response.json();
+      document.getElementById("qrCodeImage").src            = data.qrCode;
+      document.getElementById("userLinkInput").value        = data.userUrl;
+      document.getElementById("publicDisplayLinkInput").value = `${window.location.origin}/event/${eventId}/qr`;
+      document.getElementById("qrCodePanel").classList.remove("hidden");
+    } catch { showToast("Erreur lors du chargement du QR code", "error"); }
+  }
+
+  function closeQRCodePanel() { document.getElementById("qrCodePanel").classList.add("hidden"); }
+
+  function openPublicDisplay() {
+    window.open(`/event/${eventId}/qr`, "_blank", "noopener,noreferrer");
+    closeQRCodePanel();
+  }
+
+  function copyUserLink() {
+    const input = document.getElementById("userLinkInput");
+    input.select();
+    document.execCommand("copy");
+    showToast("Lien copié !");
+  }
+
+  function showAddSongPanel() {
+    document.getElementById("addSongPanel").classList.remove("hidden");
+    setTimeout(() => document.getElementById("djSearchInput").focus(), 50);
+  }
+
+  function closeAddSongPanel() {
+    document.getElementById("addSongPanel").classList.add("hidden");
+    document.getElementById("djSearchInput").value = "";
+    document.getElementById("djSearchResults").innerHTML = "";
+  }
+
+  async function searchSpotifyForDJ(query) {
+    try {
+      const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&eventId=${eventId}`);
+      const data     = await response.json();
+      if (data.error) {
+        document.getElementById("djSearchResults").innerHTML = `<p class="text-xs text-center py-4" style="color:var(--red)">${data.error}</p>`;
+        return;
       }
+      displayDJSearchResults(data.tracks);
+    } catch (error) { console.error("Erreur recherche DJ:", error); }
+  }
 
-      function openPublicDisplay() {
-        window.open(`/event/${eventId}/qr`, "_blank", "noopener,noreferrer");
-      }
-
-      function closeQRCodePanel() {
-        document.getElementById("qrCodePanel").classList.add("hidden");
-      }
-
-      function copyUserLink() {
-        const input = document.getElementById("userLinkInput");
-        input.select();
-        document.execCommand("copy");
-
-        const btn = document.getElementById("copyLinkBtn");
-        const originalText = btn.textContent;
-        btn.textContent = "✅ Copié !";
-        setTimeout(() => {
-          btn.textContent = originalText;
-        }, 2000);
-      }
-
-      // Ajouter une chanson (DJ)
-      function showAddSongPanel() {
-        document.getElementById("addSongPanel").classList.remove("hidden");
-        document.getElementById("djSearchInput").focus();
-      }
-
-      function closeAddSongPanel() {
-        document.getElementById("addSongPanel").classList.add("hidden");
-        document.getElementById("djSearchInput").value = "";
-        document.getElementById("djSearchResults").innerHTML = "";
-      }
-
-      async function searchSpotifyForDJ(query) {
-        try {
-          const response = await fetch(
-            `/api/spotify/search?q=${encodeURIComponent(query)}&eventId=${eventId}`,
-          );
-          const data = await response.json();
-
-          if (data.error) {
-            document.getElementById("djSearchResults").innerHTML =
-              '<p class="text-red-300 text-sm text-center py-4">' +
-              data.error +
-              "</p>";
-            return;
-          }
-
-          displayDJSearchResults(data.tracks);
-        } catch (error) {
-          console.error("Erreur recherche DJ:", error);
-        }
-      }
-
-      function displayDJSearchResults(tracks) {
-        const container = document.getElementById("djSearchResults");
-
-        if (!tracks || tracks.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-400 text-sm text-center py-4">Aucun résultat</p>';
-          return;
-        }
-
-        container.innerHTML = tracks
-          .map((track) => {
-            const trackJson = JSON.stringify(track).replace(/"/g, "&quot;");
-            return `
-        <div 
-          class="flex items-center gap-3 p-3 border border-white/10 bg-white/5 rounded-xl hover:bg-white/10 cursor-pointer transition"
-          data-dj-track="${trackJson}"
-        >
-          <img src="${track.image}" alt="${track.name}" class="w-12 h-12 rounded">
-          <div class="flex-1 min-w-0">
-            <h4 class="font-semibold text-white truncate">${track.name}</h4>
-            <p class="text-sm text-gray-300 truncate">${track.artist}</p>
-          </div>
-          <button class="text-violet-400 font-bold text-xl">+</button>
+  function displayDJSearchResults(tracks) {
+    const container = document.getElementById("djSearchResults");
+    if (!tracks || tracks.length === 0) {
+      container.innerHTML = `<p class="text-xs text-center py-4" style="color:var(--text-muted)">Aucun résultat</p>`;
+      return;
+    }
+    container.innerHTML = tracks.map((track) => {
+      const trackJson = JSON.stringify(track).replace(/"/g, "&quot;");
+      return `
+      <div class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition hover:opacity-80" style="background:var(--bg-elevated);border:1px solid var(--border)" data-dj-track="${trackJson}">
+        <img src="${track.image}" alt="" class="w-10 h-10 rounded-md shrink-0 object-cover" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium truncate" style="color:var(--text-primary)">${track.name}</p>
+          <p class="text-xs truncate" style="color:var(--text-secondary)">${track.artist}</p>
         </div>
-      `;
-          })
-          .join("");
+        <svg class="w-4 h-4 shrink-0" style="color:var(--accent)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>`;
+    }).join("");
+  }
+
+  async function addSongDirectlyToQueue(track) {
+    try {
+      const response = await fetch(`/api/events/${eventId}/add-song-dj`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ songData: track, userName: "DJ" }),
+      });
+      const data = await response.json();
+      if (data.error) { showToast("Erreur: " + data.error, "error"); return; }
+      closeAddSongPanel();
+      showToast(`"${track.name}" ajoutée à la queue`);
+    } catch { showToast("Erreur lors de l'ajout", "error"); }
+  }
+
+  function endEventConfirm() {
+    if (confirm("Terminer la soirée ?\n\nCela va archiver l'événement, sauvegarder les statistiques et vous rediriger vers le dashboard.")) {
+      endEvent();
+    }
+  }
+
+  async function endEvent() {
+    try {
+      const response = await fetch(`/api/events/${eventId}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (data.success) { showToast("Soirée terminée !"); setTimeout(() => { window.location.href = "/dashboard"; }, 1500); }
+      else alert("Erreur: " + (data.error || "Erreur inconnue"));
+    } catch { alert("Erreur lors de la fin de la soirée"); }
+  }
+
+  async function _startPlayback(uri) {
+    const response = await fetch(`/api/spotify/play/${eventId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uri, device_id: deviceId }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Erreur inconnue");
+    }
+  }
+
+  // Attend que player_state_changed confirme le chargement d'un URI donné (max 3 s).
+  function waitForTrackLoad(uri) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        spotifyPlayer.removeListener("player_state_changed", handler);
+        resolve();
+      }, 3000);
+      function handler(state) {
+        if (state?.track_window?.current_track?.uri === uri) {
+          clearTimeout(timer);
+          spotifyPlayer.removeListener("player_state_changed", handler);
+          resolve();
+        }
+      }
+      spotifyPlayer.addListener("player_state_changed", handler);
+    });
+  }
+
+  async function performCrossfade(nextUri, nextRequestId) {
+    isCrossfading    = true;
+    isAutoPlayLocked = true; // Bloquer l'auto-play pendant toute la durée du crossfade
+
+    // Lire le volume réel actuel
+    let startVolume = currentVolume;
+    try { startVolume = (await spotifyPlayer.getVolume()) ?? currentVolume; } catch { /* keep */ }
+
+    const steps  = 20;
+    const halfMs = (crossfadeDuration * 1000) / 2;
+    const stepMs = halfMs / steps;
+    const sleep  = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    showToast("Crossfade en cours…", "info");
+    try {
+      // ── Phase 1 : fade out du morceau en cours ──
+      for (let i = steps; i >= 0; i--) {
+        await spotifyPlayer.setVolume((i / steps) * startVolume);
+        await sleep(stepMs);
       }
 
-      async function addSongDirectlyToQueue(track) {
-        try {
-          // Ajouter directement à la queue (status: accepted)
-          const response = await fetch(`/api/events/${eventId}/add-song-dj`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              songData: track,
-              userName: "DJ",
-            }),
-          });
+      // ── Phase 2 : démarrer le prochain morceau ──
+      // On enregistre l'écouteur AVANT de lancer la lecture pour ne manquer aucun événement.
+      const trackReady = waitForTrackLoad(nextUri);
+      await _startPlayback(nextUri);
 
-          const data = await response.json();
+      // Attendre que le SDK confirme le changement de piste, puis forcer le volume à 0.
+      // Cela compense un éventuel reset du volume par le SDK lors du chargement d'un nouveau morceau.
+      await trackReady;
+      await spotifyPlayer.setVolume(0);
 
-          if (data.error) {
-            alert("Erreur: " + data.error);
-            return;
+      // ── Phase 3 : fade in du nouveau morceau ──
+      for (let i = 0; i <= steps; i++) {
+        await spotifyPlayer.setVolume((i / steps) * startVolume);
+        await sleep(stepMs);
+      }
+
+      currentVolume = startVolume;
+      socket.emit("mark-played", { eventId, requestId: nextRequestId });
+    } catch (err) {
+      console.error("Erreur crossfade:", err);
+      try { await spotifyPlayer.setVolume(startVolume); } catch { /* ignore */ }
+      try { await _startPlayback(nextUri); } catch { /* ignore */ }
+      setTimeout(() => socket.emit("mark-played", { eventId, requestId: nextRequestId }), 2000);
+    } finally {
+      isCrossfading = false;
+      // Garder le verrou actif 5 s après la fin du crossfade pour éviter tout double déclenchement
+      setTimeout(() => { isAutoPlayLocked = false; }, 5000);
+    }
+  }
+
+  async function playTrack(uri, requestId) {
+    if (!deviceId) {
+      if (confirm("Player Spotify en cours d'initialisation...\n\nVoulez-vous réessayer dans quelques secondes ?")) {
+        setTimeout(() => playTrack(uri, requestId), 3000);
+      }
+      return;
+    }
+    if (crossfadeDuration > 0 && isPlaying && spotifyPlayer && !isCrossfading) {
+      performCrossfade(uri, requestId);
+      return;
+    }
+    // Bloquer l'auto-play pendant le chargement du morceau pour éviter les doubles lectures.
+    isAutoPlayLocked = true;
+    setTimeout(() => { isAutoPlayLocked = false; }, 5000);
+    try {
+      await _startPlayback(uri);
+      setTimeout(() => socket.emit("mark-played", { eventId, requestId }), 2000);
+    } catch (err) { alert("Erreur: " + err.message); }
+  }
+
+  function playNextInQueue() {
+    if (queue.length > 0) playTrack(queue[0].spotify_uri, queue[0].id);
+  }
+
+  async function saveThankYouMessage() {
+    const message = document.getElementById("thankYouMessage").value.trim();
+    try {
+      const response = await fetch(`/api/events/${eventId}/thank-you-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const data = await response.json();
+      if (data.success) showToast("Message enregistré");
+      else showToast("Erreur lors de l'enregistrement", "error");
+    } catch { showToast("Erreur serveur", "error"); }
+  }
+
+  function resetThankYouMessage() {
+    document.getElementById("thankYouMessage").value = "Merci d'avoir participé !\nOn espère que vous avez passé un excellent moment.\nA très bientôt pour une nouvelle soirée !";
+    showToast("Message réinitialisé");
+  }
+
+  function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.style.background = type === "error" ? "var(--red)" : type === "info" ? "var(--accent)" : "var(--green)";
+    toast.classList.remove("hidden");
+    setTimeout(() => toast.classList.add("hidden"), 3000);
+  }
+
+  // ── Polling de secours (rattrape les événements socket manqués) ──
+  setInterval(async () => {
+    try {
+      const [pendingRes, queueRes] = await Promise.all([
+        fetch(`/api/events/${eventId}/pending`),
+        fetch(`/api/events/${eventId}`),
+      ]);
+      const pendingData = await pendingRes.json();
+      const queueData   = await queueRes.json();
+
+      // Fusion sans doublon pour les pending
+      if (pendingData.pending) {
+        let changed = false;
+        pendingData.pending.forEach((r) => {
+          if (!pendingRequests.some((p) => p.id === r.id)) {
+            pendingRequests.push(r);
+            changed = true;
           }
-
-          // Fermer le panneau
-          closeAddSongPanel();
-
-          // Notification
-          const notification = document.createElement("div");
-          notification.className =
-            "fixed top-20 right-4 bg-violet-600 text-white px-6 py-3 rounded-xl shadow-lg z-50";
-          notification.textContent = `✅ "${track.name}" ajoutée à la queue`;
-          document.body.appendChild(notification);
-          setTimeout(() => notification.remove(), 3000);
-        } catch (error) {
-          console.error("Erreur ajout chanson DJ:", error);
-          alert("Erreur lors de l'ajout de la chanson");
-        }
+        });
+        // Supprimer les pending qui ne sont plus en attente côté serveur
+        const serverIds = new Set(pendingData.pending.map((r) => r.id));
+        const before = pendingRequests.length;
+        pendingRequests = pendingRequests.filter((r) => serverIds.has(r.id));
+        if (changed || pendingRequests.length !== before) renderPending();
       }
 
-      // Terminer l'événement
-      function endEventConfirm() {
-        const confirm = window.confirm(
-          "🏁 Terminer la soirée ?\n\n" +
-            "Cela va :\n" +
-            "- Archiver l'événement\n" +
-            "- Sauvegarder les statistiques\n" +
-            "- Vous rediriger vers le dashboard\n\n" +
-            "Les invités ne pourront plus faire de demandes.",
-        );
-
-        if (confirm) {
-          endEvent();
-        }
-      }
-
-      async function endEvent() {
-        try {
-          const response = await fetch(`/api/events/${eventId}/end`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            alert("✅ Soirée terminée avec succès !\n\nRetour au dashboard...");
-            window.location.href = "/dashboard";
-          } else {
-            alert("Erreur: " + (data.error || "Erreur inconnue"));
-          }
-        } catch (error) {
-          console.error("Erreur fin événement:", error);
-          alert("Erreur lors de la fin de la soirée");
-        }
-      }
-
-      // ========== WebSocket Events ==========
-
-      socket.on("new-request", (request) => {
-        // Vérifier que la demande n'existe pas déjà
-        const exists = pendingRequests.some((r) => r.id === request.id);
-        if (exists) {
-          return;
-        }
-
-        if (request.status === "pending") {
-          pendingRequests.push(request);
-          renderPending();
-        }
-      });
-
-      socket.on("request-accepted", (data) => {
-        pendingRequests = pendingRequests.filter(
-          (r) => r.id !== data.requestId,
-        );
-
-        // Recharger la queue complète pour éviter les désynchronisations
-        loadQueue();
-        renderPending();
-      });
-
-      socket.on("request-rejected", (data) => {
-        pendingRequests = pendingRequests.filter(
-          (r) => r.id !== data.requestId,
-        );
-        renderPending();
-      });
-
-      socket.on("queue-updated", (data) => {
-        queue = data.queue;
-        renderQueue();
-      });
-
-      socket.on("vote-updated", (data) => {
-        const request = queue.find((r) => r.id === data.requestId);
-        if (request) {
-          request.upvotes = data.upvotes;
-          request.downvotes = data.downvotes;
+      // Mise à jour silencieuse de la queue si elle a changé
+      if (queueData.queue) {
+        const serverQueue = queueData.queue;
+        if (JSON.stringify(serverQueue.map((r) => r.id)) !== JSON.stringify(queue.map((r) => r.id))) {
+          queue = serverQueue;
           renderQueue();
         }
+      }
+    } catch { /* polling silencieux */ }
+  }, 10000);
 
-        const pendingReq = pendingRequests.find((r) => r.id === data.requestId);
-        if (pendingReq) {
-          pendingReq.upvotes = data.upvotes;
-          pendingReq.downvotes = data.downvotes;
-          renderPending();
-        }
-      });
+  // ── Socket events ──
+  socket.on("new-request", (request) => {
+    if (pendingRequests.some((r) => r.id === request.id)) return;
+    if (request.status === "pending") { pendingRequests.push(request); renderPending(); }
+  });
 
-      // ========== Render Functions ==========
+  socket.on("request-accepted", (data) => {
+    pendingRequests = pendingRequests.filter((r) => r.id !== data.requestId);
+    loadQueue(); renderPending();
+  });
 
-      function renderPending() {
-        const container = document.getElementById("pendingRequests");
-        document.getElementById("pendingCount").textContent =
-          `(${pendingRequests.length})`;
+  socket.on("request-rejected", (data) => {
+    pendingRequests = pendingRequests.filter((r) => r.id !== data.requestId);
+    renderPending();
+  });
 
-        if (pendingRequests.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-400 text-center py-8">Aucune demande</p>';
-          return;
-        }
+  socket.on("queue-updated", (data) => { queue = data.queue; renderQueue(); });
 
-        container.innerHTML = pendingRequests
-          .map(
-            (request) => `
-      <div class="border border-white/10 bg-white/[0.02] rounded-xl p-4 hover:bg-white/[0.03] transition">
+  socket.on("vote-updated", (data) => {
+    const req = queue.find((r) => r.id === data.requestId);
+    if (req) { req.upvotes = data.upvotes; req.downvotes = data.downvotes; renderQueue(); }
+    const pen = pendingRequests.find((r) => r.id === data.requestId);
+    if (pen) { pen.upvotes = data.upvotes; pen.downvotes = data.downvotes; renderPending(); }
+  });
+
+  // ── Render ──
+
+  // ── Playlist de secours ──
+
+  function extractPlaylistId(input) {
+    if (!input) return null;
+    input = input.trim();
+    if (input.startsWith("spotify:playlist:")) return input.split(":")[2];
+    const m = input.match(/playlist\/([A-Za-z0-9]+)/);
+    return m ? m[1] : null;
+  }
+
+  function updateFallbackPlaylistUI() {
+    const badge = document.getElementById("fallbackPlaylistBadge");
+    if (!badge) return;
+    if (fallbackPlaylistUri) {
+      const id = extractPlaylistId(fallbackPlaylistUri);
+      badge.textContent = id ? "Playlist active" : "URL invalide";
+      badge.style.background = id ? "var(--green-dim)" : "var(--red-dim)";
+      badge.style.color       = id ? "var(--green)"     : "var(--red)";
+      badge.style.display     = "inline-block";
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
+  async function saveFallbackPlaylist() {
+    const input = document.getElementById("fallbackPlaylistInput");
+    const val   = input.value.trim();
+    const id    = val ? extractPlaylistId(val) : null;
+
+    if (val && !id) {
+      showToast("URL ou URI Spotify invalide", "error");
+      return;
+    }
+
+    fallbackPlaylistUri = val || null;
+    socket.emit("update-event-settings", { eventId, fallbackPlaylistUri });
+    updateFallbackPlaylistUI();
+    showToast(fallbackPlaylistUri ? "Playlist de secours enregistrée" : "Playlist de secours retirée");
+  }
+
+  function tryStartFallback() {
+    if (autoPlayEnabled && queue.length === 0 && fallbackPlaylistUri && deviceId) {
+      playFallbackTrack();
+    }
+  }
+
+  async function playFallbackTrack() {
+    if (!fallbackPlaylistUri || !deviceId || isFallbackFetching) return;
+    const playlistId = extractPlaylistId(fallbackPlaylistUri);
+    if (!playlistId) return;
+
+    isFallbackFetching = true;
+    isAutoPlayLocked   = true; // Bloquer l'auto-play pendant le chargement
+    try {
+      const res = await fetch(`/api/spotify/playlist/${eventId}/${playlistId}`);
+      if (!res.ok) return;
+      const track = await res.json();
+      if (!track.uri) return;
+      await _startPlayback(track.uri);
+      showToast(`Secours : ${track.name} — ${track.artist}`);
+    } catch (e) {
+      console.error("Erreur fallback playlist:", e);
+    } finally {
+      // Libérer les verrous après 8 s (délai de démarrage + stabilisation)
+      setTimeout(() => { isFallbackFetching = false; isAutoPlayLocked = false; }, 8000);
+    }
+  }
+
+  // ── Audio Features (BPM / tonalité / énergie) ──
+
+  function getTrackId(spotifyUri) {
+    return spotifyUri?.split(":")[2] || null;
+  }
+
+  function formatKey(key, mode) {
+    if (key === -1 || key === undefined || key === null) return null;
+    const keys = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+    return keys[key] + (mode === 1 ? "" : "m");
+  }
+
+  function energyStyle(e) {
+    if (e >= 0.85) return { label: "Intense",  color: "#ef4444" };
+    if (e >= 0.65) return { label: "Élevée",   color: "#f97316" };
+    if (e >= 0.45) return { label: "Modérée",  color: "#eab308" };
+    return               { label: "Calme",     color: "#22c55e" };
+  }
+
+  function renderAudioBadges(spotifyUri) {
+    const trackId = getTrackId(spotifyUri);
+    if (!trackId || !audioFeatures[trackId]) return "";
+    const f   = audioFeatures[trackId];
+    const key = formatKey(f.key, f.mode);
+    const en  = energyStyle(f.energy);
+    const hasBpm = f.bpm != null && f.bpm > 0;
+    const mainBadge = hasBpm
+      ? `<span class="text-xs font-bold px-1.5 py-0.5 rounded" style="background:rgba(124,92,252,0.15);color:var(--accent)">${f.bpm} BPM</span>`
+      : `<span class="text-xs font-bold px-1.5 py-0.5 rounded" style="background:rgba(124,92,252,0.15);color:var(--accent)">&#9835; ${Math.round(f.energy * 100)}%</span>`;
+    const keyBadge = key
+      ? `<span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(6,182,212,0.12);color:#06b6d4">${key}</span>`
+      : "";
+    return `<div class="flex flex-wrap gap-1 mt-1.5">
+      ${mainBadge}${keyBadge}
+      <span class="text-xs px-1.5 py-0.5 rounded" style="background:${en.color}22;color:${en.color}">${en.label}</span>
+    </div>`;
+  }
+
+  async function loadAudioFeatures(requests) {
+    const ids = requests
+      .filter((r) => r.spotify_uri)
+      .map((r)   => getTrackId(r.spotify_uri))
+      .filter((id) => id && !audioFeatures[id]);
+    if (ids.length === 0) return;
+    try {
+      const res  = await fetch(`/api/spotify/audio-features/${eventId}?ids=${ids.join(",")}`);
+      const data = await res.json();
+      if (Object.keys(data).length > 0) {
+        Object.assign(audioFeatures, data);
+        renderPending();
+        renderQueue();
+      }
+    } catch (e) { console.error("Audio features:", e); }
+  }
+
+  let bpmSortDesc = true;
+  function sortPendingByBPM() {
+    pendingRequests.sort((a, b) => {
+      const fa = audioFeatures[getTrackId(a.spotify_uri)];
+      const fb = audioFeatures[getTrackId(b.spotify_uri)];
+      const valA = fa ? (fa.bpm != null && fa.bpm > 0 ? fa.bpm : Math.round(fa.energy * 100)) : 0;
+      const valB = fb ? (fb.bpm != null && fb.bpm > 0 ? fb.bpm : Math.round(fb.energy * 100)) : 0;
+      return bpmSortDesc ? valB - valA : valA - valB;
+    });
+    bpmSortDesc = !bpmSortDesc;
+    renderPending();
+  }
+
+  function renderPending() {
+    const container = document.getElementById("pendingRequests");
+    document.getElementById("pendingCount").textContent = `(${pendingRequests.length})`;
+    if (pendingRequests.length === 0) {
+      container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune demande</div>`;
+      return;
+    }
+    const totalWaitMin = queue.length > 0
+      ? Math.max(1, Math.ceil(queue.reduce((s, r) => s + window.TimeUtils.getDurationMs(r?.duration_ms), 0) / 60000))
+      : 1;
+    container.innerHTML = pendingRequests.map((request) => `
+      <div class="px-5 py-4">
         <div class="flex gap-3 mb-3">
-          ${request.image_url ? `<img src="${request.image_url}" class="w-16 h-16 rounded">` : ""}
-          <div class="flex-1">
-            <h3 class="font-bold text-white">${request.song_name}</h3>
-            <p class="text-gray-300 text-sm">${request.artist}</p>
-            <p class="text-xs text-gray-400 mt-1">Par ${request.user_name}</p>
-            <p class="text-xs text-violet-300 mt-1">⏱️ Si acceptée maintenant: ~${getQueueTotalWaitMinutes()} min</p>
+          ${request.image_url ? `<img src="${request.image_url}" class="w-14 h-14 rounded-lg object-cover shrink-0">` : ""}
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold truncate" style="color:var(--text-primary)">${request.song_name}</p>
+            <p class="text-xs truncate mt-0.5" style="color:var(--text-secondary)">${request.artist}</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Demandé par ${request.user_name}</p>
+            <p class="text-xs mt-0.5" style="color:var(--accent)">Si accepté maintenant: ~${totalWaitMin} min</p>
+            ${renderAudioBadges(request.spotify_uri)}
           </div>
         </div>
         <div class="flex gap-2">
-          <button
-            data-action="accept"
-            data-request-id="${request.id}"
-            class="flex-1 bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-xl transition text-sm sm:text-base"
-          >
-            ✓ Accepter
+          <button data-action="accept" data-request-id="${request.id}" class="btn btn-success btn-sm flex-1">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Accepter
           </button>
-          <button
-            data-action="reject"
-            data-request-id="${request.id}"
-            class="flex-1 bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-xl transition text-sm sm:text-base"
-          >
-            ✗ Refuser
+          <button data-action="reject" data-request-id="${request.id}" class="btn btn-danger btn-sm flex-1">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Refuser
           </button>
         </div>
-      </div>
-    `,
-          )
-          .join("");
-      }
+      </div>`).join("");
 
-      function renderQueue() {
-        const container = document.getElementById("queue");
-        document.getElementById("queueCount").textContent = `(${queue.length})`;
+    loadAudioFeatures(pendingRequests);
+  }
 
-        if (queue.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-400 text-center py-8">Queue vide</p>';
-          return;
-        }
-
-        container.innerHTML = queue
-          .map((request, index) => {
-            const netVotes = (request.upvotes || 0) - (request.downvotes || 0);
-            const voteColor =
-              netVotes > 0
-                ? "text-green-300"
-                : netVotes < 0
-                  ? "text-red-300"
-                  : "text-gray-300";
-
-            return `
-        <div
-          class="border border-white/10 bg-white/[0.02] rounded-xl p-4 cursor-move hover:bg-white/[0.03] transition"
-          data-id="${request.id}"
-        >
-          <div class="flex items-start gap-3">
-            <div class="flex-shrink-0 w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold">
-              ${index + 1}
-            </div>
-            ${request.image_url ? `<img src="${request.image_url}" class="w-12 h-12 rounded hidden sm:block">` : ""}
-            <div class="flex-1 min-w-0">
-              <h3 class="font-bold text-white truncate">${request.song_name}</h3>
-              <p class="text-gray-300 text-sm truncate">${request.artist}</p>
-              <p class="text-xs text-gray-400">Par ${request.user_name}</p>
-              <p class="text-xs text-violet-300 mt-1">⏱️ Passage estimé dans ~${getQueueWaitMinutes(index)} min</p>
-              <div class="flex gap-2 mt-1">
-                <span class="text-xs ${voteColor} font-bold">
-                  👍 ${request.upvotes || 0} | 👎 ${request.downvotes || 0} | Net: ${netVotes > 0 ? "+" : ""}${netVotes}
-                </span>
-              </div>
-            </div>
-            <div class="flex flex-col gap-2">
-              ${
-                request.spotify_uri
-                  ? `
-                <button
-                  data-action="play"
-                  data-request-id="${request.id}"
-                  data-spotify-uri="${request.spotify_uri}"
-                  class="bg-green-600 hover:bg-green-500 text-white text-xs sm:text-sm font-semibold py-2 px-3 rounded-xl transition whitespace-nowrap"
-                >
-                  ▶️ Jouer
-                </button>
-              `
-                  : ""
-              }
-              <button
-                data-action="mark-played"
-                data-request-id="${request.id}"
-                class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs sm:text-sm font-semibold py-2 px-3 rounded-xl transition whitespace-nowrap"
-              >
-                ✓ Fait
-              </button>
-            </div>
+  function renderQueue() {
+    const container = document.getElementById("queue");
+    document.getElementById("queueCount").textContent = `(${queue.length})`;
+    if (queue.length === 0) {
+      container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Queue vide</div>`;
+      return;
+    }
+    container.innerHTML = queue.map((request, index) => {
+      const netVotes  = (request.upvotes||0) - (request.downvotes||0);
+      const netColor  = netVotes > 0 ? "var(--green)" : netVotes < 0 ? "var(--red)" : "var(--text-muted)";
+      const waitMin   = window.TimeUtils.estimateQueueWaitMinutes(queue, index);
+      return `
+      <div class="flex items-center gap-2 px-4 py-3 select-none" data-id="${request.id}" style="border-bottom:1px solid var(--border)">
+        <!-- Handle drag -->
+        <div class="drag-handle shrink-0 flex flex-col gap-0.5 cursor-grab active:cursor-grabbing px-1 py-2 rounded" title="Glisser pour réordonner" style="color:var(--text-muted)">
+          <span class="block w-4 h-0.5 rounded" style="background:currentColor"></span>
+          <span class="block w-4 h-0.5 rounded" style="background:currentColor"></span>
+          <span class="block w-4 h-0.5 rounded" style="background:currentColor"></span>
+        </div>
+        <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style="background:var(--accent-dim);color:var(--accent)">${index+1}</div>
+        ${request.image_url ? `<img src="${request.image_url}" class="w-10 h-10 rounded-lg object-cover shrink-0 hidden sm:block">` : ""}
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold truncate" style="color:var(--text-primary)">${request.song_name}</p>
+          <p class="text-xs truncate" style="color:var(--text-secondary)">${request.artist}</p>
+          <div class="flex flex-wrap gap-2 mt-0.5">
+            <span class="text-xs" style="color:var(--text-muted)">Par ${request.user_name}</span>
+            <span class="text-xs" style="color:var(--accent)">~${waitMin} min</span>
+            <span class="text-xs font-medium" style="color:${netColor}">Net: ${netVotes>0?"+":""}${netVotes}</span>
           </div>
+          ${renderAudioBadges(request.spotify_uri)}
         </div>
-      `;
-          })
-          .join("");
+        <div class="flex flex-col gap-1 shrink-0">
+          ${request.spotify_uri ? `
+          <button data-action="play" data-request-id="${request.id}" data-spotify-uri="${request.spotify_uri}" class="btn btn-success btn-sm">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Jouer
+          </button>` : ""}
+          <button data-action="mark-played" data-request-id="${request.id}" class="btn btn-ghost btn-sm">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Fait
+          </button>
+        </div>
+      </div>`;
+    }).join("");
 
-        // Initialiser Sortable pour le drag & drop
-        new Sortable(container, {
-          animation: 150,
-          ghostClass: "opacity-50",
-          onEnd: function (evt) {
-            const newQueue = Array.from(container.children).map((el) => {
-              const id = el.getAttribute("data-id");
-              return queue.find((r) => r.id === id);
-            });
-            socket.emit("reorder-queue", { eventId, newQueue });
-          },
-        });
-      }
+    // Détruire l'instance précédente avant d'en créer une nouvelle
+    if (queueSortable) { queueSortable.destroy(); queueSortable = null; }
+    queueSortable = new Sortable(container, {
+      handle:     ".drag-handle",
+      animation:  150,
+      ghostClass: "opacity-40",
+      dragClass:  "shadow-xl",
+      onEnd: () => {
+        const newQueue = Array.from(container.querySelectorAll("[data-id]"))
+          .map((el) => queue.find((r) => r.id === el.getAttribute("data-id")))
+          .filter(Boolean);
+        queue = newQueue; // mise à jour locale immédiate (évite un flash)
+        socket.emit("reorder-queue", { eventId, newQueue });
+      },
+    });
 
-      // ========== Actions ==========
+    loadAudioFeatures(queue);
+  }
 
-      function acceptRequest(requestId) {
-        socket.emit("accept-request", { eventId, requestId });
-      }
+  // ── Actions ──
+  function acceptRequest(requestId) { socket.emit("accept-request", { eventId, requestId }); }
+  function rejectRequest(requestId) { socket.emit("reject-request", { eventId, requestId }); }
+  function markPlayed(requestId)    { socket.emit("mark-played", { eventId, requestId }); }
 
-      function rejectRequest(requestId) {
-        socket.emit("reject-request", { eventId, requestId });
-      }
-
-      function markPlayed(requestId) {
-        socket.emit("mark-played", { eventId, requestId });
-      }
-
-      async function saveThankYouMessage() {
-        const message = document.getElementById("thankYouMessage").value.trim();
-
-        try {
-          const response = await fetch(
-            `/api/events/${eventId}/thank-you-message`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ message }),
-            },
-          );
-
-          const data = await response.json();
-
-          if (data.success) {
-            showNotification("✅ Message enregistré !", "success");
-          } else {
-            showNotification("❌ Erreur lors de l'enregistrement", "error");
-          }
-        } catch (error) {
-          console.error("Erreur sauvegarde message:", error);
-          showNotification("❌ Erreur serveur", "error");
-        }
-      }
-
-      function resetThankYouMessage() {
-        const defaultMessage = `Merci d'avoir participé ! 🎵
-On espère que vous avez passé un excellent moment.
-À très bientôt pour une nouvelle soirée ! 🚀`;
-
-        document.getElementById("thankYouMessage").value = defaultMessage;
-        showNotification("Message réinitialisé", "info");
-      }
-
-      function showNotification(message, type = "info") {
-        // Si tu as déjà un système de notification, utilise-le
-        // Sinon, voici un simple alert
-        const emoji =
-          type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️";
-        alert(`${emoji} ${message}`);
-      }
-      // Nettoyer l'interval au unload
-      window.addEventListener("beforeunload", () => {
-        stopProgressUpdate();
-      });
-    </script>
-  </body>
+  window.addEventListener("beforeunload", stopProgressUpdate);
+</script>
+</body>
 </html>

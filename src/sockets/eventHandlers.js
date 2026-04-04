@@ -7,13 +7,18 @@ const { formatRemainingDelay } = require("../utils/time.utils");
 function setupSocketHandlers(io) {
   io.on("connection", (socket) => {
     // Rejoindre un événement
-    socket.on("join-event", async (eventId) => {
+    // data peut être un string (DJ/QR) ou un objet { eventId, clientId } (user page)
+    socket.on("join-event", async (data) => {
+      const eventId  = typeof data === "object" ? data.eventId  : data;
+      const clientId = typeof data === "object" && data.clientId ? data.clientId : socket.id;
+
       socket.join(eventId);
+      socket.clientId = clientId; // stocker pour request-song
 
       // Envoyer le statut du rate limit
       try {
         const rateLimitStatus = await rateLimitService.checkRateLimit(
-          socket.id,
+          clientId,
           eventId,
         );
         socket.emit("rate-limit-status", rateLimitStatus);
@@ -24,13 +29,15 @@ function setupSocketHandlers(io) {
 
     // Demander une chanson
     socket.on("request-song", async (data) => {
-      const { eventId, songData, userName } = data;
+      const { eventId, songData, userName, clientId: dataClientId } = data;
+      // Priorité : clientId envoyé dans le message > clientId du join > socket.id
+      const clientId  = dataClientId || socket.clientId || socket.id;
       const requestId = uuidv4();
 
       try {
         // Vérifier le rate limit
         const rateLimitCheck = await rateLimitService.checkRateLimit(
-          socket.id,
+          clientId,
           eventId,
         );
 
@@ -106,11 +113,11 @@ function setupSocketHandlers(io) {
         );
 
         // Incrémenter le rate limit
-        await rateLimitService.incrementRateLimit(socket.id);
+        await rateLimitService.incrementRateLimit(clientId);
 
         // Récupérer le nouveau statut
         const newRateLimitStatus = await rateLimitService.checkRateLimit(
-          socket.id,
+          clientId,
           eventId,
         );
 
@@ -328,7 +335,7 @@ function setupSocketHandlers(io) {
 
     // Mettre à jour les paramètres de l'événement (DJ)
     socket.on("update-event-settings", async (data) => {
-      const { eventId, votesEnabled, autoAcceptEnabled } = data;
+      const { eventId, votesEnabled, autoAcceptEnabled, fallbackPlaylistUri } = data;
 
       try {
         // Construire la requête SQL dynamiquement
@@ -343,6 +350,11 @@ function setupSocketHandlers(io) {
         if (autoAcceptEnabled !== undefined) {
           updates.push("auto_accept_enabled = ?");
           values.push(autoAcceptEnabled ? 1 : 0);
+        }
+
+        if (fallbackPlaylistUri !== undefined) {
+          updates.push("fallback_playlist_uri = ?");
+          values.push(fallbackPlaylistUri || null);
         }
 
         if (updates.length > 0) {

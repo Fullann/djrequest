@@ -17,6 +17,24 @@ class EventsController {
         [eventId, name, djId],
       );
 
+      // Copier automatiquement les tokens Spotify du DJ pour cet événement
+      const [djRows] = await db.query(
+        "SELECT sp_access_token, sp_refresh_token, sp_token_expires_at FROM djs WHERE id = ?",
+        [djId],
+      );
+      if (djRows.length > 0 && djRows[0].sp_access_token) {
+        const { sp_access_token, sp_refresh_token, sp_token_expires_at } = djRows[0];
+        await db.query(
+          `INSERT INTO spotify_tokens (event_id, access_token, refresh_token, expires_at)
+           VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             access_token = VALUES(access_token),
+             refresh_token = VALUES(refresh_token),
+             expires_at = VALUES(expires_at)`,
+          [eventId, sp_access_token, sp_refresh_token, sp_token_expires_at],
+        );
+      }
+
       const userUrl = `${process.env.BASE_URL || "http://localhost:3000"}/user/${eventId}`;
       const qrCodeDataUrl = await QRCode.toDataURL(userUrl);
 
@@ -249,6 +267,114 @@ class EventsController {
       res.json({ dj, events, stats });
     } catch (error) {
       console.error("Erreur historique:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  async getLiveStats(req, res) {
+    const { eventId } = req.params;
+    const djId = req.session.djId;
+
+    try {
+      const [eventRows] = await db.query(
+        "SELECT id, name, created_at, ended_at, status FROM events WHERE id = ? AND dj_id = ?",
+        [eventId, djId],
+      );
+      if (eventRows.length === 0) return res.status(404).json({ error: "Événement non trouvé" });
+
+      const event   = eventRows[0];
+      const isLive  = !event.ended_at;
+      const refTime = event.ended_at || new Date();
+
+      // ── Compteurs globaux ──
+      const [[counts]] = await db.query(
+        `SELECT
+           COUNT(*)                                               AS total,
+           SUM(status = 'played')                                AS played,
+           SUM(status = 'pending')                               AS pending,
+           SUM(status = 'accepted')                              AS accepted,
+           SUM(status = 'rejected')                              AS rejected,
+           COUNT(DISTINCT NULLIF(user_name, 'Anonyme'))          AS named_users,
+           COUNT(DISTINCT user_name)                             AS unique_users
+         FROM requests WHERE event_id = ?`,
+        [eventId],
+      );
+
+      // ── Top 5 artistes ──
+      const [topArtists] = await db.query(
+        `SELECT artist, COUNT(*) AS total, SUM(status='played') AS played
+         FROM requests WHERE event_id = ?
+         GROUP BY artist ORDER BY total DESC LIMIT 5`,
+        [eventId],
+      );
+
+      // ── Top 5 chansons demandées (toutes) ──
+      const [topSongs] = await db.query(
+        `SELECT song_name, artist, image_url,
+                COUNT(*) AS total, SUM(status='played') AS played,
+                MAX(created_at) AS last_seen
+         FROM requests WHERE event_id = ?
+         GROUP BY song_name, artist, image_url
+         ORDER BY total DESC LIMIT 5`,
+        [eventId],
+      );
+
+      // ── Chanson en attente la plus votée ──
+      const [hotPending] = await db.query(
+        `SELECT r.song_name, r.artist, r.image_url,
+                COUNT(DISTINCT CASE WHEN v.vote_type='up'   THEN v.id END) AS up,
+                COUNT(DISTINCT CASE WHEN v.vote_type='down' THEN v.id END) AS down
+         FROM requests r LEFT JOIN votes v ON r.id = v.request_id
+         WHERE r.event_id = ? AND r.status IN ('pending','accepted')
+         GROUP BY r.id ORDER BY up DESC LIMIT 1`,
+        [eventId],
+      );
+
+      // ── Slots de 15 min depuis le début ──
+      const [slots] = await db.query(
+        `SELECT
+           FLOOR(TIMESTAMPDIFF(MINUTE, ?, created_at) / 15) AS slot,
+           COUNT(*) AS count
+         FROM requests
+         WHERE event_id = ? AND created_at >= ?
+         GROUP BY slot
+         ORDER BY slot ASC`,
+        [event.created_at, eventId, event.created_at],
+      );
+
+      // Calculer la durée en minutes et les slots pleins
+      const durationMin = Math.max(
+        Math.floor((new Date(refTime) - new Date(event.created_at)) / 60000),
+        15,
+      );
+      const totalSlots = Math.ceil(durationMin / 15);
+      const slotMap    = {};
+      slots.forEach((s) => { slotMap[s.slot] = parseInt(s.count, 10); });
+      const timeline = Array.from({ length: totalSlots }, (_, i) => ({
+        slot:  i,
+        label: `+${i * 15}min`,
+        count: slotMap[i] || 0,
+      }));
+
+      // ── Dernières demandes (live feed) ──
+      const [recentRequests] = await db.query(
+        `SELECT song_name, artist, user_name, status, created_at
+         FROM requests WHERE event_id = ?
+         ORDER BY created_at DESC LIMIT 10`,
+        [eventId],
+      );
+
+      res.json({
+        event:   { ...event, isLive, durationMin },
+        counts,
+        topArtists,
+        topSongs,
+        hotPending:     hotPending[0] || null,
+        timeline,
+        recentRequests,
+      });
+    } catch (err) {
+      console.error("Erreur live-stats:", err);
       res.status(500).json({ error: "Erreur serveur" });
     }
   }

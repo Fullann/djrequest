@@ -1,130 +1,92 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DJ Queue - Inscription</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
-      * {
-        font-family: "Inter", sans-serif;
-      }
-    </style>
-  </head>
-  <body
-    class="bg-[#0d0d0d] text-white min-h-screen flex items-center justify-center p-4"
-  >
-    <div class="bg-white/5 border border-white/10 rounded-2xl shadow-2xl p-8 max-w-md w-full">
-      <div class="text-center mb-8">
-        <h1 class="text-4xl font-extrabold text-violet-400 mb-2">🎧 DJ Queue</h1>
-        <p class="text-gray-300">Créer un compte DJ</p>
-      </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DJ Queue — Inscription</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4" style="background:var(--bg-base)">
 
+  <div class="w-full max-w-sm fade-in">
+    <!-- Brand -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4" style="background:var(--accent-dim);border:1px solid rgba(124,92,252,0.25)">
+        <svg class="w-6 h-6" style="color:var(--accent)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
+          <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold" style="color:var(--text-primary)">DJ Queue</h1>
+      <p class="text-sm mt-1" style="color:var(--text-secondary)">Créer votre compte DJ</p>
+    </div>
+
+    <!-- Card -->
+    <div class="card p-6">
       <form id="registerForm" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2"
-            >Nom</label
-          >
-          <input
-            type="text"
-            id="name"
-            required
-            class="w-full px-4 py-3 border border-white/20 bg-black/30 text-white rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
-            placeholder="DJ Awesome"
-          />
+          <label class="label">Nom d'artiste</label>
+          <input type="text" id="name" required class="input" placeholder="DJ Exemple" autocomplete="name" />
         </div>
-
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2"
-            >Email</label
-          >
-          <input
-            type="email"
-            id="email"
-            required
-            class="w-full px-4 py-3 border border-white/20 bg-black/30 text-white rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
-            placeholder="ton@email.com"
-          />
+          <label class="label">Adresse e-mail</label>
+          <input type="email" id="email" required class="input" placeholder="dj@example.com" autocomplete="email" />
         </div>
-
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2"
-            >Mot de passe</label
-          >
-          <input
-            type="password"
-            id="password"
-            required
-            minlength="6"
-            class="w-full px-4 py-3 border border-white/20 bg-black/30 text-white rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
-            placeholder="••••••••"
-          />
-          <p class="text-xs text-gray-400 mt-1">Minimum 6 caractères</p>
+          <label class="label">Mot de passe</label>
+          <input type="password" id="password" required minlength="6" class="input" placeholder="••••••••" autocomplete="new-password" />
+          <p class="text-xs mt-1.5" style="color:var(--text-muted)">Minimum 6 caractères</p>
         </div>
 
-        <div
-          id="errorMessage"
-          class="hidden bg-red-500/10 border border-red-400/30 rounded-xl p-3"
-        >
-          <p class="text-sm text-red-300" id="errorText"></p>
+        <div id="errorMessage" class="hidden rounded-lg p-3" style="background:var(--red-dim);border:1px solid rgba(239,68,68,0.2)">
+          <p class="text-sm" style="color:var(--red)" id="errorText"></p>
         </div>
 
-        <button
-          type="submit"
-          class="w-full bg-violet-600 hover:bg-violet-500 text-white font-semibold py-3 px-6 rounded-xl transition"
-        >
+        <button type="submit" class="btn btn-primary btn-full" style="padding:11px 18px;font-size:0.9375rem">
           Créer mon compte
         </button>
       </form>
-
-      <div class="mt-6 text-center">
-        <p class="text-gray-400 text-sm">
-          Déjà un compte ?
-          <a
-            href="/login"
-            class="text-violet-400 hover:text-violet-300 font-semibold"
-            >Se connecter</a
-          >
-        </p>
-      </div>
     </div>
 
-    <script src="/js/csrf.js"></script>
-    <script>
-      document
-        .getElementById("registerForm")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
+    <p class="text-center text-sm mt-5" style="color:var(--text-secondary)">
+      Déjà un compte ?
+      <a href="/login" class="font-medium" style="color:var(--accent)">Se connecter</a>
+    </p>
+  </div>
 
-          const name = document.getElementById("name").value;
-          const email = document.getElementById("email").value;
-          const password = document.getElementById("password").value;
+  <button data-theme-toggle class="fixed bottom-4 right-4 btn btn-ghost btn-icon" title="Passer en mode clair" style="background:var(--bg-surface);border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.15)">
+    <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    <svg class="w-4 h-4 icon-moon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
 
-          try {
-            const response = await fetch("/api/auth/register", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name, email, password }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-              window.location.href = "/dashboard";
-            } else {
-              document.getElementById("errorText").textContent =
-                data.error || "Erreur inscription";
-              document
-                .getElementById("errorMessage")
-                .classList.remove("hidden");
-            }
-          } catch (error) {
-            document.getElementById("errorText").textContent =
-              "Erreur inscription";
-            document.getElementById("errorMessage").classList.remove("hidden");
-          }
+  <script src="/js/csrf.js"></script>
+  <script>
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name     = document.getElementById("name").value;
+      const email    = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        const response = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password }),
         });
-    </script>
-  </body>
+        const data = await response.json();
+        if (response.ok) {
+          window.location.href = "/dashboard";
+        } else {
+          document.getElementById("errorText").textContent = data.error || "Erreur lors de l'inscription";
+          document.getElementById("errorMessage").classList.remove("hidden");
+        }
+      } catch {
+        document.getElementById("errorText").textContent = "Erreur de connexion";
+        document.getElementById("errorMessage").classList.remove("hidden");
+      }
+    });
+  </script>
+</body>
 </html>

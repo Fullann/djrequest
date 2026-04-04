@@ -1,638 +1,751 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DJ Queue - Proposer une chanson</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/socket.io/socket.io.js"></script>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
-      * {
-        font-family: "Inter", sans-serif;
-      }
-    </style>
-    <script src="/js/time-utils.js"></script>
-    <script>
-      tailwind.config = { darkMode: "class" };
-      if (localStorage.getItem("darkMode") === "true") {
-        document.documentElement.classList.add("dark");
-      }
-    </script>
-  </head>
-  <body
-    class="bg-[#0d0d0d] text-white min-h-screen p-4 transition-colors duration-300"
-  >
-    <!-- Toggle mode sombre -->
-    <button
-      id="darkModeToggle"
-      class="fixed top-4 right-4 border border-white/20 bg-white/5 text-white p-3 rounded-full shadow-lg hover:scale-110 transition-transform z-50"
-    >
-      <span id="darkModeIcon">🌙</span>
-    </button>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Proposer — DJ Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+    #app { height: 100dvh; display: flex; flex-direction: column; }
 
-    <div class="max-w-2xl mx-auto">
-      <!-- Rate limit banner -->
-      <div
-        id="rateLimitBanner"
-        class="bg-white/5 border border-white/10 rounded-2xl shadow-lg p-4 mb-4 hidden transition-colors duration-300"
-      >
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-semibold text-gray-300">
-              Demandes restantes
-            </p>
-            <p
-              class="text-2xl font-extrabold text-violet-400"
-              id="remainingRequests"
-            >
-              3
-            </p>
+    /* Smooth tab transitions */
+    .tab-panel { display: none; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+    .tab-panel.active { display: flex; flex-direction: column; }
+
+    /* Bottom sheet overlay */
+    #nameSheet { transition: opacity 150ms ease, visibility 150ms ease; }
+    #nameSheet.open { opacity: 1; visibility: visible; }
+    #nameSheet.closed { opacity: 0; visibility: hidden; }
+    #nameSheetPanel { transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1); }
+    #nameSheet.open  #nameSheetPanel { transform: translateY(0); }
+    #nameSheet.closed #nameSheetPanel { transform: translateY(100%); }
+
+    /* Rate limit dots */
+    .dot { width: 8px; height: 8px; border-radius: 50%; transition: background 300ms; }
+
+    /* Search result ripple */
+    .track-item { -webkit-tap-highlight-color: transparent; cursor: pointer; transition: background 120ms; }
+    .track-item:active { background: var(--bg-elevated) !important; }
+
+    /* Status badge pulse */
+    @keyframes pulse-once { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+    .status-pulse { animation: pulse-once 400ms ease; }
+
+    /* Scrollbar hidden */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Safe area padding */
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  </style>
+</head>
+
+<body>
+<div id="app" style="background:var(--bg-base);color:var(--text-primary)">
+
+  <!-- ── HEADER ─────────────────────────────────────────────── -->
+  <header class="shrink-0 px-4 pt-3 pb-2" style="background:var(--bg-surface);border-bottom:1px solid var(--border)">
+    <div class="flex items-center gap-3">
+      <!-- Logo + event -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5">
+          <div class="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style="background:var(--accent)">
+            <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+            </svg>
           </div>
-          <div class="text-4xl">⏱️</div>
+          <span class="text-xs font-semibold" style="color:var(--text-secondary)">DJ Queue</span>
         </div>
+        <p id="eventName" class="text-base font-bold truncate leading-tight mt-0.5">Chargement…</p>
       </div>
 
-      <div
-        class="bg-white/5 border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 mb-4 transition-colors duration-300"
-      >
-        <h1
-          class="text-2xl sm:text-3xl font-extrabold text-white mb-1"
-        >
-          🎵 Propose une chanson
-        </h1>
-        <p class="text-sm text-gray-400 mb-6" id="eventName">
-          Chargement...
-        </p>
-
-        <!-- Barre de recherche Spotify -->
-        <div class="mb-4">
-          <label
-            class="block text-sm font-medium text-gray-300 mb-2"
-          >
-            🔍 Rechercher sur Spotify
-          </label>
-          <input
-            type="text"
-            id="searchInput"
-            placeholder="Titre, artiste..."
-            class="w-full px-4 py-3 border border-white/20 bg-black/30 text-white rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition"
-          />
-        </div>
-
-        <!-- Résultats de recherche -->
-        <div
-          id="searchResults"
-          class="space-y-2 mb-4 max-h-96 overflow-y-auto"
-        ></div>
-
-        <!-- Message d'erreur -->
-        <div
-          id="errorMessage"
-          class="hidden bg-red-500/10 border border-red-400/30 rounded-xl p-4 mb-4 transition-colors duration-300"
-        >
-          <div class="flex items-start gap-3">
-            <span class="text-2xl">⚠️</span>
-            <div>
-              <p class="font-bold text-red-200 mb-1">
-                Oups !
-              </p>
-              <p
-                class="text-sm text-red-300"
-                id="errorText"
-              ></p>
-            </div>
-          </div>
-        </div>
+      <!-- Rate limit indicator -->
+      <div id="rateLimitZone" class="hidden shrink-0 text-right">
+        <p class="text-xs" style="color:var(--text-muted)" id="rateLimitLabel">Restants</p>
+        <div id="rateDots" class="flex items-center gap-1 justify-end mt-0.5"></div>
       </div>
 
-      <!-- Mes demandes -->
-      <div id="myRequests" class="space-y-3 mb-4"></div>
+      <!-- Theme toggle -->
+      <button data-theme-toggle class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--bg-elevated);border:1px solid var(--border)">
+        <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="w-4 h-4 icon-moon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
 
-      <!-- Queue complète (avec votes) -->
-      <div
-        id="queueSection"
-        class="bg-white/5 border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 transition-colors duration-300"
-      >
-        <h2
-          class="text-xl sm:text-2xl font-bold text-white mb-4"
-        >
-          🎵 Prochaines chansons
-          <span
-            id="queueCount"
-            class="text-sm font-normal text-gray-400"
-            >(0)</span
-          >
-        </h2>
-        <p
-          id="votesDisabledMsg"
-          class="hidden text-sm text-gray-400 mb-4"
-        >
-          Les votes sont désactivés par le DJ
-        </p>
-        <div id="fullQueue" class="space-y-3">
-          <p class="text-gray-400 text-center py-8">
-            Aucune chanson en attente
-          </p>
+  <!-- ── TAB CONTENT ────────────────────────────────────────── -->
+
+  <!-- ── TAB : PROPOSER ──────────────────────────────────────── -->
+  <div id="tab-search" class="tab-panel active no-scrollbar px-4 pt-4 gap-3">
+
+    <!-- My request status card (hidden until request made) -->
+    <div id="myRequestCard" class="hidden shrink-0 rounded-2xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+      <div class="flex items-center gap-3">
+        <img id="myRequestImg" src="" alt="" class="w-12 h-12 rounded-xl object-cover shrink-0 hidden" />
+        <div class="flex-1 min-w-0">
+          <p id="myRequestName" class="text-sm font-semibold truncate" style="color:var(--text-primary)"></p>
+          <p id="myRequestArtist" class="text-xs truncate" style="color:var(--text-secondary)"></p>
+          <div id="myRequestStatusBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold mt-1.5"></div>
+        </div>
+        <!-- Vote buttons (shown when accepted + votes enabled) -->
+        <div id="myRequestVotes" class="hidden flex-col gap-1 shrink-0">
+          <button id="btnVoteUp" data-vote-action="up" class="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold gap-0.5 flex-col" style="background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary)">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+            <span id="voteUpCount">0</span>
+          </button>
+          <button id="btnVoteDown" data-vote-action="down" class="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold gap-0.5 flex-col" style="background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary)">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+            <span id="voteDownCount">0</span>
+          </button>
         </div>
       </div>
     </div>
 
-    <script>
-      const eventId = window.location.pathname.split("/")[2];
-      const socket = io();
-      const myRequests = new Map();
-      const myVotes = new Map();
-      let fullQueue = [];
-      let searchTimeout;
-      let currentRateLimit = { count: 0, max: 3, remaining: 3 };
-      let votesEnabled = true;
+    <!-- Error banner -->
+    <div id="errorBanner" class="hidden shrink-0 flex items-start gap-2 px-3 py-2.5 rounded-xl" style="background:var(--red-dim);border:1px solid rgba(239,68,68,0.25)">
+      <svg class="w-4 h-4 shrink-0 mt-0.5" style="color:var(--red)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <p id="errorText" class="text-xs leading-relaxed" style="color:var(--red)"></p>
+    </div>
 
-      // ========== Event Listeners ==========
+    <!-- Search input (sticky within tab) -->
+    <div class="shrink-0 relative">
+      <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none" style="color:var(--text-muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Rechercher une chanson…"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+        class="w-full rounded-2xl text-base py-3.5 pr-4"
+        style="padding-left:3rem;background:var(--bg-elevated);border:1.5px solid var(--border);color:var(--text-primary);outline:none;-webkit-appearance:none"
+        onfocus="this.style.borderColor='var(--accent)'"
+        onblur="this.style.borderColor='var(--border)'"
+      />
+      <button id="clearSearch" class="hidden absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center" style="background:var(--text-muted)">
+        <svg class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
 
-      // Dark mode toggle
-      document
-        .getElementById("darkModeToggle")
-        .addEventListener("click", toggleDarkMode);
-
-      // Search input
-      document.getElementById("searchInput").addEventListener("input", (e) => {
-        const query = e.target.value.trim();
-        clearTimeout(searchTimeout);
-
-        if (query.length < 2) {
-          document.getElementById("searchResults").innerHTML = "";
-          return;
-        }
-
-        searchTimeout = setTimeout(() => {
-          searchSpotify(query);
-        }, 500);
-      });
-
-      // Délégation d'événements pour les résultats de recherche
-      document
-        .getElementById("searchResults")
-        .addEventListener("click", (e) => {
-          const trackDiv = e.target.closest("[data-track]");
-          if (trackDiv) {
-            const track = JSON.parse(trackDiv.dataset.track);
-            selectTrack(track);
-          }
-        });
-
-      // Délégation pour les votes dans myRequests
-      document.getElementById("myRequests").addEventListener("click", (e) => {
-        const voteBtn = e.target.closest("[data-vote-action]");
-        if (voteBtn) {
-          const requestId = voteBtn.dataset.requestId;
-          const voteType = voteBtn.dataset.voteAction;
-          vote(requestId, voteType);
-        }
-      });
-
-      // Délégation pour les votes dans la queue
-      document.getElementById("fullQueue").addEventListener("click", (e) => {
-        const voteBtn = e.target.closest("[data-vote-action]");
-        if (voteBtn) {
-          const requestId = voteBtn.dataset.requestId;
-          const voteType = voteBtn.dataset.voteAction;
-          vote(requestId, voteType);
-        }
-      });
-
-      // ========== Initialisation ==========
-
-      socket.emit("join-event", eventId);
-      updateDarkModeIcon();
-
-      // Charger l'événement
-      fetch(`/api/events/${eventId}`)
-        .then((r) => r.json())
-        .then((data) => {
-          document.getElementById("eventName").textContent = data.name;
-          votesEnabled = data.votes_enabled;
-          fullQueue = data.queue || [];
-          updateQueueDisplay();
-
-          if (!votesEnabled) {
-            document
-              .getElementById("votesDisabledMsg")
-              .classList.remove("hidden");
-          }
-        })
-        .catch((error) => {
-          console.error("Erreur chargement événement:", error);
-          showError("Impossible de charger l'événement");
-        });
-
-      // ========== Fonctions ==========
-
-      function toggleDarkMode() {
-        const isDark = document.documentElement.classList.toggle("dark");
-        localStorage.setItem("darkMode", isDark);
-        updateDarkModeIcon();
-      }
-
-      function updateDarkModeIcon() {
-        const isDark = document.documentElement.classList.contains("dark");
-        document.getElementById("darkModeIcon").textContent = isDark
-          ? "☀️"
-          : "🌙";
-      }
-
-      // Rate limit
-      socket.on("rate-limit-status", (status) => {
-        currentRateLimit = status;
-        updateRateLimitDisplay();
-      });
-
-      function updateRateLimitDisplay() {
-        const banner = document.getElementById("rateLimitBanner");
-        const remaining = document.getElementById("remainingRequests");
-
-        if (currentRateLimit.remaining !== undefined) {
-          remaining.textContent = currentRateLimit.remaining;
-          banner.classList.remove("hidden");
-
-          if (currentRateLimit.remaining === 0) {
-            banner.classList.add("bg-red-500/10", "border-red-400/30");
-          }
-        }
-      }
-
-      async function searchSpotify(query) {
-        try {
-          const response = await fetch(
-            `/api/spotify/search?q=${encodeURIComponent(query)}&eventId=${eventId}`,
-          );
-          const data = await response.json();
-
-          if (data.error) {
-            showError(data.error);
-            document.getElementById("searchResults").innerHTML = "";
-            return;
-          }
-
-          displaySearchResults(data.tracks);
-        } catch (error) {
-          console.error("Erreur recherche:", error);
-          showError(
-            "Erreur lors de la recherche. Le DJ doit connecter Spotify.",
-          );
-        }
-      }
-
-      function displaySearchResults(tracks) {
-        const container = document.getElementById("searchResults");
-
-        if (!tracks || tracks.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-400 text-sm text-center py-4">Aucun résultat</p>';
-          return;
-        }
-
-        container.innerHTML = tracks
-          .map((track) => {
-            const trackJson = JSON.stringify(track).replace(/"/g, "&quot;");
-            return `
-        <div 
-          class="flex items-center gap-3 p-3 border border-white/10 bg-white/5 rounded-xl hover:bg-white/10 cursor-pointer transition"
-          data-track="${trackJson}"
-        >
-          <img src="${track.image}" alt="${track.name}" class="w-12 h-12 rounded">
-          <div class="flex-1 min-w-0">
-            <h4 class="font-semibold text-white truncate">${track.name}</h4>
-            <p class="text-sm text-gray-300 truncate">${track.artist}</p>
-          </div>
-          <button class="text-violet-400 font-bold text-xl">+</button>
+    <!-- Search results / empty state -->
+    <div id="searchResults" class="flex-1 flex flex-col gap-2">
+      <!-- Empty state when not searching -->
+      <div id="searchEmptyState" class="flex-1 flex flex-col items-center justify-center gap-3 py-12">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center" style="background:var(--bg-elevated)">
+          <svg class="w-8 h-8" style="color:var(--text-muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
         </div>
-      `;
-          })
-          .join("");
-      }
+        <div class="text-center">
+          <p class="text-sm font-medium" style="color:var(--text-secondary)">Cherche une chanson</p>
+          <p class="text-xs mt-1" style="color:var(--text-muted)">Tape le titre ou l'artiste ci-dessus</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      function selectTrack(track) {
-        hideError();
+  <!-- ── TAB : FILE D'ATTENTE ─────────────────────────────────── -->
+  <div id="tab-queue" class="tab-panel no-scrollbar">
+    <div id="queueList" class="flex flex-col divide-y" style="border-color:var(--border)">
+      <div class="flex flex-col items-center justify-center gap-3 py-16 px-8 text-center">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center" style="background:var(--bg-elevated)">
+          <svg class="w-8 h-8" style="color:var(--text-muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-medium" style="color:var(--text-secondary)">File vide</p>
+          <p class="text-xs mt-1" style="color:var(--text-muted)">Aucune chanson pour l'instant</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        const userName = prompt("Ton prénom (optionnel) :") || "Anonyme";
+  <!-- ── BOTTOM NAV ─────────────────────────────────────────── -->
+  <nav class="shrink-0 safe-bottom" style="background:var(--bg-surface);border-top:1px solid var(--border)">
+    <div class="flex">
+      <button id="navSearch" onclick="switchTab('search')" class="flex-1 flex flex-col items-center gap-1 py-2.5 px-2 transition" style="color:var(--accent)">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <span class="text-xs font-semibold">Proposer</span>
+      </button>
+      <button id="navQueue" onclick="switchTab('queue')" class="flex-1 flex flex-col items-center gap-1 py-2.5 px-2 transition relative" style="color:var(--text-muted)">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        <span class="text-xs font-semibold">File d'attente</span>
+        <span id="queueBadge" class="hidden absolute top-1.5 right-6 min-w-4 h-4 px-1 rounded-full text-xs font-bold flex items-center justify-center text-white" style="background:var(--accent);font-size:10px"></span>
+      </button>
+    </div>
+  </nav>
 
-        socket.emit("request-song", {
-          eventId,
-          songData: track,
-          userName,
-        });
+</div>
 
-        document.getElementById("searchInput").value = "";
-        document.getElementById("searchResults").innerHTML = "";
-      }
+<!-- ── BOTTOM SHEET : PRÉNOM ────────────────────────────────── -->
+<div id="nameSheet" class="closed fixed inset-0 z-50" style="background:rgba(0,0,0,0.5)">
+  <div class="absolute inset-0" onclick="closeNameSheet()"></div>
+  <div id="nameSheetPanel" class="absolute bottom-0 left-0 right-0 rounded-t-3xl p-6 pb-8" style="background:var(--bg-surface);border-top:1px solid var(--border)">
+    <!-- Drag handle -->
+    <div class="w-10 h-1 rounded-full mx-auto mb-5" style="background:var(--border)"></div>
 
-      function showError(message) {
-        document.getElementById("errorText").innerHTML = message.replace(
-          /\n/g,
-          "<br>",
-        );
-        document.getElementById("errorMessage").classList.remove("hidden");
+    <!-- Track preview -->
+    <div id="sheetTrackPreview" class="flex items-center gap-3 mb-5 p-3 rounded-2xl" style="background:var(--bg-elevated)">
+      <img id="sheetTrackImg" src="" alt="" class="w-12 h-12 rounded-xl object-cover shrink-0" />
+      <div class="flex-1 min-w-0">
+        <p id="sheetTrackName" class="text-sm font-semibold truncate" style="color:var(--text-primary)"></p>
+        <p id="sheetTrackArtist" class="text-xs truncate" style="color:var(--text-secondary)"></p>
+      </div>
+    </div>
 
-        setTimeout(() => {
-          hideError();
-        }, 8000);
-      }
+    <p class="text-base font-bold mb-1" style="color:var(--text-primary)">Ton prénom</p>
+    <p class="text-xs mb-4" style="color:var(--text-muted)">Optionnel — pour que le DJ sache qui propose</p>
 
-      function hideError() {
-        document.getElementById("errorMessage").classList.add("hidden");
-      }
+    <input
+      type="text"
+      id="nameInput"
+      placeholder="Ton prénom (optionnel)"
+      maxlength="30"
+      autocomplete="given-name"
+      class="w-full rounded-2xl text-base py-4 px-4 mb-4"
+      style="background:var(--bg-elevated);border:1.5px solid var(--border);color:var(--text-primary);outline:none"
+      onfocus="this.style.borderColor='var(--accent)'"
+      onblur="this.style.borderColor='var(--border)'"
+    />
 
-      function vote(requestId, voteType) {
-        if (!votesEnabled) {
-          showError("Les votes sont désactivés par le DJ");
-          return;
-        }
-        socket.emit("vote", { requestId, voteType });
-        myVotes.set(requestId, voteType);
-      }
+    <button onclick="submitRequest()" class="w-full rounded-2xl py-4 text-base font-bold flex items-center justify-center gap-2" style="background:var(--accent);color:#fff">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Proposer cette chanson
+    </button>
+  </div>
+</div>
 
-      // ========== Socket Events ==========
-      socket.on("event-ended", (data) => {
-        // Afficher un message
-        showError(
-          `🎉 ${data.message || "La soirée est terminée !"}\n\nRedirection dans 2 secondes...`,
-        );
+<!-- ── TOAST ──────────────────────────────────────────────────── -->
+<div id="toast" class="hidden fixed top-4 left-4 right-4 z-50 px-4 py-3 rounded-2xl text-sm font-semibold shadow-xl" style="background:var(--accent);color:#fff;text-align:center"></div>
 
-        // Désactiver l'interface
-        document.getElementById("searchInput").disabled = true;
-        document.getElementById("searchInput").placeholder = "Soirée terminée";
-        document.getElementById("searchResults").innerHTML = "";
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/time-utils.js"></script>
+<script>
+  const eventId = window.location.pathname.split("/")[2];
+  const socket  = io();
 
-        // Rediriger après 2 secondes
-        setTimeout(() => {
-          window.location.href = `/event/${eventId}/thank-you`;
-        }, 2000);
-      });
-      socket.on("request-error", (error) => {
-        if (error.type === "rate-limit") {
-          showError(`⏱️ ${error.message}`);
-        } else if (error.type === "duplicate") {
-          showError(`🎵 ${error.message}`);
-        } else {
-          showError(error.message);
-        }
-      });
+  let fullQueue        = [];
+  let searchTimeout;
+  let currentRateLimit = { count: 0, max: 3, remaining: 3 };
+  let votesEnabled     = true;
+  let activeTab        = "search";
+  let pendingTrack     = null;   // Track sélectionné en attente de prénom
+  let myRequestId      = null;
+  let myRequestData    = {};
+  let myVote           = null;
 
-      socket.on("request-created", (data) => {
-        myRequests.set(data.requestId, {
-          status: "pending",
-          ...data,
-        });
+  // ── Identifiant persistant (survit au refresh) ──
+  let clientId = localStorage.getItem("djq-client-id");
+  if (!clientId) {
+    clientId = "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem("djq-client-id", clientId);
+  }
 
-        if (data.rateLimitStatus) {
-          currentRateLimit = data.rateLimitStatus;
-          updateRateLimitDisplay();
-        }
+  // ── Tab navigation ──
+  function switchTab(tab) {
+    activeTab = tab;
+    document.getElementById("tab-search").classList.toggle("active", tab === "search");
+    document.getElementById("tab-queue").classList.toggle("active",  tab === "queue");
+    const accentColor = "var(--accent)";
+    const muteColor   = "var(--text-muted)";
+    document.getElementById("navSearch").style.color = tab === "search" ? accentColor : muteColor;
+    document.getElementById("navQueue").style.color  = tab === "queue"  ? accentColor : muteColor;
+    if (tab === "queue") document.getElementById("queueBadge").classList.add("hidden");
+  }
 
-        updateMyRequests();
-      });
+  // ── Search ──
+  const searchInput = document.getElementById("searchInput");
+  const clearBtn    = document.getElementById("clearSearch");
 
-      socket.on("your-request-accepted", (data) => {
-        const request = myRequests.get(data.requestId);
-        if (request) {
-          request.status = "accepted";
-          request.position = data.position;
-          updateMyRequests();
-        }
-      });
+  searchInput.addEventListener("input", (e) => {
+    const q = e.target.value.trim();
+    clearBtn.classList.toggle("hidden", q.length === 0);
+    clearTimeout(searchTimeout);
+    if (q.length < 2) { showEmptyState(); return; }
+    searchTimeout = setTimeout(() => searchSpotify(q), 400);
+  });
 
-      socket.on("your-request-rejected", (data) => {
-        const request = myRequests.get(data.requestId);
-        if (request) {
-          request.status = "rejected";
-          updateMyRequests();
-        }
-      });
+  clearBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    clearBtn.classList.add("hidden");
+    showEmptyState();
+    searchInput.focus();
+  });
 
-      socket.on("queue-updated", (data) => {
-        fullQueue = data.queue;
+  // Fermer le clavier sur Enter (mobile)
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") searchInput.blur();
+  });
 
-        myRequests.forEach((request, id) => {
-          if (request.status === "accepted") {
-            const position = data.queue.findIndex((r) => r.id === id) + 1;
-            if (position > 0) {
-              request.position = position;
-            } else {
-              request.status = "played";
-            }
-          }
-        });
+  function showEmptyState() {
+    const container = document.getElementById("searchResults");
+    container.innerHTML = `
+      <div id="searchEmptyState" class="flex-1 flex flex-col items-center justify-center gap-3 py-12">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center" style="background:var(--bg-elevated)">
+          <svg class="w-8 h-8" style="color:var(--text-muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
+        </div>
+        <div class="text-center">
+          <p class="text-sm font-medium" style="color:var(--text-secondary)">Cherche une chanson</p>
+          <p class="text-xs mt-1" style="color:var(--text-muted)">Tape le titre ou l'artiste ci-dessus</p>
+        </div>
+      </div>`;
+  }
 
-        updateMyRequests();
-        updateQueueDisplay();
-      });
+  async function searchSpotify(query) {
+    document.getElementById("searchResults").innerHTML = `
+      <div class="flex items-center justify-center py-10 gap-2" style="color:var(--text-muted)">
+        <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        <span class="text-sm">Recherche…</span>
+      </div>`;
+    try {
+      const r    = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&eventId=${eventId}`);
+      const data = await r.json();
+      if (data.error) { showError(data.error); showEmptyState(); return; }
+      renderResults(data.tracks);
+    } catch {
+      showError("Erreur de recherche. Le DJ doit connecter Spotify.");
+      showEmptyState();
+    }
+  }
 
-      socket.on("vote-updated", (data) => {
-        const request = myRequests.get(data.requestId);
-        if (request) {
-          request.upvotes = data.upvotes;
-          request.downvotes = data.downvotes;
-          updateMyRequests();
-        }
+  function renderResults(tracks) {
+    const container = document.getElementById("searchResults");
+    if (!tracks || tracks.length === 0) {
+      container.innerHTML = `<p class="text-sm text-center py-8" style="color:var(--text-muted)">Aucun résultat</p>`;
+      return;
+    }
+    container.innerHTML = tracks.map((t) => {
+      const j = JSON.stringify(t).replace(/"/g, "&quot;");
+      return `
+        <div class="track-item flex items-center gap-3 px-1 py-2 rounded-2xl" data-track="${j}">
+          <img src="${t.image}" alt="" class="w-14 h-14 rounded-xl object-cover shrink-0" loading="lazy" />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold leading-snug" style="color:var(--text-primary)">${t.name}</p>
+            <p class="text-xs mt-0.5 truncate" style="color:var(--text-secondary)">${t.artist}</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">${t.album || ""}</p>
+          </div>
+          <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style="background:var(--accent)">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+        </div>`;
+    }).join("");
+    container.querySelectorAll("[data-track]").forEach((el) => {
+      el.addEventListener("click", () => openNameSheet(JSON.parse(el.dataset.track)));
+    });
+  }
 
-        const queueItem = fullQueue.find((r) => r.id === data.requestId);
-        if (queueItem) {
-          queueItem.upvotes = data.upvotes;
-          queueItem.downvotes = data.downvotes;
-          updateQueueDisplay();
-        }
-      });
+  // ── Name bottom sheet ──
+  function openNameSheet(track) {
+    if (currentRateLimit.allowed === false) {
+      const mins = currentRateLimit.remainingMinutes || 1;
+      showError(`Limite atteinte — réessaie dans ${mins} min`);
+      return;
+    }
+    pendingTrack = track;
+    document.getElementById("sheetTrackName").textContent   = track.name;
+    document.getElementById("sheetTrackArtist").textContent = track.artist;
+    document.getElementById("sheetTrackImg").src            = track.image;
+    document.getElementById("nameInput").value              = "";
+    const sheet = document.getElementById("nameSheet");
+    sheet.classList.remove("closed");
+    sheet.classList.add("open");
+    setTimeout(() => document.getElementById("nameInput").focus(), 350);
+  }
 
-      socket.on("event-settings-updated", (data) => {
-        if (data.votesEnabled !== undefined) {
-          votesEnabled = data.votesEnabled;
+  function closeNameSheet() {
+    const sheet = document.getElementById("nameSheet");
+    sheet.classList.remove("open");
+    sheet.classList.add("closed");
+    pendingTrack = null;
+  }
 
-          if (!votesEnabled) {
-            document
-              .getElementById("votesDisabledMsg")
-              .classList.remove("hidden");
-            showError("⚠️ Les votes ont été désactivés par le DJ");
-          } else {
-            document.getElementById("votesDisabledMsg").classList.add("hidden");
-            showError("✅ Les votes ont été activés par le DJ");
-          }
+  function submitRequest() {
+    if (!pendingTrack) return;
+    const userName = document.getElementById("nameInput").value.trim() || "Anonyme";
+    socket.emit("request-song", { eventId, songData: pendingTrack, userName, clientId });
+    closeNameSheet();
+  }
 
-          // Mettre à jour l'affichage
-          updateMyRequests();
-          updateQueueDisplay();
-        }
-      });
+  // Submit on Enter in name input
+  document.getElementById("nameInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitRequest();
+  });
 
-      function updateMyRequests() {
-        const container = document.getElementById("myRequests");
-        container.innerHTML = "";
+  // ── Rate limit display ──
+  function updateRateLimitDisplay() {
+    const zone  = document.getElementById("rateLimitZone");
+    const dots  = document.getElementById("rateDots");
+    const label = document.getElementById("rateLimitLabel");
+    const max   = currentRateLimit.max || 3;
+    zone.classList.remove("hidden");
 
-        myRequests.forEach((request, id) => {
-          const div = document.createElement("div");
-          div.className =
-            "bg-white/5 border border-white/10 rounded-xl shadow-lg p-4 transition-colors duration-300";
+    if (currentRateLimit.allowed === false) {
+      const mins = currentRateLimit.remainingMinutes || 1;
+      label.textContent = `Limite — ${mins} min`;
+      label.style.color = "var(--red)";
+      dots.innerHTML = Array.from({ length: max }, () =>
+        `<div class="dot" style="background:rgba(239,68,68,0.35)"></div>`
+      ).join("");
+    } else {
+      const left = currentRateLimit.remaining ?? (max - (currentRateLimit.count || 0));
+      label.textContent = left === 1 ? "1 restante" : `${left} restantes`;
+      label.style.color = left <= 1 ? "var(--amber)" : "var(--text-muted)";
+      dots.innerHTML = Array.from({ length: max }, (_, i) => {
+        const filled = i < left;
+        const color  = left <= 1 ? "var(--amber)" : "var(--accent)";
+        return `<div class="dot" style="background:${filled ? color : "var(--bg-elevated);border:1px solid var(--border)"}"></div>`;
+      }).join("");
+    }
+  }
 
-          let statusHtml = "";
-          let statusClass = "";
+  // ── My request status card ──
+  function updateMyRequestCard() {
+    const card = document.getElementById("myRequestCard");
+    if (!myRequestId || !myRequestData.status) { card.classList.add("hidden"); return; }
 
-          if (request.status === "pending") {
-            statusClass =
-              "bg-yellow-500/20 text-yellow-200 border border-yellow-400/30";
-            statusHtml = "⏳ En attente";
-          } else if (request.status === "accepted") {
-            statusClass =
-              "bg-green-500/20 text-green-200 border border-green-400/30";
-            const waitMinutes = calculateWaitMinutesForRequest(id, request.position);
-            statusHtml = `✅ Acceptée - Position ${request.position} (~${waitMinutes} min)`;
-          } else if (request.status === "rejected") {
-            statusClass =
-              "bg-red-500/20 text-red-200 border border-red-400/30";
-            statusHtml = "❌ Refusée";
-          } else if (request.status === "played") {
-            statusClass =
-              "bg-cyan-500/20 text-cyan-200 border border-cyan-400/30";
-            statusHtml = "✓ Jouée";
-          }
+    card.classList.remove("hidden");
+    card.classList.add("status-pulse");
+    setTimeout(() => card.classList.remove("status-pulse"), 400);
 
-          const upvotes = request.upvotes || 0;
-          const downvotes = request.downvotes || 0;
-          const myVote = myVotes.get(id);
+    document.getElementById("myRequestName").textContent   = myRequestData.songName   || "";
+    document.getElementById("myRequestArtist").textContent = myRequestData.artist      || "";
+    const img = document.getElementById("myRequestImg");
+    if (myRequestData.image) { img.src = myRequestData.image; img.classList.remove("hidden"); }
 
-          div.innerHTML = `
-          <div class="flex justify-between items-start mb-2">
-            <div class="flex-1">
-              <h3 class="font-bold text-white">${request.songName || "Ta chanson"}</h3>
-              <p class="text-sm text-gray-300">${request.artist || ""}</p>
+    const badge = document.getElementById("myRequestStatusBadge");
+    const votesDiv = document.getElementById("myRequestVotes");
+
+    const configs = {
+      pending:  { text: "En attente du DJ", bg: "var(--amber-dim)", color: "var(--amber)", dot: "var(--amber)" },
+      accepted: { text: `Acceptée — pos. ${myRequestData.position || "?"} (~${calcWait()} min)`, bg: "var(--green-dim)", color: "var(--green)", dot: "var(--green)" },
+      rejected: { text: "Non retenue", bg: "var(--red-dim)", color: "var(--red)", dot: "var(--red)" },
+      played:   { text: "Jouée — Merci !", bg: "var(--cyan-dim)", color: "var(--cyan)", dot: "var(--cyan)" },
+    };
+    const cfg = configs[myRequestData.status] || configs.pending;
+    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${cfg.dot}"></span>${cfg.text}`;
+    badge.style.background = cfg.bg;
+    badge.style.color      = cfg.color;
+
+    const showVotes = myRequestData.status === "accepted" && votesEnabled;
+    votesDiv.classList.toggle("hidden", !showVotes);
+    if (showVotes) {
+      const up   = myRequestData.upvotes   || 0;
+      const down = myRequestData.downvotes || 0;
+      document.getElementById("voteUpCount").textContent   = up;
+      document.getElementById("voteDownCount").textContent = down;
+      const upBtn   = document.getElementById("btnVoteUp");
+      const downBtn = document.getElementById("btnVoteDown");
+      upBtn.style.background   = myVote === "up"   ? "var(--green)" : "var(--bg-elevated)";
+      upBtn.style.color        = myVote === "up"   ? "#fff"          : "var(--text-secondary)";
+      downBtn.style.background = myVote === "down" ? "var(--red)"   : "var(--bg-elevated)";
+      downBtn.style.color      = myVote === "down" ? "#fff"          : "var(--text-secondary)";
+    }
+  }
+
+  function calcWait() {
+    if (!Array.isArray(fullQueue) || fullQueue.length === 0) return 1;
+    const idx = fullQueue.findIndex((s) => s.id === myRequestId);
+    if (idx <= 0) return 1;
+    return window.TimeUtils.estimateQueueWaitMinutes(fullQueue, idx);
+  }
+
+  // Vote buttons in my request card
+  document.getElementById("btnVoteUp").addEventListener("click", () => vote("up"));
+  document.getElementById("btnVoteDown").addEventListener("click", () => vote("down"));
+
+  function vote(type) {
+    if (!votesEnabled)  { showError("Votes désactivés par le DJ"); return; }
+    if (!myRequestId)   return;
+    socket.emit("vote", { requestId: myRequestId, voteType: type });
+    myVote = type;
+    updateMyRequestCard();
+  }
+
+  // ── Queue display ──
+  function updateQueueDisplay() {
+    const container = document.getElementById("queueList");
+    const badge     = document.getElementById("queueBadge");
+
+    badge.textContent = fullQueue.length || "";
+    badge.classList.toggle("hidden", fullQueue.length === 0 || activeTab === "queue");
+
+    if (fullQueue.length === 0) {
+      container.innerHTML = `
+        <div class="flex flex-col items-center justify-center gap-3 py-16 px-8 text-center">
+          <div class="w-16 h-16 rounded-full flex items-center justify-center" style="background:var(--bg-elevated)">
+            <svg class="w-8 h-8" style="color:var(--text-muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+              <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium" style="color:var(--text-secondary)">File vide</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)">Aucune chanson pour l'instant</p>
+          </div>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = fullQueue.map((song, index) => {
+      const wait     = window.TimeUtils.estimateQueueWaitMinutes(fullQueue, index);
+      const isMyTrack = song.id === myRequestId;
+      const myVoteQ  = isMyTrack ? myVote : null;
+      return `
+        <div class="flex items-center gap-3 px-4 py-3.5 ${isMyTrack ? "relative" : ""}" style="${isMyTrack ? "background:var(--accent-dim);border-left:3px solid var(--accent)" : ""}">
+          <div class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold" style="background:${isMyTrack ? "var(--accent)" : "var(--bg-elevated)"};color:${isMyTrack ? "#fff" : "var(--text-secondary)"}">
+            ${index + 1}
+          </div>
+          ${song.image_url ? `<img src="${song.image_url}" alt="" class="w-12 h-12 rounded-xl object-cover shrink-0" loading="lazy" />` : ""}
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold truncate leading-snug" style="color:var(--text-primary)">${song.song_name}</p>
+            <p class="text-xs truncate mt-0.5" style="color:var(--text-secondary)">${song.artist}</p>
+            <div class="flex items-center gap-2 mt-1 flex-wrap">
+              <span class="text-xs" style="color:var(--text-muted)">${song.user_name}</span>
+              ${index > 0 ? `<span class="text-xs" style="color:var(--accent)">~${wait} min</span>` : `<span class="text-xs font-semibold" style="color:var(--accent)">Suivant !</span>`}
             </div>
           </div>
-
-          ${
-            request.status === "accepted" && votesEnabled
-              ? `
-          <div class="flex gap-2 mb-2">
-            <button 
-              data-vote-action="up"
-              data-request-id="${id}"
-              class="flex items-center gap-1 px-3 py-1 rounded-lg transition ${myVote === "up" ? "bg-green-500 text-white" : "bg-white/10 text-gray-200 hover:bg-green-500/20"}"
-            >
-              👍 <span class="font-bold">${upvotes}</span>
+          ${votesEnabled ? `
+          <div class="shrink-0 flex flex-col items-center gap-1">
+            <button data-vote-action="up" data-request-id="${song.id}" class="w-9 h-9 rounded-xl flex flex-col items-center justify-center" style="${myVoteQ==="up" ? "background:var(--green);color:#fff" : "background:var(--bg-elevated);color:var(--text-muted);border:1px solid var(--border)"}">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+              <span class="text-xs font-bold" style="font-size:10px">${song.upvotes || 0}</span>
             </button>
-            <button 
-              data-vote-action="down"
-              data-request-id="${id}"
-              class="flex items-center gap-1 px-3 py-1 rounded-lg transition ${myVote === "down" ? "bg-red-500 text-white" : "bg-white/10 text-gray-200 hover:bg-red-500/20"}"
-            >
-              👎 <span class="font-bold">${downvotes}</span>
+            <button data-vote-action="down" data-request-id="${song.id}" class="w-9 h-9 rounded-xl flex flex-col items-center justify-center" style="${myVoteQ==="down" ? "background:var(--red);color:#fff" : "background:var(--bg-elevated);color:var(--text-muted);border:1px solid var(--border)"}">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+              <span class="text-xs font-bold" style="font-size:10px">${song.downvotes || 0}</span>
             </button>
-          </div>
-          `
-              : ""
-          }
+          </div>` : ""}
+        </div>`;
+    }).join("");
 
-          <div class="mt-2">
-            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusClass}">
-              ${statusHtml}
-            </span>
-          </div>
-        `;
+    // Queue vote delegation (for other tracks, not my own — handled by socket separately)
+    container.querySelectorAll("[data-vote-action]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rid  = btn.dataset.requestId;
+        const type = btn.dataset.voteAction;
+        if (!votesEnabled) { showError("Votes désactivés par le DJ"); return; }
+        socket.emit("vote", { requestId: rid, voteType: type });
+        if (rid === myRequestId) { myVote = type; updateMyRequestCard(); }
+      });
+    });
+  }
 
-          container.appendChild(div);
-        });
+  // ── Error / toast ──
+  function showError(msg) {
+    const el = document.getElementById("errorBanner");
+    document.getElementById("errorText").innerHTML = msg.replace(/\n/g, "<br>");
+    el.classList.remove("hidden");
+    clearTimeout(showError._t);
+    showError._t = setTimeout(() => el.classList.add("hidden"), 6000);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.remove("hidden");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => t.classList.add("hidden"), 3000);
+  }
+
+  // ── Notifications ──
+  const BASE_TITLE = document.title;
+  let blinkInterval = null;
+
+  // Demander la permission pour les notifications système (fait discrètement, sans popup intrusif)
+  if ("Notification" in window && Notification.permission === "default") {
+    // On attend une interaction utilisateur pour demander la permission
+    document.addEventListener("click", function askOnce() {
+      Notification.requestPermission();
+      document.removeEventListener("click", askOnce);
+    }, { once: true });
+  }
+
+  function notifyAccepted(songName) {
+    // 1. Vibration (mobile) — double pulse
+    if (navigator.vibrate) navigator.vibrate([80, 60, 120]);
+
+    // 2. Titre clignotant (utile si l'onglet est en arrière-plan)
+    stopTitleBlink();
+    let blink = true;
+    blinkInterval = setInterval(() => {
+      document.title = blink ? `✓ Acceptée ! — ${songName}` : BASE_TITLE;
+      blink = !blink;
+    }, 900);
+    // Arrêter après 20 s ou quand l'onglet redevient visible
+    setTimeout(stopTitleBlink, 20000);
+
+    // 3. Notification système si disponible et autorisée
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Ta chanson est acceptée !", {
+        body: songName,
+        icon: "/favicon.ico",
+        tag:  "dj-request-accepted",
+        silent: true, // on a déjà la vibration
+      });
+    }
+  }
+
+  function notifyRejected() {
+    if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
+    stopTitleBlink();
+  }
+
+  function notifyPlayed(songName) {
+    if (navigator.vibrate) navigator.vibrate([200]);
+    stopTitleBlink();
+    document.title = `♪ En train de jouer — ${songName}`;
+    setTimeout(() => { document.title = BASE_TITLE; }, 5000);
+  }
+
+  function stopTitleBlink() {
+    if (blinkInterval) { clearInterval(blinkInterval); blinkInterval = null; }
+    document.title = BASE_TITLE;
+  }
+
+  // Remettre le titre normal si l'onglet redevient actif
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) stopTitleBlink();
+  });
+
+  // ── Socket ──
+  let _wasDisconnected = false;
+
+  socket.on("connect", () => {
+    socket.emit("join-event", { eventId, clientId });
+    // Après une coupure réseau : resynchroniser l'état complet
+    if (_wasDisconnected) {
+      _wasDisconnected = false;
+      resyncState();
+    }
+  });
+  socket.on("disconnect", () => { _wasDisconnected = true; });
+  if (socket.connected) socket.emit("join-event", { eventId, clientId });
+
+  async function resyncState() {
+    try {
+      const data = await fetch(`/api/events/${eventId}`).then((r) => r.json());
+      if (data.error) return;
+      votesEnabled = data.votes_enabled;
+      fullQueue    = data.queue || [];
+      // Mettre à jour le statut de la demande en cours si elle est dans la queue
+      if (myRequestId && myRequestData.status === "accepted") {
+        const pos = fullQueue.findIndex((r) => r.id === myRequestId) + 1;
+        if (pos > 0) myRequestData.position = pos;
+        else         myRequestData.status = "played";
+        updateMyRequestCard();
       }
+      updateQueueDisplay();
+    } catch { /* silencieux — on réessaiera à la prochaine reconnexion */ }
+  }
 
-      function calculateWaitMinutesForRequest(requestId, fallbackPosition = 1) {
-        if (!Array.isArray(fullQueue) || fullQueue.length === 0) {
-          return Math.max(1, Math.ceil(fallbackPosition * 3));
-        }
+  socket.on("rate-limit-status", (status) => { currentRateLimit = status; updateRateLimitDisplay(); });
 
-        const queueIndex = fullQueue.findIndex((song) => song.id === requestId);
-        if (queueIndex <= 0) {
-          return 1;
-        }
+  socket.on("request-created", (data) => {
+    myRequestId   = data.requestId;
+    myRequestData = { status: "pending", songName: data.songName, artist: data.artist, image: data.image };
+    if (data.rateLimitStatus) { currentRateLimit = data.rateLimitStatus; updateRateLimitDisplay(); }
+    updateMyRequestCard();
+    showToast("Demande envoyée !");
+    // Reset search
+    searchInput.value = "";
+    clearBtn.classList.add("hidden");
+    showEmptyState();
+  });
 
-        return window.TimeUtils.estimateQueueWaitMinutes(fullQueue, queueIndex);
+  socket.on("request-error", (error) => {
+    showError(error.message);
+    if (error.type === "rate-limit") {
+      currentRateLimit = { ...currentRateLimit, allowed: false };
+      updateRateLimitDisplay();
+    }
+  });
+
+  socket.on("your-request-accepted", (data) => {
+    if (myRequestId === data.requestId) {
+      myRequestData.status   = "accepted";
+      myRequestData.position = data.position;
+      updateMyRequestCard();
+      notifyAccepted(myRequestData.songName || "Ta chanson");
+      showToast("Ta chanson a été acceptée !");
+    }
+  });
+
+  socket.on("your-request-rejected", (data) => {
+    if (myRequestId === data.requestId) {
+      myRequestData.status = "rejected";
+      updateMyRequestCard();
+      notifyRejected();
+      showToast("Ta demande n'a pas été retenue.");
+    }
+  });
+
+  socket.on("queue-updated", (data) => {
+    fullQueue = data.queue;
+    if (myRequestId && myRequestData.status === "accepted") {
+      const pos = data.queue.findIndex((r) => r.id === myRequestId) + 1;
+      if (pos > 0) {
+        myRequestData.position = pos;
+      } else {
+        myRequestData.status = "played";
+        notifyPlayed(myRequestData.songName || "Ta chanson");
       }
+      updateMyRequestCard();
+    }
+    updateQueueDisplay();
+  });
 
-      function getTrackDurationMs(song) {
-        return window.TimeUtils.getDurationMs(song?.duration_ms);
-      }
+  socket.on("vote-updated", (data) => {
+    const item = fullQueue.find((r) => r.id === data.requestId);
+    if (item) { item.upvotes = data.upvotes; item.downvotes = data.downvotes; updateQueueDisplay(); }
+    if (data.requestId === myRequestId) {
+      myRequestData.upvotes   = data.upvotes;
+      myRequestData.downvotes = data.downvotes;
+      updateMyRequestCard();
+    }
+  });
 
-      function getWaitMinutesForQueueIndex(index) {
-        return window.TimeUtils.estimateQueueWaitMinutes(fullQueue, index);
-      }
+  socket.on("event-settings-updated", (data) => {
+    if (data.votesEnabled !== undefined) {
+      votesEnabled = data.votesEnabled;
+      updateMyRequestCard();
+      updateQueueDisplay();
+    }
+  });
 
-      function updateQueueDisplay() {
-        const container = document.getElementById("fullQueue");
-        document.getElementById("queueCount").textContent =
-          `(${fullQueue.length})`;
+  socket.on("event-ended", (data) => {
+    searchInput.disabled    = true;
+    searchInput.placeholder = "Soirée terminée";
+    showError(data.message || "La soirée est terminée !");
+    setTimeout(() => { window.location.href = `/event/${eventId}/thank-you`; }, 2000);
+  });
 
-        if (fullQueue.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-400 text-center py-8">Aucune chanson en attente</p>';
-          return;
-        }
-
-        container.innerHTML = fullQueue
-          .map((song, index) => {
-            const netVotes = (song.upvotes || 0) - (song.downvotes || 0);
-            const voteColor =
-              netVotes > 0
-                ? "text-green-300"
-                : netVotes < 0
-                  ? "text-red-300"
-                  : "text-gray-300";
-            const myVote = myVotes.get(song.id);
-
-            return `
-          <div class="border border-white/10 bg-white/[0.02] rounded-xl p-4 transition">
-            <div class="flex items-start gap-3 mb-3">
-              <div class="flex-shrink-0 w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                ${index + 1}
-              </div>
-              ${song.image_url ? `<img src="${song.image_url}" class="w-12 h-12 rounded hidden sm:block">` : ""}
-              <div class="flex-1 min-w-0">
-                <h3 class="font-bold text-white truncate">${song.song_name}</h3>
-                <p class="text-sm text-gray-300 truncate">${song.artist}</p>
-                <p class="text-xs text-gray-400">Par ${song.user_name}</p>
-                <p class="text-xs text-violet-300 mt-1">⏱️ Passe dans ~${getWaitMinutesForQueueIndex(index)} min</p>
-              </div>
-            </div>
-
-            ${
-              votesEnabled
-                ? `
-            <div class="flex gap-2 items-center">
-              <button 
-                data-vote-action="up"
-                data-request-id="${song.id}"
-                class="flex items-center gap-1 px-3 py-2 rounded-lg transition ${myVote === "up" ? "bg-green-500 text-white" : "bg-white/10 text-gray-200 hover:bg-green-500/20"}"
-              >
-                👍 <span class="font-bold">${song.upvotes || 0}</span>
-              </button>
-              <button 
-                data-vote-action="down"
-                data-request-id="${song.id}"
-                class="flex items-center gap-1 px-3 py-2 rounded-lg transition ${myVote === "down" ? "bg-red-500 text-white" : "bg-white/10 text-gray-200 hover:bg-red-500/20"}"
-              >
-                👎 <span class="font-bold">${song.downvotes || 0}</span>
-              </button>
-              <span class="text-sm ${voteColor} font-bold ml-2">
-                Net: ${netVotes > 0 ? "+" : ""}${netVotes}
-              </span>
-            </div>
-            `
-                : '<p class="text-sm text-gray-400">👍 ' +
-                  (song.upvotes || 0) +
-                  " | 👎 " +
-                  (song.downvotes || 0) +
-                  "</p>"
-            }
-          </div>
-        `;
-          })
-          .join("");
-      }
-    </script>
-  </body>
+  // ── Init ──
+  fetch(`/api/events/${eventId}`)
+    .then((r) => r.json())
+    .then((data) => {
+      document.getElementById("eventName").textContent = data.name || "Soirée";
+      votesEnabled = data.votes_enabled;
+      fullQueue    = data.queue || [];
+      updateQueueDisplay();
+    })
+    .catch(() => showError("Impossible de charger l'événement"));
+</script>
+</body>
 </html>

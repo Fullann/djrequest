@@ -320,6 +320,16 @@ router.get("/history", async (req, res) => {
   await controller.getHistory(req, res);
 });
 
+// Stats live (pendant + après l'événement)
+router.get(
+  "/:eventId/live-stats",
+  requireAuth,
+  requireEventOwnership,
+  eventIdValidator,
+  handleValidationErrors,
+  eventsController.getLiveStats,
+);
+
 // Stats détaillées d'un événement
 router.get(
   "/:eventId/detailed-stats",

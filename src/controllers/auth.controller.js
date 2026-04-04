@@ -1,77 +1,118 @@
-const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const axios = require("axios");
 const db = require("../config/database");
 
 class AuthController {
-  async register(req, res) {
-    const { name, email, password } = req.body;
+  // Redirige vers Spotify pour l'authentification du DJ
+  async spotifyLogin(req, res) {
+    const state = crypto.randomBytes(20).toString("hex");
+    req.session.oauthState = state;
 
-    try {
-      // Vérifier si email existe
-      const [existing] = await db.query("SELECT id FROM djs WHERE email = ?", [
-        email,
-      ]);
+    // Inclure les scopes playback pour éviter une 2e autorisation sur la page DJ
+    const scopes = [
+      "user-read-private",
+      "user-read-email",
+      "user-read-playback-state",
+      "user-modify-playback-state",
+      "streaming",
+    ].join(" ");
 
-      if (existing.length > 0) {
-        return res.status(400).json({ error: "Cet email est déjà utilisé" });
-      }
+    const params = new URLSearchParams({
+      client_id:     process.env.SPOTIFY_CLIENT_ID,
+      response_type: "code",
+      redirect_uri:  process.env.SPOTIFY_LOGIN_REDIRECT_URI,
+      scope:         scopes,
+      state,
+      show_dialog:   "false",
+    });
 
-      // Hasher le mot de passe
-      const hashedPassword = await bcrypt.hash(password, 12);
-
-      // Créer le DJ
-      const [result] = await db.query(
-        "INSERT INTO djs (name, email, password) VALUES (?, ?, ?)",
-        [name, email, hashedPassword],
-      );
-
-      // Créer la session
-      req.session.djId = result.insertId;
-
-      res.json({
-        success: true,
-        djId: result.insertId,
-        name,
-      });
-    } catch (error) {
-      console.error("Erreur inscription:", error);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
+    res.redirect(`https://accounts.spotify.com/authorize?${params}`);
   }
 
-  async login(req, res) {
-    const { email, password } = req.body;
+  // Callback Spotify après authentification
+  async spotifyCallback(req, res) {
+    const { code, state, error } = req.query;
+
+    if (error) {
+      return res.redirect("/?error=spotify_denied");
+    }
+
+    if (!code || !state) {
+      return res.redirect("/?error=missing_params");
+    }
+
+    if (!req.session.oauthState || state !== req.session.oauthState) {
+      return res.redirect("/?error=invalid_state");
+    }
+
+    delete req.session.oauthState;
 
     try {
-      const [rows] = await db.query("SELECT * FROM djs WHERE email = ?", [
-        email,
-      ]);
+      // Échange du code contre les tokens
+      const tokenRes = await axios.post(
+        "https://accounts.spotify.com/api/token",
+        new URLSearchParams({
+          grant_type:   "authorization_code",
+          code,
+          redirect_uri: process.env.SPOTIFY_LOGIN_REDIRECT_URI,
+          client_id:    process.env.SPOTIFY_CLIENT_ID,
+          client_secret:process.env.SPOTIFY_CLIENT_SECRET,
+        }),
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
 
-      if (rows.length === 0) {
-        return res
-          .status(401)
-          .json({ error: "Email ou mot de passe incorrect" });
-      }
-
-      const dj = rows[0];
-      const validPassword = await bcrypt.compare(password, dj.password);
-
-      if (!validPassword) {
-        return res
-          .status(401)
-          .json({ error: "Email ou mot de passe incorrect" });
-      }
-
-      // Créer la session
-      req.session.djId = dj.id;
-
-      res.json({
-        success: true,
-        djId: dj.id,
-        name: dj.name,
+      // Récupération du profil Spotify
+      const profileRes = await axios.get("https://api.spotify.com/v1/me", {
+        headers: { Authorization: `Bearer ${tokenRes.data.access_token}` },
       });
-    } catch (error) {
-      console.error("Erreur login:", error);
-      res.status(500).json({ error: "Erreur serveur" });
+
+      const { access_token, refresh_token, expires_in } = tokenRes.data;
+      const expiresAt = Date.now() + expires_in * 1000;
+
+      const {
+        id:            spotifyId,
+        display_name:  displayName,
+        images,
+        email,
+      } = profileRes.data;
+
+      const avatar = images?.[0]?.url || null;
+      const name   = displayName || `DJ ${spotifyId}`;
+
+      // Upsert du DJ en base avec ses tokens Spotify (pour auto-connexion player)
+      const [existing] = await db.query(
+        "SELECT id FROM djs WHERE spotify_id = ?",
+        [spotifyId]
+      );
+
+      let djId;
+      if (existing.length > 0) {
+        djId = existing[0].id;
+        await db.query(
+          `UPDATE djs
+           SET name = ?, spotify_avatar = ?, email = ?,
+               sp_access_token = ?, sp_refresh_token = ?, sp_token_expires_at = ?
+           WHERE id = ?`,
+          [name, avatar, email || null, access_token, refresh_token || null, expiresAt, djId]
+        );
+      } else {
+        const [result] = await db.query(
+          `INSERT INTO djs
+             (spotify_id, name, spotify_avatar, email, sp_access_token, sp_refresh_token, sp_token_expires_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [spotifyId, name, avatar, email || null, access_token, refresh_token || null, expiresAt]
+        );
+        djId = result.insertId;
+      }
+
+      req.session.djId = djId;
+      res.redirect("/dashboard");
+    } catch (err) {
+      console.error(
+        "Erreur auth Spotify login:",
+        err.response?.data || err.message
+      );
+      res.redirect("/?error=spotify_error");
     }
   }
 
@@ -89,8 +130,8 @@ class AuthController {
   async getCurrentUser(req, res) {
     try {
       const [rows] = await db.query(
-        "SELECT id, name, email, created_at FROM djs WHERE id = ?",
-        [req.session.djId],
+        "SELECT id, name, spotify_id, spotify_avatar, email, created_at FROM djs WHERE id = ?",
+        [req.session.djId]
       );
 
       if (rows.length === 0) {

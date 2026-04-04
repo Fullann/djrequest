@@ -26,6 +26,7 @@ const authRoutes = require("./routes/auth.routes");
 const eventsRoutes = require("./routes/events.routes");
 const djRoutes = require("./routes/dj.routes");
 const spotifyRoutes = require("./routes/spotify.routes");
+const authController = require("./controllers/auth.controller");
 
 // Socket handlers
 const setupSocketHandlers = require("./sockets/eventHandlers");
@@ -40,28 +41,13 @@ const HOST =
   // Passenger/containers need a real interface binding
   "0.0.0.0";
 
-function renderErrorPage(res, status, title, message) {
-  return res.status(status).send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Erreur</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
-      <body class="bg-gray-100 min-h-screen flex items-center justify-center">
-        <div class="bg-white p-8 rounded-xl shadow-lg max-w-md">
-          <h1 class="text-2xl font-bold text-red-600 mb-4">${title}</h1>
-          <p class="text-gray-700 mb-4">${message}</p>
-          <button
-            onclick="window.location.href='/dashboard'"
-            class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
-          >
-            Retour au dashboard
-          </button>
-        </div>
-      </body>
-      </html>
-    `);
+function renderErrorPage(res, _status, title, message, opts = {}) {
+  const { code = String(_status), back, backLabel } = opts;
+  const qs = new URLSearchParams({ code, title, message });
+  if (back)      qs.set("back", back);
+  if (backLabel) qs.set("backLabel", backLabel);
+  // Redirection vers la page d'erreur branded (conserve le message, pas le code HTTP)
+  return res.redirect(`/error?${qs.toString()}`);
 }
 
 // === Middlewares de sécurité ===
@@ -139,6 +125,9 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, "/public")));
 app.use("/views", express.static(path.join(__dirname, "/views")));
 
+// === Callback Spotify OAuth (login DJ) — GET, doit être avant CSRF POST checks ===
+app.get("/auth/spotify/callback", authController.spotifyCallback);
+
 // === Routes API avec rate limiter spécifique ===
 app.use("/api/auth", authRoutes);
 app.use("/api/events", apiLimiter, eventsRoutes);
@@ -161,31 +150,22 @@ app.get("/login", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
-  if (req.session.djId) {
-    return res.redirect("/dashboard");
-  }
-  res.sendFile(path.join(__dirname, "/views/register.html"));
+  // Plus de création de compte séparée : redirection vers login Spotify
+  res.redirect("/login");
 });
 
 app.get("/dashboard", (req, res) => {
-  if (!req.session.djId) {
-    return res.redirect("/login");
-  }
+  if (!req.session.djId) return res.redirect("/");
   res.sendFile(path.join(__dirname, "/views/dashboard.html"));
 });
 
 app.get("/history", (req, res) => {
-  if (!req.session.djId) {
-    return res.redirect("/login");
-  }
+  if (!req.session.djId) return res.redirect("/");
   res.sendFile(__dirname + "/views/history.html");
 });
 
-// Route pour la page de stats détaillées d'un événement
 app.get("/event/:eventId/stats", (req, res) => {
-  if (!req.session.djId) {
-    return res.redirect("/login");
-  }
+  if (!req.session.djId) return res.redirect("/");
   res.sendFile(__dirname + "/views/event-stats.html");
 });
 
@@ -209,18 +189,12 @@ app.get("/dj/:eventId", async (req, res) => {
       return renderErrorPage(res, 404, "Erreur", "Événement non trouvé");
     }
 
-    // Si connecté, vérifier que c'est bien son événement
-    if (
-      req.session.djId &&
-      rows[0].dj_id &&
-      rows[0].dj_id !== req.session.djId
-    ) {
-      return renderErrorPage(
-        res,
-        403,
-        "Accès refusé",
-        "Ce n'est pas votre événement",
-      );
+    // Non connecté → page d'accueil
+    if (!req.session.djId) return res.redirect("/");
+
+    // Connecté mais mauvais propriétaire
+    if (rows[0].dj_id && rows[0].dj_id !== req.session.djId) {
+      return renderErrorPage(res, 403, "Accès refusé", "Ce n'est pas votre événement");
     }
 
     res.sendFile(path.join(__dirname, "/views/dj.html"));
@@ -230,8 +204,28 @@ app.get("/dj/:eventId", async (req, res) => {
   }
 });
 
-app.get("/user/:eventId", (req, res) => {
-  res.sendFile(path.join(__dirname, "/views/user.html"));
+app.get("/user/:eventId", async (req, res) => {
+  const { eventId } = req.params;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(eventId)) {
+    return renderErrorPage(res, 404, "Soirée introuvable", "Ce lien est invalide. Scanne à nouveau le QR code.");
+  }
+  try {
+    const [rows] = await db.query("SELECT status FROM events WHERE id = ?", [eventId]);
+    if (rows.length === 0) {
+      return renderErrorPage(res, 404, "Soirée introuvable",
+        "Cette soirée n'existe pas. Vérifie le lien ou scanne à nouveau le QR code.",
+        { code: "404" });
+    }
+    if (rows[0].status === "ended") {
+      return renderErrorPage(res, 410, "Soirée terminée",
+        "Cette soirée est maintenant terminée. Merci d'avoir participé !",
+        { code: "ended" });
+    }
+    res.sendFile(path.join(__dirname, "/views/user.html"));
+  } catch {
+    res.sendFile(path.join(__dirname, "/views/user.html"));
+  }
 });
 
 app.get("/event/:eventId/qr", (req, res) => {
@@ -240,6 +234,11 @@ app.get("/event/:eventId/qr", (req, res) => {
 
 app.get("/event/:eventId/thank-you", (req, res) => {
   res.sendFile(path.join(__dirname, "/views/thank-you.html"));
+});
+
+// Page d'erreur branded (rendue côté client via query params)
+app.get("/error", (req, res) => {
+  res.sendFile(path.join(__dirname, "/views/error.html"));
 });
 
 // ========== Route Spotify Callback ==========
@@ -309,9 +308,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404
+// 404 — JSON pour les routes API, page branded pour les routes HTML
 app.use((req, res) => {
-  res.status(404).json({ error: "Route non trouvée" });
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ error: "Route non trouvée" });
+  }
+  return renderErrorPage(res, 404, "Page introuvable",
+    "La page que tu cherches n'existe pas ou a été déplacée.",
+    { code: "404" });
 });
 
 // === WebSocket ===

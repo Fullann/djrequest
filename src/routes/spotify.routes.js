@@ -1,9 +1,9 @@
 const express = require("express");
-const router = express.Router();
-const db = require("../config/database");
-const axios = require("axios");
-const { eventIdValidator } = require("../validators/events.validator");
+const router  = express.Router();
+const axios   = require("axios");
+const { eventIdValidator }       = require("../validators/events.validator");
 const { handleValidationErrors } = require("../middlewares/validation");
+const { getValidEventToken }     = require("../services/spotifyToken.service");
 
 // Recherche Spotify
 router.get("/search", async (req, res) => {
@@ -18,26 +18,10 @@ router.get("/search", async (req, res) => {
   }
 
   try {
-    // Récupérer le token Spotify de l'événement
-    const [tokenRows] = await db.query(
-      "SELECT access_token, expires_at FROM spotify_tokens WHERE event_id = ?",
-      [eventId],
-    );
-
-    if (tokenRows.length === 0) {
-      return res.status(404).json({
-        error: "Spotify non connecté pour cet événement",
-        tracks: [],
-      });
-    }
-
-    const token = tokenRows[0];
-    const now = Date.now();
-
-    // Vérifier si le token est expiré
-    if (parseInt(token.expires_at) <= now) {
+    const token = await getValidEventToken(eventId);
+    if (!token) {
       return res.status(401).json({
-        error: "Token Spotify expiré",
+        error: "Spotify non connecté ou token expiré pour cet événement",
         tracks: [],
       });
     }
@@ -51,7 +35,7 @@ router.get("/search", async (req, res) => {
         market: "FR",
       },
       headers: {
-        Authorization: `Bearer ${token.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -98,26 +82,12 @@ router.get(
     const { eventId } = req.params;
 
     try {
-      // Vérifier si un token existe et est valide
-      const [rows] = await db.query(
-        "SELECT access_token, expires_at FROM spotify_tokens WHERE event_id = ?",
-        [eventId],
-      );
-
-      if (rows.length === 0) {
-        return res.json({ connected: false });
+      // getValidEventToken tente un refresh si nécessaire
+      const token = await getValidEventToken(eventId);
+      if (!token) {
+        return res.json({ connected: false, reason: "Token expiré ou absent" });
       }
-
-      const token = rows[0];
-      const now = new Date();
-      const expiresAt = new Date(token.expires_at);
-
-      // Vérifier si le token est encore valide
-      if (expiresAt > now) {
-        return res.json({ connected: true, expires_at: token.expires_at });
-      } else {
-        return res.json({ connected: false, reason: "Token expiré" });
-      }
+      return res.json({ connected: true });
     } catch (error) {
       console.error("Erreur Spotify status:", error);
       res.status(500).json({ error: "Erreur serveur" });
@@ -171,29 +141,11 @@ router.get(
     const { eventId } = req.params;
 
     try {
-      const [rows] = await db.query(
-        "SELECT access_token, expires_at FROM spotify_tokens WHERE event_id = ?",
-        [eventId],
-      );
-
-      if (rows.length === 0) {
-        return res
-          .status(404)
-          .json({ error: "Pas de token Spotify pour cet événement" });
+      const token = await getValidEventToken(eventId);
+      if (!token) {
+        return res.status(401).json({ error: "Token Spotify expiré ou absent" });
       }
-
-      const token = rows[0];
-      const now = new Date();
-      const expiresAt = new Date(token.expires_at);
-
-      // Vérifier si le token est encore valide
-      if (expiresAt <= now) {
-        return res
-          .status(401)
-          .json({ error: "Token expiré, reconnectez-vous" });
-      }
-
-      res.json({ access_token: token.access_token });
+      res.json({ access_token: token });
     } catch (error) {
       console.error("Erreur récupération token:", error);
       res.status(500).json({ error: "Erreur serveur" });
@@ -211,16 +163,10 @@ router.post(
     const { uri, device_id } = req.body;
 
     try {
-      const [rows] = await db.query(
-        "SELECT access_token FROM spotify_tokens WHERE event_id = ?",
-        [eventId],
-      );
-
-      if (rows.length === 0) {
-        return res.status(404).json({ error: "Pas de token Spotify" });
+      const token = await getValidEventToken(eventId);
+      if (!token) {
+        return res.status(401).json({ error: "Token Spotify expiré ou absent" });
       }
-
-      const token = rows[0].access_token;
 
       // Si device_id fourni (Web Player), l'utiliser directement
       // Sinon laisser Spotify utiliser l'appareil actif
@@ -275,6 +221,159 @@ router.post(
         error: "Erreur lors de la lecture",
         details: error.response?.data,
       });
+    }
+  },
+);
+
+// Métadonnées enrichies des pistes (BPM si dispo, popularité en fallback)
+// Note: l'endpoint audio-features Spotify est restreint aux apps créées avant nov. 2024.
+// On essaie audio-features, sinon on utilise /v1/tracks (popularité comme proxy d'énergie).
+router.get(
+  "/audio-features/:eventId",
+  eventIdValidator,
+  handleValidationErrors,
+  async (req, res) => {
+    const { eventId } = req.params;
+    const { ids } = req.query;
+
+    if (!ids) return res.json({});
+
+    const trackIds = ids.split(",").filter(Boolean).slice(0, 50);
+    if (trackIds.length === 0) return res.json({});
+
+    try {
+      const token = await getValidEventToken(eventId);
+      if (!token) return res.json({});
+
+      const headers  = { Authorization: `Bearer ${token}` };
+      const features = {};
+
+      // ── Tentative 1 : audio-features (BPM, énergie, tonalité) ──
+      try {
+        const afRes = await axios.get(
+          "https://api.spotify.com/v1/audio-features",
+          { params: { ids: trackIds.join(",") }, headers },
+        );
+        (afRes.data.audio_features || []).forEach((f) => {
+          if (f) {
+            features[f.id] = {
+              bpm:    Math.round(f.tempo),
+              energy: f.energy,
+              key:    f.key,
+              mode:   f.mode,
+            };
+          }
+        });
+      } catch (afErr) {
+        // 403 = endpoint restreint pour cette app (apps créées après nov. 2024)
+        if (afErr.response?.status !== 403) {
+          console.error("audio-features:", afErr.message);
+        }
+      }
+
+      // ── Fallback : /v1/tracks (popularité comme indicateur d'énergie) ──
+      const missingIds = trackIds.filter((id) => !features[id]);
+      if (missingIds.length > 0) {
+        try {
+          const tracksRes = await axios.get(
+            "https://api.spotify.com/v1/tracks",
+            { params: { ids: missingIds.join(",") }, headers },
+          );
+          (tracksRes.data.tracks || []).forEach((t) => {
+            if (t) {
+              features[t.id] = {
+                bpm:        null,
+                energy:     t.popularity / 100,
+                popularity: t.popularity,
+                key:        null,
+                mode:       null,
+              };
+            }
+          });
+        } catch (tracksErr) {
+          console.error("tracks fallback:", tracksErr.response?.data || tracksErr.message);
+        }
+      }
+
+      res.json(features);
+    } catch (error) {
+      console.error("Erreur track-meta:", error.response?.data || error.message);
+      res.json({});
+    }
+  },
+);
+
+// Piste aléatoire depuis une playlist (fallback quand la queue est vide)
+router.get(
+  "/playlist/:eventId/:playlistId",
+  eventIdValidator,
+  handleValidationErrors,
+  async (req, res) => {
+    const { eventId, playlistId } = req.params;
+
+    try {
+      const token = await getValidEventToken(eventId);
+      if (!token) {
+        return res.status(401).json({ error: "Token Spotify expiré ou absent" });
+      }
+
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // 1. Récupérer le total de la playlist
+      const infoRes = await axios.get(
+        `https://api.spotify.com/v1/playlists/${playlistId}`,
+        { params: { fields: "tracks.total,name" }, headers },
+      );
+
+      const total        = infoRes.data.tracks?.total || 0;
+      const playlistName = infoRes.data.name || "Playlist";
+
+      if (total === 0) {
+        return res.status(404).json({ error: "Playlist vide" });
+      }
+
+      // 2. Tenter jusqu'à 5 fois d'obtenir une piste valide (éviter fichiers locaux)
+      let track = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const offset = Math.floor(Math.random() * total);
+        const tracksRes = await axios.get(
+          `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+          {
+            params: {
+              fields: "items(track(id,name,uri,artists,album,preview_url,duration_ms))",
+              limit:  1,
+              offset,
+            },
+            headers,
+          },
+        );
+
+        const item = tracksRes.data.items?.[0]?.track;
+        if (item && item.uri && item.uri.startsWith("spotify:track:")) {
+          track = item;
+          break;
+        }
+      }
+
+      if (!track) {
+        return res.status(404).json({ error: "Aucune piste valide trouvée" });
+      }
+
+      res.json({
+        id:           track.id,
+        name:         track.name,
+        artist:       track.artists.map((a) => a.name).join(", "),
+        uri:          track.uri,
+        image:        track.album.images?.[0]?.url || null,
+        duration_ms:  track.duration_ms,
+        playlistName,
+      });
+    } catch (error) {
+      console.error(
+        "Erreur playlist fallback:",
+        error.response?.data || error.message,
+      );
+      res.status(500).json({ error: "Erreur lors de la récupération de la playlist" });
     }
   },
 );

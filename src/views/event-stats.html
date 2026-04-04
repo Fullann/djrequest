@@ -1,341 +1,404 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stats - DJ Queue</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="bg-gray-100 min-h-screen">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Statistiques — DJ Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+  <style>
+    /* Barres du graphique */
+    .bar-track { background: var(--bg-elevated); border-radius: 4px; overflow: hidden; height: 28px; }
+    .bar-fill  { height: 100%; border-radius: 4px; transition: width 600ms ease; background: var(--accent); }
+    .bar-fill.peak { background: var(--green); }
+
+    /* Badge LIVE */
+    @keyframes live-pulse { 0%,100%{ opacity:1 } 50%{ opacity:.4 } }
+    .live-dot { animation: live-pulse 1.5s ease infinite; }
+
+    /* Carte stat */
+    .kpi { padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-surface); }
+    .kpi-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .kpi-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; margin-top: .25rem; color: var(--text-muted); }
+
+    /* Feed ligne */
+    .feed-row { display: flex; align-items: center; gap: .75rem; padding: .6rem 1rem; border-bottom: 1px solid var(--border); }
+    .feed-row:last-child { border-bottom: none; }
+  </style>
+</head>
+<body style="background:var(--bg-base);color:var(--text-primary)">
+
+<div class="flex h-screen overflow-hidden">
+
+  <!-- ── Sidebar ───────────────────────────────────────────── -->
+  <aside class="hidden lg:flex flex-col w-56 shrink-0" style="background:var(--bg-surface);border-right:1px solid var(--border)">
+    <div class="flex items-center gap-3 px-5 py-[18px]" style="border-bottom:1px solid var(--border)">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:var(--accent)">
+        <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+        </svg>
+      </div>
+      <span class="font-semibold text-sm">DJ Queue</span>
+    </div>
+    <nav class="flex-1 p-3 space-y-0.5 pt-4">
+      <a href="/dashboard" class="nav-item">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a href="/history" class="nav-item">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Historique
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ── Main ──────────────────────────────────────────────── -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+
     <!-- Header -->
-    <div
-      class="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 shadow-lg"
-    >
-      <div class="max-w-7xl mx-auto flex justify-between items-center">
-        <div>
-          <h1 id="eventName" class="text-3xl font-bold">📊 Statistiques</h1>
-          <p id="eventDate" class="text-purple-100 mt-1">Chargement...</p>
+    <header class="flex items-center gap-3 px-5 py-3.5 shrink-0" style="background:var(--bg-surface);border-bottom:1px solid var(--border)">
+      <a id="backBtn" href="/history" class="btn btn-ghost btn-icon btn-sm shrink-0">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2">
+          <h1 id="eventName" class="text-base font-bold truncate">Chargement…</h1>
+          <!-- Badge LIVE injecté par JS -->
+          <span id="liveBadge" class="hidden items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold" style="background:rgba(239,68,68,0.15);color:var(--red)">
+            <span class="live-dot w-1.5 h-1.5 rounded-full shrink-0" style="background:var(--red)"></span>
+            LIVE
+          </span>
         </div>
-        <button
-          id="btnBackToHistory"
-          class="bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-6 rounded-full transition"
-        >
-          ← Historique
-        </button>
+        <p id="eventDate" class="text-xs mt-0.5" style="color:var(--text-secondary)">…</p>
       </div>
-    </div>
-
-    <div class="max-w-7xl mx-auto p-6">
-      <!-- Stats générales -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl shadow p-6">
-          <p class="text-gray-500 text-sm">Durée totale</p>
-          <p id="duration" class="text-3xl font-bold text-purple-600">-</p>
-        </div>
-
-        <div class="bg-white rounded-xl shadow p-6">
-          <p class="text-gray-500 text-sm">Chansons jouées</p>
-          <p id="playedCount" class="text-3xl font-bold text-green-600">0</p>
-        </div>
-
-        <div class="bg-white rounded-xl shadow p-6">
-          <p class="text-gray-500 text-sm">Taux d'acceptation</p>
-          <p id="acceptRate" class="text-3xl font-bold text-blue-600">0%</p>
-        </div>
-
-        <div class="bg-white rounded-xl shadow p-6">
-          <p class="text-gray-500 text-sm">Votes moyens</p>
-          <p id="avgVotes" class="text-3xl font-bold text-orange-600">0</p>
-        </div>
+      <!-- Durée soirée -->
+      <div id="durationBadge" class="hidden shrink-0 text-right">
+        <p id="liveClock" class="text-sm font-bold tabular-nums" style="color:var(--accent)">00:00</p>
+        <p class="text-xs" style="color:var(--text-muted)">en cours</p>
       </div>
+      <!-- Lien DJ si live -->
+      <a id="djLink" href="#" class="hidden btn btn-primary btn-sm shrink-0">Ouvrir la régie</a>
+      <!-- Refresh manuel -->
+      <button id="refreshBtn" class="btn btn-ghost btn-icon btn-sm shrink-0" title="Rafraîchir">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+      <button data-theme-toggle class="btn btn-ghost btn-icon btn-sm">
+        <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="w-4 h-4 icon-moon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </header>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top chansons -->
-        <div class="bg-white rounded-xl shadow">
-          <div class="p-6 border-b">
-            <h2 class="text-xl font-bold text-gray-800">🏆 Top chansons</h2>
-          </div>
-          <div id="topSongs" class="p-6">
-            <p class="text-gray-500 text-center py-8">Chargement...</p>
-          </div>
+    <!-- Contenu scrollable -->
+    <main class="flex-1 overflow-y-auto p-5 space-y-5">
+
+      <!-- ── KPIs ────────────────────────────────────────────── -->
+      <div id="kpiGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="kpi">
+          <p class="kpi-value" id="kTotal" style="color:var(--accent)">—</p>
+          <p class="kpi-label">Demandes</p>
         </div>
-
-        <!-- Chansons avec plus de votes -->
-        <div class="bg-white rounded-xl shadow">
-          <div class="p-6 border-b">
-            <h2 class="text-xl font-bold text-gray-800">👍 Plus votées</h2>
-          </div>
-          <div id="mostVoted" class="p-6">
-            <p class="text-gray-500 text-center py-8">Chargement...</p>
-          </div>
+        <div class="kpi">
+          <p class="kpi-value" id="kUsers" style="color:var(--cyan)">—</p>
+          <p class="kpi-label">Personnes</p>
         </div>
-
-        <!-- Artistes populaires -->
-        <div class="bg-white rounded-xl shadow">
-          <div class="p-6 border-b">
-            <h2 class="text-xl font-bold text-gray-800">
-              🎤 Artistes populaires
-            </h2>
-          </div>
-          <div id="topArtists" class="p-6">
-            <p class="text-gray-500 text-center py-8">Chargement...</p>
-          </div>
+        <div class="kpi">
+          <p class="kpi-value" id="kPlayed" style="color:var(--green)">—</p>
+          <p class="kpi-label">Jouées</p>
         </div>
-
-        <!-- Timeline -->
-        <div class="bg-white rounded-xl shadow">
-          <div class="p-6 border-b">
-            <h2 class="text-xl font-bold text-gray-800">⏰ Timeline</h2>
-          </div>
-          <div id="timeline" class="p-6">
-            <p class="text-gray-500 text-center py-8">Chargement...</p>
-          </div>
+        <div class="kpi">
+          <p class="kpi-value" id="kQueue" style="color:var(--text-primary)">—</p>
+          <p class="kpi-label">En queue</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi-value" id="kPending" style="color:var(--amber)">—</p>
+          <p class="kpi-label">En attente</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi-value" id="kRejected" style="color:var(--red)">—</p>
+          <p class="kpi-label">Refusées</p>
         </div>
       </div>
 
-      <!-- Toutes les chansons -->
-      <div class="bg-white rounded-xl shadow mt-6">
-        <div class="p-6 border-b">
-          <h2 class="text-xl font-bold text-gray-800">
-            📝 Toutes les chansons jouées
-          </h2>
+      <!-- ── Chanson chaude + Top artistes ─────────────────── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <!-- Chanson la plus votée en attente -->
+        <div class="card overflow-hidden">
+          <div class="px-5 py-3.5 flex items-center justify-between" style="border-bottom:1px solid var(--border)">
+            <h2 class="text-sm font-semibold">Chanson la plus voulue</h2>
+            <span class="text-xs px-2 py-0.5 rounded-full" style="background:var(--amber-dim);color:var(--amber)">En attente</span>
+          </div>
+          <div id="hotPending" class="p-5">
+            <p class="text-sm text-center py-4" style="color:var(--text-muted)">Aucune demande en attente</p>
+          </div>
         </div>
-        <div id="allSongs" class="p-6">
-          <p class="text-gray-500 text-center py-8">Chargement...</p>
+
+        <!-- Top 5 artistes -->
+        <div class="card overflow-hidden">
+          <div class="px-5 py-3.5" style="border-bottom:1px solid var(--border)">
+            <h2 class="text-sm font-semibold">Top artistes</h2>
+          </div>
+          <div id="topArtists" class="p-5 space-y-2.5">
+            <p class="text-sm text-center py-4" style="color:var(--text-muted)">Chargement…</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <script src="/js/time-utils.js"></script>
-    <script>
-      const eventId = window.location.pathname.split("/")[2];
+      <!-- ── Graphique demandes / 15 min ───────────────────── -->
+      <div class="card overflow-hidden">
+        <div class="px-5 py-3.5 flex items-center gap-3" style="border-bottom:1px solid var(--border)">
+          <h2 class="text-sm font-semibold flex-1">Activité par quart d'heure</h2>
+          <span id="peakSlot" class="text-xs hidden px-2 py-0.5 rounded-full" style="background:var(--green-dim);color:var(--green)"></span>
+        </div>
+        <div id="activityChart" class="px-5 py-4 space-y-1.5 overflow-x-auto">
+          <p class="text-sm text-center py-4" style="color:var(--text-muted)">Chargement…</p>
+        </div>
+      </div>
 
-      document
-        .getElementById("btnBackToHistory")
-        .addEventListener("click", () => {
-          window.location.href = "/history";
-        });
+      <!-- ── Top chansons + Feed live ──────────────────────── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-      async function loadEventStats() {
-        try {
-          const response = await fetch(`/api/events/${eventId}/detailed-stats`);
-
-          if (!response.ok) throw new Error("Erreur chargement stats");
-
-          const data = await response.json();
-
-          // Header
-          document.getElementById("eventName").textContent =
-            `📊 ${data.event.name}`;
-
-          const startDate = new Date(data.event.created_at);
-          const endDate = new Date(data.event.ended_at);
-          const dateStr = startDate.toLocaleDateString("fr-FR", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          const endStr = endDate.toLocaleDateString("fr-FR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-
-          document.getElementById("eventDate").textContent =
-            `${dateStr} - ${endStr}`;
-
-          // Stats
-          const duration = Math.floor((endDate - startDate) / (1000 * 60));
-          document.getElementById("duration").textContent =
-            window.TimeUtils.formatMinutes(duration);
-          document.getElementById("playedCount").textContent =
-            data.stats.played_count || 0;
-
-          const acceptRate =
-            data.stats.total_requests > 0
-              ? Math.round(
-                  (data.stats.played_count / data.stats.total_requests) * 100,
-                )
-              : 0;
-          document.getElementById("acceptRate").textContent = `${acceptRate}%`;
-
-          const avgVotes = parseFloat(data.stats.avg_votes) || 0;
-          document.getElementById("avgVotes").textContent = avgVotes.toFixed(1);
-
-          // Render sections
-          renderTopSongs(data.topSongs);
-          renderMostVoted(data.mostVoted);
-          renderTopArtists(data.topArtists);
-          renderTimeline(data.playedSongs);
-          renderAllSongs(data.playedSongs);
-        } catch (error) {
-          console.error("Erreur:", error);
-          alert("Erreur lors du chargement des statistiques");
-        }
-      }
-
-      function renderTopSongs(songs) {
-        const container = document.getElementById("topSongs");
-        if (!songs || songs.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-500 text-center py-4">Aucune donnée</p>';
-          return;
-        }
-
-        container.innerHTML = songs
-          .slice(0, 5)
-          .map(
-            (song, i) => `
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
-            ${i + 1}
+        <!-- Top 5 chansons demandées -->
+        <div class="card overflow-hidden">
+          <div class="px-5 py-3.5" style="border-bottom:1px solid var(--border)">
+            <h2 class="text-sm font-semibold">Chansons les plus demandées</h2>
           </div>
-          <div class="flex-1">
-            <p class="font-semibold text-gray-800">${song.song_name}</p>
-            <p class="text-sm text-gray-500">${song.artist}</p>
+          <div id="topSongs" class="divide-y" style="border-color:var(--border)">
+            <p class="text-sm text-center py-4" style="color:var(--text-muted)">Chargement…</p>
           </div>
         </div>
-      `,
-          )
-          .join("");
-      }
 
-      function renderMostVoted(songs) {
-        const container = document.getElementById("mostVoted");
-        if (!songs || songs.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-500 text-center py-4">Aucune donnée</p>';
-          return;
-        }
+        <!-- Feed live des dernières demandes -->
+        <div class="card overflow-hidden">
+          <div class="px-5 py-3.5 flex items-center gap-2" style="border-bottom:1px solid var(--border)">
+            <h2 class="text-sm font-semibold flex-1">Dernières demandes</h2>
+            <span id="feedLiveDot" class="hidden w-2 h-2 rounded-full live-dot" style="background:var(--green)"></span>
+          </div>
+          <div id="feedList">
+            <p class="text-sm text-center py-4" style="color:var(--text-muted)">Chargement…</p>
+          </div>
+        </div>
+      </div>
 
-        container.innerHTML = songs
-          .slice(0, 5)
-          .map(
-            (song) => `
-        <div class="flex justify-between items-center mb-3 pb-3 border-b last:border-b-0">
+    </main>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/time-utils.js"></script>
+<script>
+  const eventId = window.location.pathname.split("/")[2];
+  let isLive     = false;
+  let startTime  = null;
+  let clockTimer = null;
+  let refreshTimer = null;
+  let lastData   = null;
+
+  // ── Horloge en cours ──
+  function startLiveClock() {
+    if (clockTimer) return;
+    const clock = document.getElementById("liveClock");
+    clockTimer = setInterval(() => {
+      if (!startTime) return;
+      const mins  = Math.floor((Date.now() - startTime) / 60000);
+      const hours = Math.floor(mins / 60);
+      const m     = mins % 60;
+      clock.textContent = hours > 0
+        ? `${hours}h${String(m).padStart(2,"0")}`
+        : `${String(mins).padStart(2,"0")}min`;
+    }, 10000);
+  }
+
+  // ── Chargement des stats ──
+  async function loadStats() {
+    try {
+      const res  = await fetch(`/api/events/${eventId}/live-stats`);
+      if (!res.ok) throw new Error(res.status);
+      lastData = await res.json();
+      render(lastData);
+    } catch (err) {
+      console.error("live-stats:", err);
+    }
+  }
+
+  function render(data) {
+    const { event, counts, topArtists, topSongs, hotPending, timeline, recentRequests } = data;
+
+    // ── En-tête ──
+    document.title = `${event.name} — Stats DJ Queue`;
+    document.getElementById("eventName").textContent = event.name;
+
+    const start = new Date(event.created_at);
+    const dateStr = start.toLocaleDateString("fr-FR", { day:"numeric", month:"long", year:"numeric" });
+    const timeStr = start.toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+
+    isLive = event.isLive;
+
+    if (isLive) {
+      document.getElementById("eventDate").textContent = `Soirée en cours depuis ${timeStr}`;
+      document.getElementById("liveBadge").classList.remove("hidden");
+      document.getElementById("liveBadge").classList.add("flex");
+      document.getElementById("durationBadge").classList.remove("hidden");
+      document.getElementById("djLink").href    = `/dj/${eventId}`;
+      document.getElementById("djLink").classList.remove("hidden");
+      document.getElementById("backBtn").href   = `/dj/${eventId}`;
+      document.getElementById("feedLiveDot").classList.remove("hidden");
+      startTime = start.getTime();
+      startLiveClock();
+    } else {
+      const end    = new Date(event.ended_at);
+      const endStr = end.toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+      document.getElementById("eventDate").textContent = `${dateStr} · ${timeStr} — ${endStr}`;
+    }
+
+    // ── KPIs ──
+    document.getElementById("kTotal").textContent   = counts.total     || 0;
+    document.getElementById("kUsers").textContent   = counts.unique_users || 0;
+    document.getElementById("kPlayed").textContent  = counts.played    || 0;
+    document.getElementById("kQueue").textContent   = parseInt(counts.accepted || 0) + parseInt(counts.played || 0);
+    document.getElementById("kPending").textContent = counts.pending   || 0;
+    document.getElementById("kRejected").textContent= counts.rejected  || 0;
+
+    // ── Chanson la plus voulue ──
+    const hp = document.getElementById("hotPending");
+    if (hotPending) {
+      hp.innerHTML = `
+        <div class="flex items-center gap-3">
+          ${hotPending.image_url ? `<img src="${hotPending.image_url}" class="w-14 h-14 rounded-xl object-cover shrink-0">` : ""}
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold truncate" style="color:var(--text-primary)">${hotPending.song_name}</p>
+            <p class="text-sm truncate" style="color:var(--text-secondary)">${hotPending.artist}</p>
+            <div class="flex items-center gap-3 mt-1.5">
+              <span class="flex items-center gap-1 text-xs font-semibold" style="color:var(--green)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                ${hotPending.up}
+              </span>
+              <span class="flex items-center gap-1 text-xs" style="color:var(--text-muted)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+                ${hotPending.down}
+              </span>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      hp.innerHTML = `<p class="text-sm text-center py-4" style="color:var(--text-muted)">Aucune demande en attente</p>`;
+    }
+
+    // ── Top artistes (barres CSS) ──
+    const maxArtist = topArtists.length ? Math.max(...topArtists.map(a => a.total)) : 1;
+    document.getElementById("topArtists").innerHTML = topArtists.length
+      ? topArtists.map((a, i) => `
           <div>
-            <p class="font-semibold text-gray-800">${song.song_name}</p>
-            <p class="text-sm text-gray-500">${song.artist}</p>
-          </div>
-          <div class="text-right">
-            <p class="text-green-600 font-bold">👍 ${song.upvotes || 0}</p>
-            <p class="text-sm text-gray-500">👎 ${song.downvotes || 0}</p>
-          </div>
-        </div>
-      `,
-          )
-          .join("");
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-medium truncate" style="color:var(--text-primary);max-width:60%">${a.artist}</span>
+              <span class="text-xs tabular-nums" style="color:var(--text-muted)">${a.total} dem. · ${a.played||0} jouées</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill ${i===0?"peak":""}" style="width:${Math.round((a.total/maxArtist)*100)}%"></div>
+            </div>
+          </div>`)
+          .join("")
+      : `<p class="text-sm text-center py-4" style="color:var(--text-muted)">Aucune donnée</p>`;
+
+    // ── Graphique activité ──
+    if (timeline && timeline.length) {
+      const maxCount = Math.max(...timeline.map(s => s.count), 1);
+      const peakSlot = timeline.reduce((best, s) => s.count > best.count ? s : best, timeline[0]);
+      if (peakSlot.count > 0) {
+        const pk = document.getElementById("peakSlot");
+        pk.textContent = `Pic à +${peakSlot.slot * 15} min (${peakSlot.count} dem.)`;
+        pk.classList.remove("hidden");
       }
+      const startH = new Date(data.event.created_at);
+      document.getElementById("activityChart").innerHTML = timeline.map((s) => {
+        const slotTime = new Date(startH.getTime() + s.slot * 15 * 60000);
+        const label    = slotTime.toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+        const pct      = Math.round((s.count / maxCount) * 100);
+        const isPeak   = s.count === maxCount && maxCount > 0;
+        return `
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs tabular-nums shrink-0 w-10 text-right" style="color:var(--text-muted)">${label}</span>
+            <div class="bar-track flex-1">
+              <div class="bar-fill ${isPeak?"peak":""}" style="width:${pct}%"></div>
+            </div>
+            <span class="text-xs tabular-nums shrink-0 w-5" style="color:var(--text-muted)">${s.count}</span>
+          </div>`;
+      }).join("");
+    } else {
+      document.getElementById("activityChart").innerHTML =
+        `<p class="text-sm text-center py-4" style="color:var(--text-muted)">Pas encore de données</p>`;
+    }
 
-      function renderTopArtists(artists) {
-        const container = document.getElementById("topArtists");
-        if (!artists || artists.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-500 text-center py-4">Aucune donnée</p>';
-          return;
-        }
+    // ── Top chansons ──
+    document.getElementById("topSongs").innerHTML = topSongs.length
+      ? topSongs.map((s, i) => `
+          <div class="flex items-center gap-3 px-5 py-3">
+            <span class="w-5 text-xs font-bold shrink-0" style="color:var(--accent)">${i+1}</span>
+            ${s.image_url ? `<img src="${s.image_url}" class="w-9 h-9 rounded-lg object-cover shrink-0">` : ""}
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium truncate" style="color:var(--text-primary)">${s.song_name}</p>
+              <p class="text-xs truncate" style="color:var(--text-secondary)">${s.artist}</p>
+            </div>
+            <div class="shrink-0 text-right">
+              <p class="text-xs font-semibold" style="color:var(--text-primary)">${s.total}×</p>
+              ${parseInt(s.played) > 0 ? `<p class="text-xs" style="color:var(--green)">${s.played} jouée${s.played>1?"s":""}</p>` : ""}
+            </div>
+          </div>`)
+          .join("")
+      : `<p class="text-sm text-center py-4 px-5" style="color:var(--text-muted)">Aucune chanson encore demandée</p>`;
 
-        container.innerHTML = artists
-          .slice(0, 5)
-          .map(
-            (artist, i) => `
-        <div class="flex justify-between items-center mb-3">
-          <div class="flex items-center gap-2">
-            <span class="text-purple-600 font-bold">#${i + 1}</span>
-            <span class="font-semibold text-gray-800">${artist.artist}</span>
-          </div>
-          <span class="text-gray-600">${artist.count} chanson${artist.count > 1 ? "s" : ""}</span>
-        </div>
-      `,
-          )
-          .join("");
-      }
-
-      function renderTimeline(songs) {
-        const container = document.getElementById("timeline");
-        if (!songs || songs.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-500 text-center py-4">Aucune donnée</p>';
-          return;
-        }
-
-        container.innerHTML = `
-        <div class="space-y-3 max-h-96 overflow-y-auto">
-          ${songs
-            .map((song) => {
-              const time = new Date(song.played_at).toLocaleTimeString(
-                "fr-FR",
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                },
-              );
-              return `
-              <div class="flex items-start gap-2 text-sm">
-                <span class="text-purple-600 font-mono">${time}</span>
-                <div class="flex-1">
-                  <p class="font-semibold">${song.song_name}</p>
-                  <p class="text-gray-500">${song.artist}</p>
-                </div>
+    // ── Feed live ──
+    const statusCfg = {
+      played:   { label:"Jouée",     color:"var(--green)" },
+      accepted: { label:"En queue",  color:"var(--accent)" },
+      pending:  { label:"En attente",color:"var(--amber)" },
+      rejected: { label:"Refusée",   color:"var(--red)" },
+    };
+    document.getElementById("feedList").innerHTML = recentRequests.length
+      ? recentRequests.map((r) => {
+          const cfg  = statusCfg[r.status] || statusCfg.pending;
+          const time = new Date(r.created_at).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+          return `
+            <div class="feed-row">
+              <span class="text-xs tabular-nums shrink-0 w-10" style="color:var(--text-muted)">${time}</span>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-medium truncate" style="color:var(--text-primary)">${r.song_name}</p>
+                <p class="text-xs truncate" style="color:var(--text-muted)">${r.artist} · ${r.user_name}</p>
               </div>
-            `;
-            })
-            .join("")}
-        </div>
-      `;
-      }
+              <span class="text-xs font-semibold shrink-0" style="color:${cfg.color}">${cfg.label}</span>
+            </div>`;
+        }).join("")
+      : `<p class="text-sm text-center py-4" style="color:var(--text-muted)">Aucune demande</p>`;
+  }
 
-      function renderAllSongs(songs) {
-        const container = document.getElementById("allSongs");
-        if (!songs || songs.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-500 text-center py-4">Aucune chanson jouée</p>';
-          return;
-        }
+  // ── Actualisation automatique (live : 20 s, terminé : jamais) ──
+  function scheduleRefresh() {
+    if (!isLive) return;
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(async () => {
+      await loadStats();
+      scheduleRefresh();
+    }, 20000);
+  }
 
-        container.innerHTML = `
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="text-left p-3 font-semibold text-gray-700">Heure</th>
-              <th class="text-left p-3 font-semibold text-gray-700">Chanson</th>
-              <th class="text-left p-3 font-semibold text-gray-700">Artiste</th>
-              <th class="text-left p-3 font-semibold text-gray-700">Demandée par</th>
-              <th class="text-center p-3 font-semibold text-gray-700">Votes</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${songs
-              .map((song) => {
-                const time = new Date(song.played_at).toLocaleTimeString(
-                  "fr-FR",
-                  {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  },
-                );
-                return `
-                <tr class="border-b hover:bg-gray-50">
-                  <td class="p-3 text-gray-600 font-mono">${time}</td>
-                  <td class="p-3 font-semibold">${song.song_name}</td>
-                  <td class="p-3 text-gray-600">${song.artist}</td>
-                  <td class="p-3 text-gray-500">${song.user_name}</td>
-                  <td class="p-3 text-center">
-                    <span class="text-green-600">👍 ${song.upvotes || 0}</span>
-                    <span class="text-gray-400 mx-1">|</span>
-                    <span class="text-red-600">👎 ${song.downvotes || 0}</span>
-                  </td>
-                </tr>
-              `;
-              })
-              .join("")}
-          </tbody>
-        </table>
-      `;
-      }
+  // ── Socket : mises à jour immédiates quand live ──
+  const socket = io();
+  socket.on("connect", () => {
+    if (isLive) socket.emit("join-event", eventId);
+  });
+  // Nouvelle demande → refresh immédiat
+  socket.on("new-request",    () => { if (isLive) loadStats(); });
+  socket.on("queue-updated",  () => { if (isLive) loadStats(); });
 
-      loadEventStats();
-    </script>
-  </body>
+  // ── Bouton refresh manuel ──
+  document.getElementById("refreshBtn").addEventListener("click", loadStats);
+
+  // ── Init ──
+  (async () => {
+    await loadStats();
+    scheduleRefresh();
+  })();
+</script>
+</body>
 </html>

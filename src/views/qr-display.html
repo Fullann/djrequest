@@ -1,281 +1,229 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DJ Queue - QR Code</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
-      * {
-        font-family: "Inter", sans-serif;
-      }
-    </style>
-  </head>
-  <body class="bg-[#0d0d0d] text-white min-h-screen p-4 lg:p-6">
-    <div class="max-w-[1600px] mx-auto">
-      <div class="mb-4 lg:mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 id="eventName" class="text-3xl lg:text-4xl font-extrabold">Soiree</h1>
-          <p class="text-gray-400">Ecran live de la soiree</p>
-        </div>
-        <div class="flex items-center gap-2 text-sm">
-          <span class="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse"></span>
-          <span class="text-green-300 font-semibold">LIVE</span>
-        </div>
-      </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ecran live — DJ Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+</head>
+<body class="min-h-screen" style="background:var(--bg-base);color:var(--text-primary)">
 
-      <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 lg:gap-6">
-        <aside class="xl:col-span-4 space-y-4 lg:space-y-6">
-          <div class="bg-white/5 border border-white/10 rounded-2xl shadow-2xl p-6 text-center">
-            <p class="text-gray-300 text-lg mb-4">Scanne pour proposer une musique</p>
-            <div class="flex justify-center mb-5">
-              <img
-                id="qrCode"
-                src=""
-                alt="QR Code"
-                class="w-64 h-64 lg:w-72 lg:h-72 border-4 border-violet-400/40 rounded-xl bg-white p-2"
-              />
-            </div>
-            <div class="bg-white/5 border border-white/10 rounded-xl p-3">
-              <p class="text-xs text-gray-400 mb-2">Lecture en cours :</p>
-              <div class="flex items-center gap-3">
-                <img
-                  id="nowPlayingImage"
-                  src=""
-                  alt="Pochette en cours"
-                  class="w-14 h-14 rounded-lg object-cover hidden"
-                />
-                <div class="min-w-0 flex-1 text-left">
-                  <p id="nowPlayingTitle" class="text-sm font-semibold text-white truncate">
-                    Aucune musique en cours
-                  </p>
-                  <p id="nowPlayingArtist" class="text-xs text-gray-400 truncate">-</p>
-                </div>
-              </div>
-            </div>
-          </div>
+<div class="max-w-[1600px] mx-auto p-4 lg:p-6">
 
-          <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
-            <h2 class="text-lg font-bold mb-4">📊 Stats live</h2>
-            <div class="grid grid-cols-3 gap-3 text-center">
-              <div>
-                <p class="text-2xl lg:text-3xl font-extrabold text-violet-400" id="pendingCount">0</p>
-                <p class="text-xs text-gray-400">En attente</p>
-              </div>
-              <div>
-                <p class="text-2xl lg:text-3xl font-extrabold text-green-400" id="queueCount">0</p>
-                <p class="text-xs text-gray-400">Queue</p>
-              </div>
-              <div>
-                <p class="text-2xl lg:text-3xl font-extrabold text-cyan-400" id="playedCount">0</p>
-                <p class="text-xs text-gray-400">Jouees</p>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <section class="xl:col-span-8 space-y-4 lg:space-y-6">
-          <div class="bg-white/5 border border-white/10 rounded-2xl p-5 lg:p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-2xl font-bold">🎵 Prochaines musiques</h2>
-              <span id="upcomingCount" class="text-sm text-gray-400">(0)</span>
-            </div>
-            <div id="upcomingList" class="space-y-3">
-              <p class="text-gray-400 text-center py-8">Chargement...</p>
-            </div>
-          </div>
-
-          <div class="bg-white/5 border border-white/10 rounded-2xl p-5 lg:p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-2xl font-bold">✅ Dernieres jouees</h2>
-              <span id="playedListCount" class="text-sm text-gray-400">(0)</span>
-            </div>
-            <div id="playedList" class="space-y-3">
-              <p class="text-gray-400 text-center py-8">Chargement...</p>
-            </div>
-          </div>
-        </section>
-      </div>
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-5">
+    <div>
+      <h1 id="eventName" class="text-2xl lg:text-3xl font-bold" style="color:var(--text-primary)">Chargement...</h1>
+      <p class="text-sm mt-0.5" style="color:var(--text-secondary)">Ecran live de la soirée</p>
     </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full dot-pulse" style="background:var(--green)"></span>
+        <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--green)">Live</span>
+      </div>
+      <button data-theme-toggle class="btn btn-ghost btn-icon btn-sm" title="Passer en mode clair">
+        <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="w-4 h-4 icon-moon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="/js/csrf.js"></script>
-    <script>
-      const eventId = window.location.pathname.split("/")[2];
-      const socket = io();
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 lg:gap-6">
 
-      // ========== Event Listeners ==========
+    <!-- ── Left sidebar ──────────────────────────────────── -->
+    <aside class="xl:col-span-4 space-y-4">
 
-      // ========== Fonctions ==========
+      <!-- QR + Now playing -->
+      <div class="card p-5 text-center">
+        <p class="text-sm font-medium mb-4" style="color:var(--text-secondary)">Scanner pour proposer une chanson</p>
+        <div class="inline-block p-3 rounded-xl mb-5" style="background:#fff">
+          <img id="qrCode" src="" alt="QR Code" class="w-56 h-56 lg:w-64 lg:h-64 block" />
+        </div>
 
-      function formatClock(dateString) {
-        if (!dateString) return "--:--";
-        return new Date(dateString).toLocaleTimeString("fr-FR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      }
-
-      function renderUpcoming(upcomingQueue = []) {
-        const container = document.getElementById("upcomingList");
-        document.getElementById("upcomingCount").textContent = `(${upcomingQueue.length})`;
-
-        if (!upcomingQueue.length) {
-          container.innerHTML =
-            '<p class="text-gray-400 text-center py-8">Aucune musique en queue pour le moment</p>';
-          return;
-        }
-
-        container.innerHTML = upcomingQueue
-          .slice(0, 12)
-          .map((song, index) => {
-            return `
-            <div class="border border-white/10 bg-white/[0.02] rounded-xl p-3">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center font-bold text-sm">${index + 1}</div>
-                ${
-                  song.image_url
-                    ? `<img src="${song.image_url}" alt="${song.song_name}" class="w-12 h-12 rounded-lg object-cover" />`
-                    : '<div class="w-12 h-12 rounded-lg bg-white/10"></div>'
-                }
-                <div class="flex-1 min-w-0">
-                  <p class="font-semibold text-white truncate">${song.song_name}</p>
-                  <p class="text-sm text-gray-300 truncate">${song.artist}</p>
-                  <p class="text-xs text-gray-400">Proposee par ${song.user_name || "Anonyme"}</p>
-                </div>
-              </div>
+        <!-- Now playing -->
+        <div class="rounded-xl p-4 text-left" style="background:var(--bg-elevated);border:1px solid var(--border)">
+          <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color:var(--text-muted)">En cours de lecture</p>
+          <div class="flex items-center gap-3">
+            <div id="nowPlayingImageWrapper" class="hidden shrink-0">
+              <img id="nowPlayingImage" src="" alt="Pochette" class="w-14 h-14 rounded-lg object-cover" />
             </div>
-          `;
-          })
-          .join("");
-      }
-
-      function renderPlayed(recentPlayed = []) {
-        const container = document.getElementById("playedList");
-        document.getElementById("playedListCount").textContent = `(${recentPlayed.length})`;
-
-        if (!recentPlayed.length) {
-          container.innerHTML =
-            '<p class="text-gray-400 text-center py-8">Aucune musique jouee pour le moment</p>';
-          return;
-        }
-
-        container.innerHTML = recentPlayed
-          .slice(0, 12)
-          .map((song) => {
-            return `
-            <div class="border border-white/10 bg-white/[0.02] rounded-xl p-3">
-              <div class="flex items-center gap-3">
-                ${
-                  song.image_url
-                    ? `<img src="${song.image_url}" alt="${song.song_name}" class="w-12 h-12 rounded-lg object-cover" />`
-                    : '<div class="w-12 h-12 rounded-lg bg-white/10"></div>'
-                }
-                <div class="flex-1 min-w-0">
-                  <p class="font-semibold text-white truncate">${song.song_name}</p>
-                  <p class="text-sm text-gray-300 truncate">${song.artist}</p>
-                  <p class="text-xs text-gray-400">Jouee a ${formatClock(song.played_at)}</p>
-                </div>
-              </div>
+            <div class="min-w-0 flex-1">
+              <p id="nowPlayingTitle" class="text-sm font-semibold truncate" style="color:var(--text-primary)">Aucune musique</p>
+              <p id="nowPlayingArtist" class="text-xs truncate mt-0.5" style="color:var(--text-secondary)">—</p>
             </div>
-          `;
-          })
-          .join("");
-      }
+          </div>
+        </div>
+      </div>
 
-      async function loadDisplayData() {
-        try {
-          const [eventResponse, qrResponse, statsResponse, displayResponse] = await Promise.all([
-            fetch(`/api/events/${eventId}`),
-            fetch(`/api/events/${eventId}/qrcode`),
-            fetch(`/api/events/${eventId}/stats`),
-            fetch(`/api/events/${eventId}/display-data`),
-          ]);
+      <!-- Live stats -->
+      <div class="card p-5">
+        <p class="text-xs font-semibold uppercase tracking-wider mb-4" style="color:var(--text-muted)">Stats en direct</p>
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div>
+            <p id="pendingCount" class="text-2xl font-bold" style="color:var(--amber)">0</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)">En attente</p>
+          </div>
+          <div>
+            <p id="queueCount" class="text-2xl font-bold" style="color:var(--accent)">0</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)">Queue</p>
+          </div>
+          <div>
+            <p id="playedCount" class="text-2xl font-bold" style="color:var(--green)">0</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)">Jouées</p>
+          </div>
+        </div>
+      </div>
+    </aside>
 
-          const eventData = await eventResponse.json();
-          const qrData = await qrResponse.json();
-          const statsData = await statsResponse.json();
-          const displayData = await displayResponse.json();
+    <!-- ── Main content ──────────────────────────────────── -->
+    <section class="xl:col-span-8 space-y-4">
 
-          document.getElementById("eventName").textContent =
-            displayData.event?.name || eventData.name || "Soiree";
-          document.getElementById("qrCode").src = qrData.qrCode;
+      <!-- Upcoming queue -->
+      <div class="card overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
+          <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Prochaines musiques</h2>
+          <span id="upcomingCount" class="text-xs" style="color:var(--text-muted)">0</span>
+        </div>
+        <div id="upcomingList" class="divide-y" style="border-color:var(--border)">
+          <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Chargement...</div>
+        </div>
+      </div>
 
-          document.getElementById("pendingCount").textContent =
-            statsData.stats?.pending_count || 0;
-          document.getElementById("queueCount").textContent =
-            statsData.stats?.accepted_count || 0;
-          document.getElementById("playedCount").textContent =
-            statsData.stats?.played_count || 0;
+      <!-- Recently played -->
+      <div class="card overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
+          <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Dernières jouées</h2>
+          <span id="playedListCount" class="text-xs" style="color:var(--text-muted)">0</span>
+        </div>
+        <div id="playedList" class="divide-y" style="border-color:var(--border)">
+          <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Chargement...</div>
+        </div>
+      </div>
 
-          renderUpcoming(displayData.upcomingQueue || []);
-          renderPlayed(displayData.recentPlayed || []);
-          updateNowPlaying(displayData);
-        } catch (error) {
-          console.error("Erreur chargement affichage live:", error);
-        }
-      }
+    </section>
+  </div>
+</div>
 
-      function updateNowPlaying(displayData) {
-        const nowPlaying = displayData?.recentPlayed?.[0] || null;
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/csrf.js"></script>
+<script>
+  const eventId = window.location.pathname.split("/")[2];
+  const socket  = io();
 
-        const imageEl = document.getElementById("nowPlayingImage");
-        const titleEl = document.getElementById("nowPlayingTitle");
-        const artistEl = document.getElementById("nowPlayingArtist");
+  function formatClock(dateString) {
+    if (!dateString) return "--:--";
+    return new Date(dateString).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+  }
 
-        if (!nowPlaying) {
-          imageEl.classList.add("hidden");
-          imageEl.src = "";
-          titleEl.textContent = "Aucune musique en cours";
-          artistEl.textContent = "-";
-          return;
-        }
+  function renderUpcoming(queue = []) {
+    const container = document.getElementById("upcomingList");
+    document.getElementById("upcomingCount").textContent = queue.length;
+    if (!queue.length) {
+      container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune musique en queue</div>`;
+      return;
+    }
+    container.innerHTML = queue.slice(0, 12).map((song, index) => `
+      <div class="px-5 py-3.5 flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style="background:var(--accent-dim);color:var(--accent)">${index+1}</div>
+        ${song.image_url
+          ? `<img src="${song.image_url}" alt="" class="w-11 h-11 rounded-lg object-cover shrink-0">`
+          : `<div class="w-11 h-11 rounded-lg shrink-0" style="background:var(--bg-overlay)"></div>`}
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium truncate" style="color:var(--text-primary)">${song.song_name}</p>
+          <p class="text-xs truncate" style="color:var(--text-secondary)">${song.artist}</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Proposé par ${song.user_name || "Anonyme"}</p>
+        </div>
+      </div>`).join("");
+  }
 
-        if (nowPlaying.image_url) {
-          imageEl.src = nowPlaying.image_url;
-          imageEl.classList.remove("hidden");
-        } else {
-          imageEl.classList.add("hidden");
-          imageEl.src = "";
-        }
+  function renderPlayed(played = []) {
+    const container = document.getElementById("playedList");
+    document.getElementById("playedListCount").textContent = played.length;
+    if (!played.length) {
+      container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune musique jouée</div>`;
+      return;
+    }
+    container.innerHTML = played.slice(0, 12).map((song) => `
+      <div class="px-5 py-3.5 flex items-center gap-3" style="opacity:0.7">
+        ${song.image_url
+          ? `<img src="${song.image_url}" alt="" class="w-11 h-11 rounded-lg object-cover shrink-0">`
+          : `<div class="w-11 h-11 rounded-lg shrink-0" style="background:var(--bg-overlay)"></div>`}
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium truncate" style="color:var(--text-primary)">${song.song_name}</p>
+          <p class="text-xs truncate" style="color:var(--text-secondary)">${song.artist}</p>
+        </div>
+        <span class="text-xs shrink-0 font-mono" style="color:var(--text-muted)">${formatClock(song.played_at)}</span>
+      </div>`).join("");
+  }
 
-        titleEl.textContent = nowPlaying.song_name || "Titre inconnu";
-        artistEl.textContent = nowPlaying.artist || "Artiste inconnu";
-      }
+  async function loadDisplayData() {
+    try {
+      const [eventResponse, qrResponse, statsResponse, displayResponse] = await Promise.all([
+        fetch(`/api/events/${eventId}`),
+        fetch(`/api/events/${eventId}/qrcode`),
+        fetch(`/api/events/${eventId}/stats`),
+        fetch(`/api/events/${eventId}/display-data`),
+      ]);
+      const eventData   = await eventResponse.json();
+      const qrData      = await qrResponse.json();
+      const statsData   = await statsResponse.json();
+      const displayData = await displayResponse.json();
 
-      // WebSocket pour stats temps réel
-      socket.emit("join-event", eventId);
+      document.getElementById("eventName").textContent  = displayData.event?.name || eventData.name || "Soirée";
+      document.getElementById("qrCode").src             = qrData.qrCode;
+      document.getElementById("pendingCount").textContent = statsData.stats?.pending_count || 0;
+      document.getElementById("queueCount").textContent   = statsData.stats?.accepted_count || 0;
+      document.getElementById("playedCount").textContent  = statsData.stats?.played_count || 0;
 
-      socket.on("new-request", loadDisplayData);
-      socket.on("request-accepted", loadDisplayData);
-      socket.on("request-rejected", loadDisplayData);
-      socket.on("queue-updated", loadDisplayData);
-      socket.on("vote-updated", loadDisplayData);
-      socket.on("event-ended", loadDisplayData);
+      renderUpcoming(displayData.upcomingQueue || []);
+      renderPlayed(displayData.recentPlayed || []);
+      updateNowPlaying(displayData);
+    } catch (error) {
+      console.error("Erreur chargement affichage live:", error);
+    }
+  }
 
-      loadDisplayData();
-      setInterval(loadDisplayData, 15000);
-    </script>
+  function updateNowPlaying(displayData) {
+    const nowPlaying = displayData?.recentPlayed?.[0] || null;
+    const imageWrapper = document.getElementById("nowPlayingImageWrapper");
+    const imageEl      = document.getElementById("nowPlayingImage");
+    const titleEl      = document.getElementById("nowPlayingTitle");
+    const artistEl     = document.getElementById("nowPlayingArtist");
 
-    <style>
-      @media print {
-        body {
-          background: white;
-          color: black;
-        }
-        button {
-          display: none;
-        }
-        #upcomingList,
-        #playedList {
-          display: none;
-        }
-        #eventName,
-        p {
-          color: black !important;
-        }
-      }
-    </style>
-  </body>
+    if (!nowPlaying) {
+      imageWrapper.classList.add("hidden");
+      titleEl.textContent  = "Aucune musique";
+      artistEl.textContent = "—";
+      return;
+    }
+    if (nowPlaying.image_url) {
+      imageEl.src = nowPlaying.image_url;
+      imageWrapper.classList.remove("hidden");
+    } else {
+      imageWrapper.classList.add("hidden");
+    }
+    titleEl.textContent  = nowPlaying.song_name || "Titre inconnu";
+    artistEl.textContent = nowPlaying.artist    || "Artiste inconnu";
+  }
+
+  socket.on("connect", () => {
+    socket.emit("join-event", eventId);
+  });
+  if (socket.connected) {
+    socket.emit("join-event", eventId);
+  }
+
+  socket.on("new-request",      loadDisplayData);
+  socket.on("request-accepted", loadDisplayData);
+  socket.on("request-rejected", loadDisplayData);
+  socket.on("queue-updated",    loadDisplayData);
+  socket.on("vote-updated",     loadDisplayData);
+  socket.on("event-ended",      loadDisplayData);
+
+  loadDisplayData();
+  setInterval(loadDisplayData, 15000);
+</script>
+</body>
 </html>

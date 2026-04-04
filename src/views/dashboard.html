@@ -1,488 +1,483 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DJ Queue - Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
-      * {
-        font-family: "Inter", sans-serif;
-      }
-    </style>
-  </head>
-  <body class="bg-[#0d0d0d] text-white min-h-screen">
-    <!-- Header -->
-    <div
-      class="border-b border-white/10 bg-[#0d0d0d]/90 backdrop-blur"
-    >
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 py-5 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-        <div>
-          <h1 class="text-3xl font-extrabold">🎧 Dashboard DJ</h1>
-          <p id="djName" class="text-gray-400 mt-1">Bienvenue</p>
-        </div>
-        <div class="flex flex-wrap gap-2 sm:gap-3">
-          <button
-            id="btnHistory"
-            class="border border-white/20 bg-white/5 hover:bg-white/10 text-gray-100 font-semibold py-2 px-5 rounded-xl transition"
-          >
-            📚 Historique
-          </button>
-          <button
-            id="btnCreateEvent"
-            class="bg-violet-600 hover:bg-violet-500 text-white font-semibold py-2 px-5 rounded-xl transition"
-          >
-            ➕ Nouvelle soirée
-          </button>
-          <button
-            id="btnLogout"
-            class="border border-red-400/50 bg-red-500/20 hover:bg-red-500/30 text-red-200 font-semibold py-2 px-5 rounded-xl transition"
-          >
-            Déconnexion
-          </button>
-        </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — DJ Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+</head>
+<body style="background:var(--bg-base);color:var(--text-primary)">
+
+<!-- ─── Layout ─────────────────────────────────────────────── -->
+<div class="flex h-screen overflow-hidden">
+
+  <!-- ── Sidebar ─────────────────────────────────────────── -->
+  <aside id="sidebar" class="hidden lg:flex flex-col w-56 shrink-0" style="background:var(--bg-surface);border-right:1px solid var(--border)">
+    <!-- Logo -->
+    <div class="flex items-center gap-3 px-5 py-[18px]" style="border-bottom:1px solid var(--border)">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:var(--accent)">
+        <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
+          <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+        </svg>
       </div>
+      <span class="font-semibold text-sm" style="color:var(--text-primary)">DJ Queue</span>
     </div>
 
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      <!-- Stats globales -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-gray-400 text-sm">Soirées totales</p>
-              <p id="totalEvents" class="text-3xl font-extrabold text-violet-400">
-                0
-              </p>
-            </div>
-            <div class="text-4xl">🎉</div>
-          </div>
-        </div>
-
-        <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-gray-400 text-sm">Chansons jouées</p>
-              <p id="totalSongs" class="text-3xl font-extrabold text-green-400">0</p>
-            </div>
-            <div class="text-4xl">🎵</div>
-          </div>
-        </div>
-
-        <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-gray-400 text-sm">Votes moyens</p>
-              <p id="avgVotes" class="text-3xl font-extrabold text-cyan-400">0</p>
-            </div>
-            <div class="text-4xl">👍</div>
-          </div>
-        </div>
-
-        <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-gray-400 text-sm">Taux acceptation</p>
-              <p id="acceptRate" class="text-3xl font-extrabold text-pink-400">
-                0%
-              </p>
-            </div>
-            <div class="text-4xl">✅</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Soirées actives -->
-      <div class="bg-white/5 border border-white/10 rounded-2xl mb-6">
-        <div class="p-6 border-b border-white/10">
-          <h2 class="text-2xl font-bold text-white">🔴 Soirées actives</h2>
-        </div>
-        <div id="activeEventsList" class="p-6">
-          <p class="text-gray-400 text-center py-8">Chargement...</p>
-        </div>
-      </div>
-
-      <!-- Top chansons -->
-      <div class="bg-white/5 border border-white/10 rounded-2xl">
-        <div class="p-6 border-b border-white/10">
-          <h2 class="text-2xl font-bold text-white">
-            🏆 Top chansons de toutes mes soirées
-          </h2>
-        </div>
-        <div id="topSongs" class="p-6">
-          <p class="text-gray-400 text-center py-8">Chargement...</p>
-        </div>
-      </div>
+    <!-- DJ name -->
+    <div class="px-5 py-4" style="border-bottom:1px solid var(--border)">
+      <p class="text-xs font-medium uppercase tracking-widest mb-1" style="color:var(--text-muted)">Connecté</p>
+      <p id="sidebarDjName" class="text-sm font-semibold truncate" style="color:var(--text-primary)">—</p>
     </div>
 
-    <!-- Modal création soirée -->
-    <div
-      id="createEventModal"
-      class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-    >
-      <div class="bg-[#151515] border border-white/10 rounded-2xl shadow-2xl max-w-md w-full p-6">
-        <h2 class="text-2xl font-bold text-white mb-4">
-          ➕ Créer une nouvelle soirée
-        </h2>
+    <!-- Nav -->
+    <nav class="flex-1 p-3 space-y-0.5">
+      <a href="/dashboard" class="nav-item active">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="/history" class="nav-item">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Historique
+      </a>
+    </nav>
 
-        <form id="createEventForm">
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-300 mb-2"
-              >Nom de la soirée</label
-            >
-            <input
-              type="text"
-              id="eventName"
-              required
-              class="w-full px-4 py-3 border border-white/20 bg-black/30 text-white rounded-xl focus:ring-2 focus:ring-violet-500 outline-none"
-              placeholder="Soirée du 10 février"
-            />
-          </div>
-
-          <div class="flex gap-3">
-            <button
-              type="button"
-              id="btnCancelModal"
-              class="flex-1 border border-white/20 bg-white/5 hover:bg-white/10 text-gray-200 font-semibold py-3 rounded-xl transition"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              class="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-semibold py-3 rounded-xl transition"
-            >
-              Créer
-            </button>
-          </div>
-        </form>
-      </div>
+    <!-- Footer -->
+    <div class="p-3" style="border-top:1px solid var(--border)">
+      <button id="btnLogout" class="nav-item danger w-full">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Déconnexion
+      </button>
     </div>
+  </aside>
 
-    <script src="/js/csrf.js"></script>
-    <script>
-      let djData = null;
+  <!-- ── Main ─────────────────────────────────────────────── -->
+  <div class="flex-1 flex flex-col overflow-hidden">
 
-      // ========== Event Listeners ==========
+    <!-- Topbar -->
+    <header class="flex items-center justify-between px-6 py-4 shrink-0" style="background:var(--bg-surface);border-bottom:1px solid var(--border)">
+      <!-- Mobile hamburger -->
+      <button id="mobileSidebarBtn" class="lg:hidden btn btn-ghost btn-icon mr-3">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-lg font-semibold" style="color:var(--text-primary)">Dashboard</h1>
+        <p id="djName" class="text-xs mt-0.5" style="color:var(--text-secondary)">Chargement...</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="/history" class="btn btn-ghost btn-sm hidden sm:inline-flex">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Historique
+        </a>
+        <button id="btnCreateEvent" class="btn btn-primary btn-sm">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span class="hidden sm:inline">Nouvelle soirée</span>
+          <span class="sm:hidden">Soirée</span>
+        </button>
+        <button data-theme-toggle class="btn btn-ghost btn-icon btn-sm" title="Passer en mode clair">
+          <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="w-4 h-4 icon-moon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button id="btnLogoutMobile" class="lg:hidden btn btn-ghost btn-icon">
+          <svg class="w-4 h-4" style="color:var(--red)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+    </header>
 
-      document.getElementById("btnHistory").addEventListener("click", () => {
-        window.location.href = "/history";
+    <!-- Scrollable content -->
+    <main class="flex-1 overflow-y-auto p-5 lg:p-6 space-y-5 lg:space-y-6">
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card stat-card">
+          <p class="stat-label">Soirées totales</p>
+          <p id="totalEvents" class="stat-value mt-2" style="color:var(--accent)">—</p>
+        </div>
+        <div class="card stat-card">
+          <p class="stat-label">Chansons jouées</p>
+          <p id="totalSongs" class="stat-value mt-2" style="color:var(--green)">—</p>
+        </div>
+        <div class="card stat-card">
+          <p class="stat-label">Votes moyens</p>
+          <p id="avgVotes" class="stat-value mt-2" style="color:var(--cyan)">—</p>
+        </div>
+        <div class="card stat-card">
+          <p class="stat-label">Taux acceptation</p>
+          <p id="acceptRate" class="stat-value mt-2" style="color:var(--text-primary)">—</p>
+        </div>
+      </div>
+
+      <!-- Active events -->
+      <div class="card overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
+          <div class="flex items-center gap-2.5">
+            <span class="w-2 h-2 rounded-full dot-pulse" style="background:var(--green)"></span>
+            <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Soirées actives</h2>
+          </div>
+          <button id="btnCreateEventInline" class="btn btn-ghost btn-sm" style="font-size:0.8rem">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Créer
+          </button>
+        </div>
+        <div id="activeEventsList" class="divide-y" style="border-color:var(--border)">
+          <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- Top songs -->
+      <div class="card overflow-hidden">
+        <div class="flex items-center gap-2.5 px-5 py-4" style="border-bottom:1px solid var(--border)">
+          <svg class="w-4 h-4 shrink-0" style="color:var(--accent)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="17 6 23 6 23 12"/>
+          </svg>
+          <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Top chansons — toutes soirées</h2>
+        </div>
+        <div id="topSongs">
+          <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Chargement...</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ─── Mobile sidebar overlay ─────────────────────────────── -->
+<div id="mobileSidebarOverlay" class="hidden fixed inset-0 z-40 lg:hidden" style="background:rgba(0,0,0,0.6)" onclick="closeMobileSidebar()"></div>
+<aside id="mobileSidebar" class="hidden fixed left-0 top-0 bottom-0 z-50 flex flex-col w-64 lg:hidden" style="background:var(--bg-surface);border-right:1px solid var(--border)">
+  <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
+    <div class="flex items-center gap-3">
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:var(--accent)">
+        <svg class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
+          <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+        </svg>
+      </div>
+      <span class="font-semibold text-sm">DJ Queue</span>
+    </div>
+    <button onclick="closeMobileSidebar()" class="btn btn-ghost btn-icon btn-sm">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <nav class="flex-1 p-3 space-y-0.5">
+    <a href="/dashboard" class="nav-item active">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a href="/history" class="nav-item">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Historique
+    </a>
+  </nav>
+  <div class="p-3" style="border-top:1px solid var(--border)">
+    <button id="btnLogoutMobile2" class="nav-item danger w-full">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Déconnexion
+    </button>
+  </div>
+</aside>
+
+<!-- ─── Modal Créer soirée ──────────────────────────────────── -->
+<div id="createEventModal" class="hidden modal-backdrop">
+  <div class="modal max-w-md p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-base font-semibold" style="color:var(--text-primary)">Nouvelle soirée</h2>
+      <button id="btnCancelModal" class="btn btn-ghost btn-icon btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form id="createEventForm">
+      <label class="label">Nom de la soirée</label>
+      <input type="text" id="eventName" required class="input mb-4" placeholder="Soirée du 10 mars" />
+      <div class="flex gap-3">
+        <button type="button" id="btnCancelModal2" class="btn btn-ghost flex-1">Annuler</button>
+        <button type="submit" class="btn btn-primary flex-1">Créer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── Modal QR Code ──────────────────────────────────────── -->
+<div id="qrModal" class="hidden modal-backdrop">
+  <div class="modal max-w-sm">
+    <div class="p-6 text-center">
+      <h2 class="text-base font-semibold mb-4" style="color:var(--text-primary)">QR Code — partager la soirée</h2>
+      <div class="inline-block p-3 rounded-xl mb-5" style="background:#fff">
+        <img id="qrModalImage" src="" alt="QR Code" class="w-52 h-52" />
+      </div>
+      <div class="mb-4 text-left">
+        <label class="label">Lien invités</label>
+        <div class="input-group">
+          <input type="text" id="qrModalLink" readonly class="input" />
+          <button id="qrModalCopy" class="btn btn-ghost btn-sm shrink-0">Copier</button>
+        </div>
+      </div>
+      <button id="qrModalClose" class="btn btn-ghost btn-full">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/csrf.js"></script>
+<script>
+  let djData = null;
+
+  // ── Mobile sidebar ──
+  function openMobileSidebar() {
+    document.getElementById("mobileSidebar").classList.remove("hidden");
+    document.getElementById("mobileSidebarOverlay").classList.remove("hidden");
+  }
+  function closeMobileSidebar() {
+    document.getElementById("mobileSidebar").classList.add("hidden");
+    document.getElementById("mobileSidebarOverlay").classList.add("hidden");
+  }
+  document.getElementById("mobileSidebarBtn").addEventListener("click", openMobileSidebar);
+
+  // ── Buttons ──
+  document.getElementById("btnCreateEvent").addEventListener("click", openCreateEventModal);
+  document.getElementById("btnCreateEventInline").addEventListener("click", openCreateEventModal);
+  document.getElementById("btnLogout").addEventListener("click", logout);
+  document.getElementById("btnLogoutMobile").addEventListener("click", logout);
+  document.getElementById("btnLogoutMobile2").addEventListener("click", logout);
+  document.getElementById("btnCancelModal").addEventListener("click", closeModal);
+  document.getElementById("btnCancelModal2").addEventListener("click", closeModal);
+  document.getElementById("createEventModal").addEventListener("click", (e) => {
+    if (e.target.id === "createEventModal") closeModal();
+  });
+  document.getElementById("createEventForm").addEventListener("submit", handleCreateEvent);
+
+  // ── Active events delegation ──
+  document.getElementById("activeEventsList").addEventListener("click", async (e) => {
+    const button = e.target.closest("button");
+    if (!button) return;
+    const { action, eventId, eventName } = button.dataset;
+    if (action === "show-qr")   showQRCode(eventId, eventName);
+    else if (action === "open-dj") goToDJ(eventId);
+    else if (action === "end-event") await endEvent(eventId, eventName);
+  });
+
+  // ── QR modal ──
+  document.getElementById("qrModalClose").addEventListener("click", () => {
+    document.getElementById("qrModal").classList.add("hidden");
+  });
+  document.getElementById("qrModalCopy").addEventListener("click", () => {
+    const input = document.getElementById("qrModalLink");
+    input.select();
+    document.execCommand("copy");
+    document.getElementById("qrModalCopy").textContent = "Copié";
+    setTimeout(() => document.getElementById("qrModalCopy").textContent = "Copier", 2000);
+  });
+
+  // ── Keyboard ──
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeModal();
+      document.getElementById("qrModal").classList.add("hidden");
+    }
+  });
+
+  // ── Load dashboard ──
+  async function loadDashboard() {
+    try {
+      const response = await fetch("/api/dj/dashboard");
+      if (response.status === 401) { window.location.href = "/login"; return; }
+      if (!response.ok) throw new Error("Erreur chargement dashboard");
+      djData = await response.json();
+
+      document.getElementById("djName").textContent = `Bienvenue, ${djData.dj.name}`;
+      document.getElementById("sidebarDjName").textContent = djData.dj.name;
+
+      document.getElementById("totalEvents").textContent = parseInt(djData.stats.totalEvents) || 0;
+      document.getElementById("totalSongs").textContent  = parseInt(djData.stats.totalSongs)  || 0;
+      document.getElementById("avgVotes").textContent    = (parseFloat(djData.stats.avgVotes) || 0).toFixed(1);
+      document.getElementById("acceptRate").textContent  = djData.stats.acceptRate || "0%";
+
+      const activeEvents = (djData.events || []).filter((e) => !e.ended_at);
+      renderActiveEvents(activeEvents);
+      renderTopSongs(djData.topSongs || []);
+    } catch (error) {
+      console.error("Erreur:", error);
+      document.getElementById("activeEventsList").innerHTML =
+        `<div class="px-5 py-8 text-center text-sm" style="color:var(--red)">Erreur de chargement</div>`;
+    }
+  }
+
+  function renderActiveEvents(events) {
+    const container = document.getElementById("activeEventsList");
+    if (!events || events.length === 0) {
+      container.innerHTML = `
+        <div class="px-5 py-12 text-center">
+          <p class="text-sm mb-3" style="color:var(--text-muted)">Aucune soirée en cours</p>
+          <button onclick="openCreateEventModal()" class="btn btn-primary btn-sm">Créer une soirée</button>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = events.map((event) => {
+      const date = new Date(event.created_at).toLocaleDateString("fr-FR", {
+        day: "numeric", month: "long", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
       });
-
-      document
-        .getElementById("btnCreateEvent")
-        .addEventListener("click", openCreateEventModal);
-      document.getElementById("btnLogout").addEventListener("click", logout);
-      document
-        .getElementById("btnCancelModal")
-        .addEventListener("click", closeModal);
-
-      document
-        .getElementById("createEventModal")
-        .addEventListener("click", (e) => {
-          if (e.target.id === "createEventModal") closeModal();
-        });
-
-      document
-        .getElementById("createEventForm")
-        .addEventListener("submit", handleCreateEvent);
-
-      // Délégation d'événements
-      document
-        .getElementById("activeEventsList")
-        .addEventListener("click", async (e) => {
-          const button = e.target.closest("button");
-          if (!button) return;
-
-          const action = button.dataset.action;
-          const eventId = button.dataset.eventId;
-          const eventName = button.dataset.eventName;
-
-          if (action === "show-qr") {
-            showQRCode(eventId, eventName);
-          } else if (action === "open-dj") {
-            goToDJ(eventId);
-          } else if (action === "end-event") {
-            await endEvent(eventId, eventName);
-          }
-        });
-
-      // ========== Fonctions ==========
-
-      async function loadDashboard() {
-        try {
-          const response = await fetch("/api/dj/dashboard");
-
-          if (response.status === 401) {
-            window.location.href = "/login";
-            return;
-          }
-
-          if (!response.ok) throw new Error("Erreur chargement dashboard");
-
-          djData = await response.json();
-
-          document.getElementById("djName").textContent =
-            `Bienvenue, ${djData.dj.name}`;
-
-          // Stats globales
-          document.getElementById("totalEvents").textContent =
-            parseInt(djData.stats.totalEvents) || 0;
-          document.getElementById("totalSongs").textContent =
-            parseInt(djData.stats.totalSongs) || 0;
-
-          const avgVotes = parseFloat(djData.stats.avgVotes) || 0;
-          document.getElementById("avgVotes").textContent = avgVotes.toFixed(1);
-
-          document.getElementById("acceptRate").textContent =
-            djData.stats.acceptRate || "0%";
-
-          // Séparer les événements actifs et terminés
-          const activeEvents = (djData.events || []).filter((e) => !e.ended_at);
-          renderActiveEvents(activeEvents);
-
-          renderTopSongs(djData.topSongs || []);
-        } catch (error) {
-          console.error("Erreur:", error);
-          showErrorPage(error.message);
-        }
-      }
-
-      function renderActiveEvents(events) {
-        const container = document.getElementById("activeEventsList");
-
-        if (!events || events.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-400 text-center py-8">Aucune soirée active</p>';
-          return;
-        }
-
-        container.innerHTML = events
-          .map((event) => {
-            const date = new Date(event.created_at).toLocaleDateString(
-              "fr-FR",
-              {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              },
-            );
-
-            const escapedName = event.name.replace(/'/g, "\\'");
-            const acceptedCount = event.accepted_count || 0;
-
-            return `
-          <div class="border-b border-white/10 last:border-b-0 py-4 hover:bg-white/[0.03] transition rounded-xl">
-            <div class="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-start">
-              <div class="flex-1">
-                <div class="flex items-center gap-2">
-                  <h3 class="font-bold text-lg text-white">${event.name}</h3>
-                  <span class="bg-green-500/20 text-green-300 text-xs font-semibold px-2 py-1 rounded-full border border-green-400/30">ACTIVE</span>
-                </div>
-                <p class="text-sm text-gray-400">${date}</p>
-                <div class="flex gap-4 mt-2 text-sm">
-                  <span class="text-green-300">✓ ${event.played_songs || 0} jouées</span>
-                  <span class="text-yellow-300">⏳ ${acceptedCount} en attente</span>
-                  <span class="text-red-300">✗ ${event.rejected_songs || 0} refusées</span>
-                  <span class="text-gray-300">📊 ${event.total_songs || 0} total</span>
-                </div>
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <button 
-                  data-action="show-qr"
-                  data-event-id="${event.id}"
-                  data-event-name="${escapedName}"
-                  class="bg-cyan-600/90 hover:bg-cyan-500 text-white text-sm font-semibold py-2 px-4 rounded-xl transition"
-                >
-                  📱 QR Code
-                </button>
-                <button 
-                  data-action="open-dj"
-                  data-event-id="${event.id}"
-                  class="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold py-2 px-4 rounded-xl transition"
-                >
-                  🎧 Ouvrir
-                </button>
-                <button 
-                  data-action="end-event"
-                  data-event-id="${event.id}"
-                  data-event-name="${escapedName}"
-                  class="border border-red-400/50 bg-red-500/20 hover:bg-red-500/30 text-red-200 text-sm font-semibold py-2 px-4 rounded-xl transition"
-                >
-                  🏁 Terminer
-                </button>
-              </div>
-            </div>
+      const escapedName = event.name.replace(/'/g, "\\'");
+      const acceptedCount = event.accepted_count || 0;
+      return `
+      <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4" style="border-bottom:1px solid var(--border)">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <h3 class="font-semibold text-sm truncate" style="color:var(--text-primary)">${event.name}</h3>
+            <span class="badge badge-green shrink-0">Live</span>
           </div>
-        `;
-          })
-          .join("");
-      }
+          <p class="text-xs mb-2" style="color:var(--text-muted)">${date}</p>
+          <div class="flex flex-wrap gap-3 text-xs">
+            <span style="color:var(--green)">${event.played_songs || 0} jouées</span>
+            <span style="color:var(--amber)">${acceptedCount} en attente</span>
+            <span style="color:var(--red)">${event.rejected_songs || 0} refusées</span>
+            <span style="color:var(--text-muted)">${event.total_songs || 0} total</span>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 shrink-0">
+          <button
+            data-action="show-qr" data-event-id="${event.id}" data-event-name="${escapedName}"
+            class="btn btn-ghost btn-sm">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
+            QR Code
+          </button>
+          <button
+            data-action="open-dj" data-event-id="${event.id}"
+            class="btn btn-primary btn-sm">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+            Ouvrir
+          </button>
+          <button
+            data-action="end-event" data-event-id="${event.id}" data-event-name="${escapedName}"
+            class="btn btn-danger btn-sm">
+            Terminer
+          </button>
+        </div>
+      </div>`;
+    }).join("");
+  }
 
-      async function endEvent(eventId, eventName) {
-        const confirmed = confirm(
-          `🏁 Terminer "${eventName}" ?\n\n` +
-            `Cela va :\n` +
-            `- Archiver la soirée\n` +
-            `- Sauvegarder les statistiques\n` +
-            `- Empêcher de nouvelles demandes\n\n` +
-            `Vous pourrez consulter les stats dans l'historique.`,
-        );
-
-        if (!confirmed) return;
-
-        try {
-          const response = await fetch(`/api/events/${eventId}/end`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            cache: "no-cache", // ← Ajouter cette ligne
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            alert(
-              `✅ Soirée terminée avec succès !\n\n📊 Stats:\n- ${data.stats.played_count || 0} chansons jouées\n- ${data.stats.rejected_count || 0} refusées\n- ${data.stats.total_requests || 0} demandes au total`,
-            );
-
-            // Forcer le rechargement complet de la page
-            window.location.reload();
-          } else {
-            alert("Erreur: " + (data.error || "Erreur inconnue"));
-          }
-        } catch (error) {
-          console.error("Erreur fin événement:", error);
-          alert("Erreur lors de la fin de la soirée");
-        }
-      }
-
-      function renderTopSongs(songs) {
-        const container = document.getElementById("topSongs");
-
-        if (!songs || songs.length === 0) {
-          container.innerHTML =
-            '<p class="text-gray-400 text-center py-8">Aucune chanson jouée</p>';
-          return;
-        }
-
-        container.innerHTML = `
-        <div class="overflow-x-auto">
-        <table class="w-full min-w-[640px]">
-          <thead class="bg-white/[0.03]">
+  function renderTopSongs(songs) {
+    const container = document.getElementById("topSongs");
+    if (!songs || songs.length === 0) {
+      container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune chanson jouée</div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
             <tr>
-              <th class="text-left p-3 font-semibold text-gray-300">#</th>
-              <th class="text-left p-3 font-semibold text-gray-300">Chanson</th>
-              <th class="text-left p-3 font-semibold text-gray-300">Artiste</th>
-              <th class="text-center p-3 font-semibold text-gray-300">Fois jouée</th>
-              <th class="text-center p-3 font-semibold text-gray-300">Votes moy.</th>
+              <th>#</th>
+              <th>Chanson</th>
+              <th>Artiste</th>
+              <th class="text-center">Fois jouée</th>
+              <th class="text-center">Votes moy.</th>
             </tr>
           </thead>
           <tbody>
-            ${songs
-              .slice(0, 10)
-              .map((song, index) => {
-                const avgUpvotes = parseFloat(song.avg_upvotes) || 0;
-                return `
-                <tr class="border-b border-white/10 hover:bg-white/[0.03]">
-                  <td class="p-3 font-bold text-violet-400">${index + 1}</td>
-                  <td class="p-3 font-semibold text-white">${song.song_name}</td>
-                  <td class="p-3 text-gray-300">${song.artist}</td>
-                  <td class="p-3 text-center">${song.play_count}</td>
-                  <td class="p-3 text-center text-green-300 font-semibold">${avgUpvotes.toFixed(1)}</td>
-                </tr>
-              `;
-              })
-              .join("")}
+            ${songs.slice(0, 10).map((song, i) => `
+            <tr>
+              <td class="font-bold" style="color:var(--accent)">${i + 1}</td>
+              <td class="font-medium" style="color:var(--text-primary)">${song.song_name}</td>
+              <td>${song.artist}</td>
+              <td class="text-center">${song.play_count}</td>
+              <td class="text-center font-medium" style="color:var(--green)">${(parseFloat(song.avg_upvotes) || 0).toFixed(1)}</td>
+            </tr>`).join("")}
           </tbody>
         </table>
-        </div>
-      `;
-      }
+      </div>`;
+  }
 
-      function openCreateEventModal() {
-        document.getElementById("createEventModal").classList.remove("hidden");
-        document.getElementById("eventName").focus();
-      }
+  function openCreateEventModal() {
+    document.getElementById("createEventModal").classList.remove("hidden");
+    setTimeout(() => document.getElementById("eventName").focus(), 50);
+  }
 
-      function closeModal() {
-        document.getElementById("createEventModal").classList.add("hidden");
-        document.getElementById("eventName").value = "";
-      }
+  function closeModal() {
+    document.getElementById("createEventModal").classList.add("hidden");
+    document.getElementById("eventName").value = "";
+  }
 
-      async function handleCreateEvent(e) {
-        e.preventDefault();
-
-        const name = document.getElementById("eventName").value;
-
-        try {
-          const response = await fetch("/api/events", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name }),
-          });
-
-          const data = await response.json();
-
-          if (response.ok) {
-            closeModal();
-            showQRCode(data.eventId, name);
-          } else {
-            alert(data.error || "Erreur création soirée");
-          }
-        } catch (error) {
-          console.error("Erreur:", error);
-          alert("Erreur création soirée");
-        }
-      }
-
-      function showQRCode(eventId, eventName) {
-        window.location.href = `/event/${eventId}/qr`;
-      }
-
-      function goToDJ(eventId) {
-        window.location.href = `/dj/${eventId}`;
-      }
-
-      async function logout() {
-        try {
-          await fetch("/api/auth/logout", { method: "POST" });
-          window.location.href = "/login";
-        } catch (error) {
-          console.error("Erreur logout:", error);
-          window.location.href = "/login";
-        }
-      }
-
-      function showErrorPage(message) {
-        document.body.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center bg-[#0d0d0d] text-white p-4">
-          <div class="bg-white/5 border border-white/10 p-8 rounded-2xl shadow-lg max-w-md">
-            <h2 class="text-2xl font-bold text-red-300 mb-4">Erreur</h2>
-            <p class="text-gray-200 mb-4">Impossible de charger le dashboard</p>
-            <p class="text-sm text-gray-400 mb-4">${message}</p>
-            <button 
-              onclick="window.location.href='/login'"
-              class="bg-violet-600 text-white px-6 py-2 rounded-xl hover:bg-violet-500"
-            >
-              Retour à la connexion
-            </button>
-          </div>
-        </div>
-      `;
-      }
-
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-          const modal = document.getElementById("createEventModal");
-          if (!modal.classList.contains("hidden")) {
-            closeModal();
-          }
-        }
+  async function handleCreateEvent(e) {
+    e.preventDefault();
+    const name = document.getElementById("eventName").value.trim();
+    if (!name) return;
+    try {
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
       });
+      const data = await response.json();
+      if (response.ok) {
+        closeModal();
+        await loadDashboard();
+        showQRCode(data.eventId, name);
+      } else {
+        alert(data.error || "Erreur création soirée");
+      }
+    } catch {
+      alert("Erreur lors de la création");
+    }
+  }
 
-      loadDashboard();
-    </script>
-  </body>
+  async function showQRCode(eventId, eventName) {
+    try {
+      const response = await fetch(`/api/events/${eventId}/qrcode`);
+      const data = await response.json();
+      document.getElementById("qrModalImage").src = data.qrCode;
+      document.getElementById("qrModalLink").value = data.userUrl;
+      document.getElementById("qrModal").classList.remove("hidden");
+    } catch {
+      window.location.href = `/event/${eventId}/qr`;
+    }
+  }
+
+  function goToDJ(eventId) { window.location.href = `/dj/${eventId}`; }
+
+  async function endEvent(eventId, eventName) {
+    if (!confirm(`Terminer la soirée "${eventName}" ?\n\nCela va archiver la soirée et sauvegarder les statistiques.`)) return;
+    try {
+      const response = await fetch(`/api/events/${eventId}/end`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-cache",
+      });
+      const data = await response.json();
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert("Erreur: " + (data.error || "Erreur inconnue"));
+      }
+    } catch { alert("Erreur lors de la fin de la soirée"); }
+  }
+
+  async function logout() {
+    try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
+    window.location.href = "/login";
+  }
+
+  loadDashboard();
+</script>
+</body>
 </html>
