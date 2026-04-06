@@ -3,107 +3,486 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ecran live — DJ Queue</title>
+  <title>Écran Live — DJ Queue</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/css/app.css" />
-  <script src="/js/theme.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+
+    body {
+      background: #080810;
+      color: #fff;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ── Fond ambiant animé ───────────────────────────── */
+    #ambientBg {
+      position: fixed; inset: 0; z-index: 0;
+      transition: background 3s ease;
+    }
+    #ambientBg::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ── Layout principal ──────────────────────────────── */
+    #app {
+      position: relative; z-index: 1;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      padding: 2rem 2.5rem 1.5rem;
+      gap: 1.5rem;
+    }
+
+    /* ── Header ────────────────────────────────────────── */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    #eventName {
+      font-size: clamp(1.4rem, 2.5vw, 2.2rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 40%, rgba(255,255,255,.55));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .live-pill {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .35rem .9rem;
+      border-radius: 999px;
+      background: rgba(34,197,94,.12);
+      border: 1px solid rgba(34,197,94,.3);
+      font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      color: #22c55e;
+    }
+    .dot-live {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #22c55e;
+      animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%,100% { transform: scale(1); opacity: 1; }
+      50%      { transform: scale(1.5); opacity: .6; }
+    }
+
+    /* Stats header */
+    .stat-pill {
+      display: flex; flex-direction: column; align-items: center;
+      padding: .5rem 1.2rem;
+      border-radius: 1rem;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.07);
+      min-width: 80px;
+    }
+    .stat-pill .val {
+      font-size: clamp(1.4rem, 2.2vw, 2rem);
+      font-weight: 800;
+      line-height: 1;
+    }
+    .stat-pill .lbl {
+      font-size: .65rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; color: rgba(255,255,255,.4); margin-top: .25rem;
+    }
+
+    /* ── Corps principal ───────────────────────────────── */
+    #main {
+      display: grid;
+      grid-template-columns: 1.1fr 1.4fr 1fr;
+      gap: 1.5rem;
+      min-height: 0;
+    }
+
+    /* ── Colonne gauche : Now Playing ──────────────────── */
+    #nowPlayingCol {
+      display: flex; flex-direction: column; gap: 1rem;
+      min-height: 0;
+    }
+    #npCard {
+      flex: 1;
+      border-radius: 1.5rem;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.07);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+    #npBgBlur {
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
+      filter: blur(40px) saturate(1.8);
+      opacity: .18;
+      transition: background-image 1.2s ease;
+    }
+    #npContent {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.5rem 1.2rem 1.2rem;
+      flex: 1;
+    }
+    .section-label {
+      font-size: .65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: rgba(255,255,255,.4);
+      margin-bottom: .75rem; align-self: flex-start;
+    }
+    #npArtWrapper {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    #npArt {
+      width: clamp(120px, 16vw, 200px);
+      height: clamp(120px, 16vw, 200px);
+      border-radius: 1rem;
+      object-fit: cover;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+      display: block;
+      transition: opacity .5s ease;
+    }
+    .np-ring {
+      position: absolute; inset: -8px;
+      border-radius: 1.5rem;
+      border: 2px solid rgba(99,102,241,.4);
+      animation: np-ring-pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes np-ring-pulse {
+      0%,100% { transform: scale(1); opacity: .5; }
+      50%      { transform: scale(1.03); opacity: 1; }
+    }
+    #npTitle {
+      font-size: clamp(1rem, 1.8vw, 1.5rem);
+      font-weight: 800; text-align: center;
+      line-height: 1.2;
+      margin-bottom: .25rem;
+    }
+    #npArtist {
+      font-size: clamp(.8rem, 1.2vw, 1rem);
+      color: rgba(255,255,255,.55);
+      text-align: center; margin-bottom: 1rem;
+    }
+    #npProgressWrap {
+      width: 100%; height: 3px;
+      background: rgba(255,255,255,.1);
+      border-radius: 999px; overflow: hidden; margin-top: auto;
+    }
+    #npProgressBar {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      border-radius: 999px;
+      width: 0%; transition: width .5s linear;
+    }
+    #npTime {
+      display: flex; justify-content: space-between; width: 100%;
+      font-size: .65rem; color: rgba(255,255,255,.35); margin-top: .35rem;
+    }
+    #npEmpty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; flex: 1; gap: .75rem;
+      padding: 2rem;
+    }
+    #npEmpty svg { opacity: .2; }
+    #npEmpty p  { font-size: .85rem; color: rgba(255,255,255,.3); text-align: center; }
+
+    /* ── Colonne centrale : QR Code ───────────────────── */
+    #qrCol {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 1rem;
+    }
+    #qrCard {
+      border-radius: 2rem;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      padding: 1.5rem;
+      display: flex; flex-direction: column; align-items: center; gap: 1rem;
+      width: 100%;
+    }
+    #qrCode {
+      width: clamp(140px, 18vw, 220px);
+      height: clamp(140px, 18vw, 220px);
+      border-radius: .75rem;
+      display: block;
+    }
+    .qr-cta {
+      text-align: center;
+    }
+    .qr-cta .headline {
+      font-size: clamp(1rem, 1.6vw, 1.3rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #6366f1, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .qr-cta .sub {
+      font-size: clamp(.7rem, 1vw, .85rem);
+      color: rgba(255,255,255,.4);
+      margin-top: .25rem;
+    }
+    /* Indicateur étapes */
+    .steps {
+      display: flex; flex-direction: column; gap: .5rem; width: 100%;
+    }
+    .step {
+      display: flex; align-items: center; gap: .65rem;
+      font-size: clamp(.65rem, .9vw, .8rem); color: rgba(255,255,255,.5);
+    }
+    .step .num {
+      width: 20px; height: 20px; border-radius: 50%; shrink-0;
+      background: rgba(99,102,241,.25); border: 1px solid rgba(99,102,241,.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .65rem; font-weight: 700; color: #a78bfa;
+      flex-shrink: 0;
+    }
+
+    /* ── Colonne droite : Queue ────────────────────────── */
+    #queueCol {
+      display: flex; flex-direction: column; gap: .75rem;
+      min-height: 0;
+    }
+    #queueList {
+      flex: 1; overflow: hidden;
+      display: flex; flex-direction: column; gap: .4rem;
+    }
+    .queue-item {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .6rem .85rem;
+      border-radius: .85rem;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.05);
+      transition: background .2s;
+    }
+    .queue-item:first-child {
+      background: rgba(99,102,241,.12);
+      border-color: rgba(99,102,241,.25);
+    }
+    .queue-num {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(255,255,255,.07);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .7rem; font-weight: 700; color: rgba(255,255,255,.5);
+    }
+    .queue-item:first-child .queue-num {
+      background: rgba(99,102,241,.3); color: #a78bfa;
+    }
+    .queue-item img {
+      width: 38px; height: 38px; border-radius: .5rem;
+      object-fit: cover; flex-shrink: 0;
+    }
+    .queue-item .info { flex: 1; min-width: 0; }
+    .queue-item .sname {
+      font-size: clamp(.7rem, 1vw, .85rem);
+      font-weight: 600; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .queue-item .sartist {
+      font-size: clamp(.6rem, .85vw, .72rem);
+      color: rgba(255,255,255,.4);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .queue-item .suser {
+      font-size: .6rem; color: rgba(255,255,255,.25);
+    }
+
+    /* ── Footer : Récemment jouées ────────────────────── */
+    #footer {
+      border-radius: 1.2rem;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.06);
+      padding: .65rem 1.2rem;
+      display: flex; align-items: center; gap: 1rem;
+      overflow: hidden;
+    }
+    #footer .label {
+      font-size: .65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: rgba(255,255,255,.3);
+      white-space: nowrap; flex-shrink: 0;
+    }
+    #playedStrip {
+      display: flex; align-items: center; gap: .65rem;
+      overflow: hidden; flex: 1;
+    }
+    .played-chip {
+      display: flex; align-items: center; gap: .45rem;
+      padding: .35rem .65rem; border-radius: .6rem;
+      background: rgba(255,255,255,.04);
+      flex-shrink: 0;
+    }
+    .played-chip img {
+      width: 26px; height: 26px; border-radius: .3rem; object-fit: cover;
+    }
+    .played-chip .pname {
+      font-size: .7rem; font-weight: 600; white-space: nowrap; max-width: 140px;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .played-chip .ptime {
+      font-size: .6rem; color: rgba(255,255,255,.3); white-space: nowrap;
+    }
+
+    /* ── Message DJ ────────────────────────────────────── */
+    #djBanner {
+      position: fixed; top: 1.5rem; left: 50%; transform: translateX(-50%) translateY(-200%);
+      z-index: 100;
+      max-width: 700px; width: calc(100% - 4rem);
+      border-radius: 1.2rem;
+      background: linear-gradient(135deg, rgba(99,102,241,.95), rgba(139,92,246,.95));
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,.2);
+      padding: 1rem 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
+      box-shadow: 0 20px 60px rgba(99,102,241,.4);
+      transition: transform .5s cubic-bezier(.34,1.56,.64,1);
+    }
+    #djBanner.show { transform: translateX(-50%) translateY(0); }
+    #djBanner svg { flex-shrink: 0; opacity: .8; }
+    #djBannerText {
+      flex: 1;
+      font-size: clamp(.9rem, 1.5vw, 1.15rem);
+      font-weight: 700; color: #fff;
+    }
+    #djBannerFrom {
+      font-size: .7rem; color: rgba(255,255,255,.55); margin-top: .1rem;
+    }
+  </style>
 </head>
-<body class="min-h-screen" style="background:var(--bg-base);color:var(--text-primary)">
+<body>
 
-<div class="max-w-[1600px] mx-auto p-4 lg:p-6">
+<!-- Fond ambiant coloré selon la pochette -->
+<div id="ambientBg"></div>
 
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-5">
-    <div>
-      <h1 id="eventName" class="text-2xl lg:text-3xl font-bold" style="color:var(--text-primary)">Chargement...</h1>
-      <p class="text-sm mt-0.5" style="color:var(--text-secondary)">Ecran live de la soirée</p>
-    </div>
-    <div class="flex items-center gap-3">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full dot-pulse" style="background:var(--green)"></span>
-        <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--green)">Live</span>
-      </div>
-      <button data-theme-toggle class="btn btn-ghost btn-icon btn-sm" title="Passer en mode clair">
-        <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        <svg class="w-4 h-4 icon-moon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      </button>
-    </div>
+<!-- Message DJ -->
+<div id="djBanner">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+  <div>
+    <p id="djBannerText"></p>
+    <p id="djBannerFrom">Message du DJ</p>
   </div>
+</div>
 
-  <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 lg:gap-6">
+<div id="app">
 
-    <!-- ── Left sidebar ──────────────────────────────────── -->
-    <aside class="xl:col-span-4 space-y-4">
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <header id="header">
+    <div class="flex items-center gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:rgba(255,255,255,.35)">Soirée</p>
+        <h1 id="eventName">Chargement…</h1>
+      </div>
+      <div class="live-pill">
+        <span class="dot-live"></span>
+        LIVE
+      </div>
+    </div>
 
-      <!-- QR + Now playing -->
-      <div class="card p-5 text-center">
-        <p class="text-sm font-medium mb-4" style="color:var(--text-secondary)">Scanner pour proposer une chanson</p>
-        <div class="inline-block p-3 rounded-xl mb-5" style="background:#fff">
-          <img id="qrCode" src="" alt="QR Code" class="w-56 h-56 lg:w-64 lg:h-64 block" />
-        </div>
+    <div class="flex items-center gap-2">
+      <div class="stat-pill">
+        <span id="statPending" class="val" style="color:#f59e0b">0</span>
+        <span class="lbl">En attente</span>
+      </div>
+      <div class="stat-pill">
+        <span id="statQueue" class="val" style="color:#6366f1">0</span>
+        <span class="lbl">En queue</span>
+      </div>
+      <div class="stat-pill">
+        <span id="statPlayed" class="val" style="color:#22c55e">0</span>
+        <span class="lbl">Jouées</span>
+      </div>
+    </div>
+  </header>
 
-        <!-- Now playing -->
-        <div class="rounded-xl p-4 text-left" style="background:var(--bg-elevated);border:1px solid var(--border)">
-          <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color:var(--text-muted)">En cours de lecture</p>
-          <div class="flex items-center gap-3">
-            <div id="nowPlayingImageWrapper" class="hidden shrink-0">
-              <img id="nowPlayingImage" src="" alt="Pochette" class="w-14 h-14 rounded-lg object-cover" />
+  <!-- ── Corps ───────────────────────────────────────────────── -->
+  <main id="main">
+
+    <!-- Colonne gauche : Now Playing -->
+    <div id="nowPlayingCol">
+      <div id="npCard">
+        <div id="npBgBlur"></div>
+        <div id="npContent">
+          <p class="section-label">En cours de lecture</p>
+
+          <!-- Contenu quand une chanson joue -->
+          <div id="npPlaying" style="display:none;width:100%;flex:1;flex-direction:column;align-items:center">
+            <div id="npArtWrapper">
+              <img id="npArt" src="" alt="Pochette" />
+              <div class="np-ring"></div>
             </div>
-            <div class="min-w-0 flex-1">
-              <p id="nowPlayingTitle" class="text-sm font-semibold truncate" style="color:var(--text-primary)">Aucune musique</p>
-              <p id="nowPlayingArtist" class="text-xs truncate mt-0.5" style="color:var(--text-secondary)">—</p>
+            <p id="npTitle">—</p>
+            <p id="npArtist">—</p>
+            <div id="npProgressWrap">
+              <div id="npProgressBar"></div>
+            </div>
+            <div id="npTime">
+              <span id="npCurrent">0:00</span>
+              <span id="npTotal">0:00</span>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Live stats -->
-      <div class="card p-5">
-        <p class="text-xs font-semibold uppercase tracking-wider mb-4" style="color:var(--text-muted)">Stats en direct</p>
-        <div class="grid grid-cols-3 gap-3 text-center">
-          <div>
-            <p id="pendingCount" class="text-2xl font-bold" style="color:var(--amber)">0</p>
-            <p class="text-xs mt-1" style="color:var(--text-muted)">En attente</p>
-          </div>
-          <div>
-            <p id="queueCount" class="text-2xl font-bold" style="color:var(--accent)">0</p>
-            <p class="text-xs mt-1" style="color:var(--text-muted)">Queue</p>
-          </div>
-          <div>
-            <p id="playedCount" class="text-2xl font-bold" style="color:var(--green)">0</p>
-            <p class="text-xs mt-1" style="color:var(--text-muted)">Jouées</p>
+          <!-- État vide -->
+          <div id="npEmpty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:.75rem">
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+            <p>En attente de la première chanson…</p>
           </div>
         </div>
       </div>
-    </aside>
+    </div>
 
-    <!-- ── Main content ──────────────────────────────────── -->
-    <section class="xl:col-span-8 space-y-4">
-
-      <!-- Upcoming queue -->
-      <div class="card overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
-          <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Prochaines musiques</h2>
-          <span id="upcomingCount" class="text-xs" style="color:var(--text-muted)">0</span>
+    <!-- Colonne centrale : QR Code -->
+    <div id="qrCol">
+      <div id="qrCard">
+        <div class="qr-cta">
+          <p class="headline">Propose ta chanson !</p>
+          <p class="sub">Scanne le QR code avec ton téléphone</p>
         </div>
-        <div id="upcomingList" class="divide-y" style="border-color:var(--border)">
-          <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Chargement...</div>
+        <div class="p-2 rounded-xl" style="background:#fff">
+          <img id="qrCode" src="" alt="QR Code" />
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="num">1</span>
+            <span>Scanne le QR code</span>
+          </div>
+          <div class="step">
+            <span class="num">2</span>
+            <span>Cherche une chanson Spotify</span>
+          </div>
+          <div class="step">
+            <span class="num">3</span>
+            <span>Propose-la au DJ !</span>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- Recently played -->
-      <div class="card overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
-          <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Dernières jouées</h2>
-          <span id="playedListCount" class="text-xs" style="color:var(--text-muted)">0</span>
-        </div>
-        <div id="playedList" class="divide-y" style="border-color:var(--border)">
-          <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Chargement...</div>
+    <!-- Colonne droite : Prochaines chansons -->
+    <div id="queueCol">
+      <p class="section-label">Prochaines chansons</p>
+      <div id="queueList">
+        <div class="queue-item" style="justify-content:center">
+          <span style="color:rgba(255,255,255,.25);font-size:.8rem">Aucune chanson en queue</span>
         </div>
       </div>
+    </div>
 
-    </section>
-  </div>
+  </main>
+
+  <!-- ── Footer : Récemment jouées ─────────────────────────── -->
+  <footer id="footer">
+    <span class="label">Récemment jouées</span>
+    <div id="playedStrip">
+      <span style="color:rgba(255,255,255,.2);font-size:.75rem">Aucune chanson jouée pour le moment</span>
+    </div>
+  </footer>
+
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -112,118 +491,200 @@
   const eventId = window.location.pathname.split("/")[2];
   const socket  = io();
 
-  function formatClock(dateString) {
-    if (!dateString) return "--:--";
-    return new Date(dateString).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+  // ── Utilitaires ──────────────────────────────────────────
+  function fmt(ms) {
+    if (!ms || ms < 0) return "0:00";
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }
+  function fmtTime(d) {
+    if (!d) return "";
+    return new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   }
 
-  function renderUpcoming(queue = []) {
-    const container = document.getElementById("upcomingList");
-    document.getElementById("upcomingCount").textContent = queue.length;
+  // ── Fond ambiant couleur depuis pochette ─────────────────
+  function setAmbientColor(imageUrl) {
+    const bg = document.getElementById("ambientBg");
+    if (!imageUrl) { bg.style.background = "#080810"; return; }
+    bg.style.background = `#080810`;
+    document.getElementById("npBgBlur").style.backgroundImage = `url(${imageUrl})`;
+  }
+
+  // ── Now Playing (temps réel via Socket.IO) ───────────────
+  let npState = null;
+  let npRaf   = null;
+
+  function npFmt(ms) { return fmt(ms); }
+
+  function npDraw() {
+    if (!npState || !npState.isPlaying) return;
+    const elapsed  = Date.now() - npState.ts;
+    const pos      = Math.min(npState.positionMs + elapsed, npState.durationMs);
+    const progress = npState.durationMs > 0 ? (pos / npState.durationMs) * 100 : 0;
+    document.getElementById("npProgressBar").style.width = progress + "%";
+    document.getElementById("npCurrent").textContent = npFmt(pos);
+    npRaf = requestAnimationFrame(npDraw);
+  }
+
+  function showNowPlaying(data) {
+    const { track, positionMs, isPlaying, timestamp } = data;
+    npState = {
+      positionMs,
+      durationMs: track.durationMs || 1,
+      isPlaying,
+      ts: timestamp || Date.now(),
+    };
+
+    document.getElementById("npArt").src             = track.albumArt || "";
+    document.getElementById("npTitle").textContent   = track.name     || "—";
+    document.getElementById("npArtist").textContent  = track.artist   || "—";
+    document.getElementById("npTotal").textContent   = npFmt(track.durationMs);
+    document.getElementById("npPlaying").style.display = "flex";
+    document.getElementById("npEmpty").style.display   = "none";
+
+    setAmbientColor(track.albumArt);
+
+    cancelAnimationFrame(npRaf);
+    if (isPlaying) npRaf = requestAnimationFrame(npDraw);
+  }
+
+  function clearNowPlaying() {
+    npState = null;
+    cancelAnimationFrame(npRaf);
+    document.getElementById("npPlaying").style.display = "none";
+    document.getElementById("npEmpty").style.display   = "flex";
+    document.getElementById("npBgBlur").style.backgroundImage = "";
+    setAmbientColor(null);
+  }
+
+  socket.on("now-playing", (data) => {
+    if (data.track) showNowPlaying(data);
+    else clearNowPlaying();
+  });
+
+  // ── Message DJ ───────────────────────────────────────────
+  let djBannerTimer = null;
+
+  socket.on("dj-message", (data) => {
+    const banner = document.getElementById("djBanner");
+    document.getElementById("djBannerText").textContent = data.message || "";
+    banner.classList.add("show");
+    clearTimeout(djBannerTimer);
+    djBannerTimer = setTimeout(() => banner.classList.remove("show"), 10000);
+  });
+
+  // ── Queue ─────────────────────────────────────────────────
+  function renderQueue(queue = []) {
+    const el = document.getElementById("queueList");
+    document.getElementById("statQueue").textContent = queue.length;
     if (!queue.length) {
-      container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune musique en queue</div>`;
+      el.innerHTML = `<div class="queue-item" style="justify-content:center"><span style="color:rgba(255,255,255,.25);font-size:.8rem">Aucune chanson en queue</span></div>`;
       return;
     }
-    container.innerHTML = queue.slice(0, 12).map((song, index) => `
-      <div class="px-5 py-3.5 flex items-center gap-3">
-        <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style="background:var(--accent-dim);color:var(--accent)">${index+1}</div>
-        ${song.image_url
-          ? `<img src="${song.image_url}" alt="" class="w-11 h-11 rounded-lg object-cover shrink-0">`
-          : `<div class="w-11 h-11 rounded-lg shrink-0" style="background:var(--bg-overlay)"></div>`}
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium truncate" style="color:var(--text-primary)">${song.song_name}</p>
-          <p class="text-xs truncate" style="color:var(--text-secondary)">${song.artist}</p>
-          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Proposé par ${song.user_name || "Anonyme"}</p>
+    el.innerHTML = queue.slice(0, 7).map((s, i) => `
+      <div class="queue-item">
+        <div class="queue-num">${i + 1}</div>
+        ${s.image_url ? `<img src="${s.image_url}" alt="">` : `<div style="width:38px;height:38px;border-radius:.5rem;background:rgba(255,255,255,.06);flex-shrink:0"></div>`}
+        <div class="info">
+          <div class="sname">${s.song_name}</div>
+          <div class="sartist">${s.artist}</div>
+          <div class="suser">par ${s.user_name || "Anonyme"}</div>
         </div>
       </div>`).join("");
   }
 
+  // ── Récemment jouées ──────────────────────────────────────
   function renderPlayed(played = []) {
-    const container = document.getElementById("playedList");
-    document.getElementById("playedListCount").textContent = played.length;
+    const strip = document.getElementById("playedStrip");
+    document.getElementById("statPlayed").textContent = played.length;
     if (!played.length) {
-      container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune musique jouée</div>`;
+      strip.innerHTML = `<span style="color:rgba(255,255,255,.2);font-size:.75rem">Aucune chanson jouée pour le moment</span>`;
       return;
     }
-    container.innerHTML = played.slice(0, 12).map((song) => `
-      <div class="px-5 py-3.5 flex items-center gap-3" style="opacity:0.7">
-        ${song.image_url
-          ? `<img src="${song.image_url}" alt="" class="w-11 h-11 rounded-lg object-cover shrink-0">`
-          : `<div class="w-11 h-11 rounded-lg shrink-0" style="background:var(--bg-overlay)"></div>`}
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium truncate" style="color:var(--text-primary)">${song.song_name}</p>
-          <p class="text-xs truncate" style="color:var(--text-secondary)">${song.artist}</p>
+    strip.innerHTML = played.slice(0, 10).map((s) => `
+      <div class="played-chip">
+        ${s.image_url ? `<img src="${s.image_url}" alt="">` : ""}
+        <div>
+          <div class="pname">${s.song_name}</div>
+          <div class="ptime">${fmtTime(s.played_at)}</div>
         </div>
-        <span class="text-xs shrink-0 font-mono" style="color:var(--text-muted)">${formatClock(song.played_at)}</span>
       </div>`).join("");
   }
 
-  async function loadDisplayData() {
+  // ── Chargement des données ────────────────────────────────
+  let initialLoadDone = false;
+
+  async function loadData() {
     try {
-      const [eventResponse, qrResponse, statsResponse, displayResponse] = await Promise.all([
+      const [eventRes, qrRes, statsRes, displayRes] = await Promise.all([
         fetch(`/api/events/${eventId}`),
         fetch(`/api/events/${eventId}/qrcode`),
         fetch(`/api/events/${eventId}/stats`),
         fetch(`/api/events/${eventId}/display-data`),
       ]);
-      const eventData   = await eventResponse.json();
-      const qrData      = await qrResponse.json();
-      const statsData   = await statsResponse.json();
-      const displayData = await displayResponse.json();
 
-      document.getElementById("eventName").textContent  = displayData.event?.name || eventData.name || "Soirée";
-      document.getElementById("qrCode").src             = qrData.qrCode;
-      document.getElementById("pendingCount").textContent = statsData.stats?.pending_count || 0;
-      document.getElementById("queueCount").textContent   = statsData.stats?.accepted_count || 0;
-      document.getElementById("playedCount").textContent  = statsData.stats?.played_count || 0;
+      const [event, qr, stats, display] = await Promise.all([
+        eventRes.json(), qrRes.json(), statsRes.json(), displayRes.json(),
+      ]);
 
-      renderUpcoming(displayData.upcomingQueue || []);
-      renderPlayed(displayData.recentPlayed || []);
-      updateNowPlaying(displayData);
-    } catch (error) {
-      console.error("Erreur chargement affichage live:", error);
+      // Nom de l'événement
+      document.getElementById("eventName").textContent =
+        display.event?.name || event.name || "Soirée";
+
+      // QR code
+      if (qr.qrCode) document.getElementById("qrCode").src = qr.qrCode;
+
+      // Stats
+      document.getElementById("statPending").textContent = stats.stats?.pending_count  || 0;
+      document.getElementById("statPlayed").textContent  = stats.stats?.played_count   || 0;
+
+      // Queue et jouées
+      renderQueue(display.upcomingQueue || []);
+      renderPlayed(display.recentPlayed || []);
+
+      // Fallback now-playing : si aucun état socket reçu, afficher la dernière jouée
+      // ou la première en queue (en attente de lecture)
+      if (!initialLoadDone) {
+        initialLoadDone = true;
+        if (!npState) {
+          const lastPlayed = display.recentPlayed?.[0];
+          if (lastPlayed) {
+            // Afficher en mode statique (pas de barre de progression animée)
+            document.getElementById("npArt").src             = lastPlayed.image_url || "";
+            document.getElementById("npTitle").textContent   = lastPlayed.song_name || "—";
+            document.getElementById("npArtist").textContent  = lastPlayed.artist    || "—";
+            document.getElementById("npTotal").textContent   = "";
+            document.getElementById("npCurrent").textContent = fmtTime(lastPlayed.played_at);
+            document.getElementById("npProgressBar").style.width = "100%";
+            document.getElementById("npPlaying").style.display = "flex";
+            document.getElementById("npEmpty").style.display   = "none";
+            setAmbientColor(lastPlayed.image_url);
+          }
+        }
+      }
+
+    } catch (err) {
+      console.error("Erreur chargement:", err);
     }
   }
 
-  function updateNowPlaying(displayData) {
-    const nowPlaying = displayData?.recentPlayed?.[0] || null;
-    const imageWrapper = document.getElementById("nowPlayingImageWrapper");
-    const imageEl      = document.getElementById("nowPlayingImage");
-    const titleEl      = document.getElementById("nowPlayingTitle");
-    const artistEl     = document.getElementById("nowPlayingArtist");
+  // ── Socket.IO ─────────────────────────────────────────────
+  socket.on("connect", () => socket.emit("join-event", eventId));
+  if (socket.connected) socket.emit("join-event", eventId);
 
-    if (!nowPlaying) {
-      imageWrapper.classList.add("hidden");
-      titleEl.textContent  = "Aucune musique";
-      artistEl.textContent = "—";
-      return;
-    }
-    if (nowPlaying.image_url) {
-      imageEl.src = nowPlaying.image_url;
-      imageWrapper.classList.remove("hidden");
-    } else {
-      imageWrapper.classList.add("hidden");
-    }
-    titleEl.textContent  = nowPlaying.song_name || "Titre inconnu";
-    artistEl.textContent = nowPlaying.artist    || "Artiste inconnu";
-  }
-
-  socket.on("connect", () => {
-    socket.emit("join-event", eventId);
+  socket.on("queue-updated",    loadData);
+  socket.on("new-request",      loadData);
+  socket.on("request-accepted", loadData);
+  socket.on("request-rejected", loadData);
+  socket.on("vote-updated",     loadData);
+  socket.on("event-ended",      () => {
+    document.querySelector(".live-pill").innerHTML = `<span style="color:rgba(255,255,255,.5)">Soirée terminée</span>`;
+    loadData();
   });
-  if (socket.connected) {
-    socket.emit("join-event", eventId);
-  }
 
-  socket.on("new-request",      loadDisplayData);
-  socket.on("request-accepted", loadDisplayData);
-  socket.on("request-rejected", loadDisplayData);
-  socket.on("queue-updated",    loadDisplayData);
-  socket.on("vote-updated",     loadDisplayData);
-  socket.on("event-ended",      loadDisplayData);
-
-  loadDisplayData();
-  setInterval(loadDisplayData, 15000);
+  // Chargement initial + rafraîchissement toutes les 20s
+  loadData();
+  setInterval(loadData, 20000);
 </script>
 </body>
 </html>

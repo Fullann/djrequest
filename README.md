@@ -13,16 +13,24 @@ Une application web temps réel permettant aux participants d'une soirée de pro
 - 🔍 **Recherche Spotify** : Recherche de musiques en temps réel
 - 📊 **Système de Votes** : Vote pour/contre les musiques proposées
 - ⏱️ **Suivi Temps Réel** : Statut des demandes (en attente/accepté/refusé)
+- 📜 **Historique de la soirée** : Liste des demandes déjà faites sur cet appareil
+- 📈 **Onglet Tendances** : Top artistes et titres les plus demandés (`/api/events/:id/trends`)
+- 📲 **PWA** : Manifest dynamique + service worker (`/manifest-user.json?e=…`, `/sw-user.js`) pour « Ajouter à l’écran d’accueil »
 - 🎯 **Timer Prédictif** : Estimation du temps avant lecture
 - 🎧 **Preview Audio** : Écoute d'extraits des morceaux
 
 ### 🎧 Pour les DJs
 - 🎛️ **Dashboard Complet** : Vue d'ensemble des événements actifs
+- 👤 **Page Profil** (`/profile`) : Nom d’affichage, stats globales, déconnexion Spotify
 - ✅ **Gestion Queue** : Acceptation/refus des demandes
+- ⚡ **Actions en masse** : Tout accepter / tout refuser les demandes en attente
+- ↩️ **Annuler un refus** : Barre « Annuler » quelques secondes après un refus (socket `undo-reject-request`)
 - 🔄 **Réorganisation** : Drag & drop pour modifier l'ordre
+- 🔁 **Anti-répétition** : Délai configurable avant de reproposer un morceau déjà joué (`repeat_cooldown_minutes`, basé sur `played_at`)
 - 📈 **Statistiques Live** : Nombre de demandes, votes, taux d'acceptation
 - 🎵 **Lecture Automatique** : Intégration Spotify Player
 - 📊 **Historique Détaillé** : Stats complètes des événements passés
+- 🖼️ **QR personnalisé** : SVG avec nom de soirée + logo optionnel (`src/public/images/qr-logo.png`)
 - ⚙️ **Paramètres Avancés** : 
   - Auto-accept des demandes
   - Activation/désactivation des votes
@@ -47,7 +55,7 @@ Une application web temps réel permettant aux participants d'une soirée de pro
 ### Intégrations
 - **Spotify Web API** : Recherche et métadonnées
 - **Spotify Web Playback SDK** : Lecture dans le navigateur
-- **QRCode** : Génération de QR codes dynamiques
+- **QRCode** : Génération de QR codes (SVG brandé : titre + logo optionnel)
 
 ## 📋 Prérequis
 
@@ -145,8 +153,9 @@ dj-queue-app/
 │   ├── sockets/         # Gestion WebSocket
 │   ├── validators/      # Schémas de validation
 │   ├── views/           # Pages HTML
+│   ├── public/          # CSS, JS, SW PWA (`sw-user.js`)
 │   └── server.js        # Point d'entrée
-├── public/              # Assets statiques
+├── db/                  # Schéma + migrations SQL
 ├── .env                 # Variables d'environnement
 ├── .env.example         # Template .env
 └── package.json
@@ -156,22 +165,35 @@ dj-queue-app/
 
 ### Authentification
 ```
-POST   /api/auth/register      - Inscription DJ
-POST   /api/auth/login         - Connexion DJ
-POST   /api/auth/logout        - Déconnexion
-GET    /api/auth/me            - Profil utilisateur
+GET    /api/auth/spotify/login   - OAuth Spotify (connexion DJ)
+POST   /api/auth/logout          - Déconnexion session
+GET    /api/auth/me              - Profil DJ connecté
+PATCH  /api/auth/me              - Mettre à jour le nom d’affichage
+GET    /api/auth/stats           - Stats globales (soirées, demandes)
+POST   /api/auth/spotify/disconnect - Révoquer les jetons Spotify stockés (table djs)
 ```
 
 ### Événements
 ```
 POST   /api/events                          - Créer événement
-GET    /api/events/:eventId                 - Info événement
-GET    /api/events/:eventId/qrcode          - QR Code
+GET    /api/events/:eventId                 - Info événement (+ queue)
+GET    /api/events/:eventId/trends          - Tendances publiques (top artistes / titres)
+GET    /api/events/:eventId/guest-history/:clientId - Historique des demandes d’un invité
+PATCH  /api/events/:eventId/settings       - Réglages (votes, anti-répétition…) — DJ propriétaire
+GET    /api/events/:eventId/qrcode          - QR Code (data URL SVG brandé)
 GET    /api/events/:eventId/stats           - Statistiques
+GET    /api/events/:eventId/live-stats      - Stats live (propriétaire)
 POST   /api/events/:eventId/end             - Terminer événement
 POST   /api/events/:eventId/toggle-votes    - Activer/désactiver votes
 POST   /api/events/:eventId/toggle-duplicates - Autoriser doublons
 POST   /api/events/:eventId/toggle-auto-accept - Auto-accept
+```
+
+### Monitoring & PWA (hors `/api`)
+```
+GET    /health                   - Santé app : { status, uptime, db, redis }
+GET    /manifest-user.json?e=<UUID> - Manifest Web App (page invité)
+GET    /sw-user.js               - Service worker minimal (enregistré par la page invité)
 ```
 
 ### Dashboard DJ
@@ -194,23 +216,30 @@ POST   /api/spotify/play/:eventId           - Lire musique
 
 ### Client → Server
 ```javascript
-'join-event'        // Rejoindre un événement
-'request-song'      // Demander une musique
-'vote'              // Voter (up/down)
-'accept-request'    // (DJ) Accepter demande
-'reject-request'    // (DJ) Refuser demande
-'reorder-queue'     // (DJ) Réorganiser queue
-'mark-played'       // (DJ) Marquer comme jouée
+'join-event'             // Rejoindre un événement
+'request-song'           // Demander une musique
+'vote'                   // Voter (up/down)
+'accept-request'         // (DJ) Accepter une demande
+'reject-request'         // (DJ) Refuser une demande
+'undo-reject-request'    // (DJ) Annuler un refus récent → repasse en pending
+'accept-all-pending'     // (DJ) Accepter toutes les demandes en attente
+'reject-all-pending'     // (DJ) Refuser toutes les demandes en attente
+'reorder-queue'          // (DJ) Réorganiser queue
+'mark-played'            // (DJ) Marquer comme jouée
+'update-event-settings'  // (DJ) Incl. repeatCooldownMinutes (anti-répétition)
 ```
 
 ### Server → Client
 ```javascript
-'queue-updated'     // Queue mise à jour
-'new-request'       // Nouvelle demande
-'request-accepted'  // Demande acceptée
-'request-rejected'  // Demande refusée
-'vote-updated'      // Votes mis à jour
-'event-ended'       // Événement terminé
+'queue-updated'               // Queue mise à jour
+'new-request'               // Nouvelle demande (ou retour pending après undo)
+'request-accepted'          // Demande acceptée
+'request-rejected'          // Demande refusée
+'reject-undone'             // Refus annulé côté room
+'your-request-pending-again'// Invité : sa demande est à nouveau en attente
+'request-error'             // Erreur demande (incl. type repeat-cooldown si configuré)
+'vote-updated'              // Votes mis à jour
+'event-ended'               // Événement terminé
 ```
 
 ## 🎨 Interface Utilisateur
@@ -223,8 +252,9 @@ POST   /api/spotify/play/:eventId           - Lire musique
 
 ### Pages DJ (authentifiées)
 - `/dashboard` - Liste événements actifs
+- `/profile` - Profil DJ (nom, stats, Spotify)
 - `/dj/:eventId` - Console DJ (gestion queue)
-- `/qr-display/:eventId` - Affichage QR code
+- `/event/:eventId/qr` - Affichage QR / grand écran (selon routes serveur)
 - `/history` - Historique événements
 - `/event/:eventId/stats` - Statistiques détaillées
 
@@ -244,7 +274,7 @@ POST   /api/spotify/play/:eventId           - Lire musique
 
 | Type | Limite | Fenêtre | Routes |
 |------|--------|---------|--------|
-| Global | 500 req | 15 min | Toutes (prod) |
+| Global | 500 req | 15 min | Toutes (prod) — `GET /health` exclu |
 | Auth | 10 req | 15 min | Login/Register |
 | API | 60 req | 1 min | /api/* |
 | User Requests | 3 req | 15 min | Demandes musique (configurable) |
@@ -313,6 +343,11 @@ Ensuite, chaque push sur `main` déclenche le déploiement automatique.
 - Redis obligatoire
 - HTTPS requis
 
+### Monitoring
+- Sonde HTTP recommandée : `GET https://votre-domaine.com/health`
+- Réponse typique : `{ "status": "ok", "uptime": 12345, "db": "ok", "redis": "ok" | "skipped" }`
+- Code **503** si MySQL ou Redis (production) est en erreur
+
 ## 🧪 Tests
 
 ```bash
@@ -322,6 +357,7 @@ npm test
 
 ## 📈 Roadmap
 
+- [x] Endpoint `/health` pour monitoring externe (UptimeRobot, Better Stack…)
 - [ ] Tests unitaires et intégration
 - [ ] Docker Compose complet
 - [ ] CI/CD avec GitHub Actions

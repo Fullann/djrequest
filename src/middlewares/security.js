@@ -7,7 +7,7 @@ const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://fonts.googleapis.com"],
       scriptSrc: [
         "'self'",
         "'unsafe-inline'",
@@ -26,8 +26,10 @@ const helmetConfig = helmet({
         "wss:",
         "ws:",
       ],
-      fontSrc: ["'self'", "data:"],
+      fontSrc: ["'self'", "data:", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
+      workerSrc: ["'self'"],
+      manifestSrc: ["'self'"],
       mediaSrc: ["'self'", "https://p.scdn.co"], // ← AJOUTER pour previews Spotify
       frameSrc: ["https://sdk.scdn.co"], // ← AJOUTER pour SDK Spotify
       upgradeInsecureRequests:
@@ -49,6 +51,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
+    if (req.path === "/health") return true;
     return req.path.match(
       /\.(css|js|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot)$/i,
     );

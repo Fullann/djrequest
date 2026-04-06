@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modération — DJ Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="/js/time-utils.js"></script>
+  <script src="/js/csrf.js"></script>
+</head>
+<body style="background:var(--bg-base);color:var(--text-primary)">
+
+<!-- ─── Header ──────────────────────────────────────────────── -->
+<header class="sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 py-3.5" style="background:var(--bg-surface);border-bottom:1px solid var(--border)">
+  <div class="flex items-center gap-2.5 flex-1 min-w-0">
+    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:var(--amber)">
+      <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <div class="min-w-0">
+      <p id="eventName" class="text-sm font-semibold truncate" style="color:var(--text-primary)">Chargement...</p>
+      <p class="text-xs" style="color:var(--amber)">Mode modérateur</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+    <button id="addSongBtn" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="Ajouter une chanson">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="hidden sm:inline">Ajouter</span>
+    </button>
+    <button id="showMessagePanel" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="Message aux invités" style="color:var(--cyan)">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="hidden sm:inline">Message</span>
+    </button>
+    <button id="showSettings" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="Paramètres">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="hidden sm:inline">Réglages</span>
+    </button>
+    <button data-theme-toggle class="btn btn-ghost btn-icon btn-sm">
+      <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="w-4 h-4 icon-moon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ─── Main ────────────────────────────────────────────────── -->
+<div class="max-w-7xl mx-auto p-4 sm:p-6">
+  <div id="autoAcceptBanner" class="hidden mb-4 px-4 py-3 rounded-lg text-sm font-medium" style="background:var(--green-dim);border:1px solid rgba(34,197,94,0.2);color:var(--green)">
+    Mode automatique activé — toutes les demandes sont acceptées automatiquement
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+    <!-- Demandes en attente -->
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" style="color:var(--amber)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Demandes en attente</h2>
+          <span id="pendingCount" class="badge badge-neutral text-xs">(0)</span>
+        </div>
+      </div>
+      <div id="pendingRequests" class="divide-y" style="border-color:var(--border)">
+        <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune demande</div>
+      </div>
+    </div>
+
+    <!-- Queue -->
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--border)">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" style="color:var(--accent)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Queue de lecture</h2>
+          <span id="queueCount" class="badge badge-neutral text-xs">(0)</span>
+        </div>
+      </div>
+      <p class="px-5 py-2 text-xs" style="color:var(--text-muted);border-bottom:1px solid var(--border)">Glisser-déposer pour réorganiser</p>
+      <div id="queue" class="divide-y" style="border-color:var(--border)">
+        <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Queue vide</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── Modal Ajouter une chanson ────────────────────────── -->
+<div id="addSongPanel" class="hidden modal-backdrop">
+  <div class="modal max-w-xl">
+    <div class="flex items-center justify-between px-6 py-5" style="border-bottom:1px solid var(--border)">
+      <h2 class="text-base font-semibold" style="color:var(--text-primary)">Ajouter une chanson</h2>
+      <button id="closeAddSong" class="btn btn-ghost btn-icon btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-6">
+      <div class="relative mb-3">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color:var(--text-muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="modSearchInput" placeholder="Titre, artiste..." class="input" style="padding-left:2.5rem" autocomplete="off" />
+      </div>
+      <div id="modSearchResults" class="space-y-1.5 max-h-80 overflow-y-auto"></div>
+      <button id="closeAddSongBottom" class="btn btn-ghost btn-full mt-4">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Toast ─────────────────────────────────────────────── -->
+<div id="toast" class="hidden fixed top-20 right-4 z-50 px-4 py-3 rounded-xl text-sm font-medium shadow-lg" style="background:var(--accent);color:#fff;max-width:300px"></div>
+
+<!-- ─── Modal Réglages ─────────────────────────────────────── -->
+<div id="settingsPanel" class="hidden modal-backdrop">
+  <div class="modal max-w-xl">
+    <div class="flex items-center justify-between px-6 py-5" style="border-bottom:1px solid var(--border)">
+      <h2 class="text-base font-semibold" style="color:var(--text-primary)">Paramètres de la soirée</h2>
+      <button id="closeSettings" class="btn btn-ghost btn-icon btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+
+      <!-- Votes -->
+      <div class="flex items-start justify-between gap-4 p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div>
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Système de votes</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Permet aux invités de voter pour leurs chansons</p>
+        </div>
+        <label class="flex items-center gap-0 cursor-pointer shrink-0">
+          <input type="checkbox" id="votesToggle" class="sr-only" checked />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <!-- Doublons -->
+      <div class="flex items-start justify-between gap-4 p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div>
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Autoriser les doublons</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Permet d'ajouter la même chanson plusieurs fois</p>
+        </div>
+        <label class="flex items-center gap-0 cursor-pointer shrink-0">
+          <input type="checkbox" id="duplicatesToggle" class="sr-only" />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <!-- Auto-accept -->
+      <div class="flex items-start justify-between gap-4 p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div>
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Mode automatique</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Accepter automatiquement toutes les demandes</p>
+        </div>
+        <label class="flex items-center gap-0 cursor-pointer shrink-0">
+          <input type="checkbox" id="autoAcceptToggle" class="sr-only" />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <!-- Rate limit -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p class="text-sm font-medium mb-3" style="color:var(--text-primary)">Limitation des demandes</p>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="label">Max demandes</label>
+            <input type="number" id="rateLimitMax" min="1" max="20" value="3" class="input" />
+          </div>
+          <div>
+            <label class="label">Fenêtre (minutes)</label>
+            <input type="number" id="rateLimitWindow" min="5" max="60" value="15" class="input" />
+          </div>
+        </div>
+        <button id="btnUpdateRateLimit" class="btn btn-primary btn-sm btn-full">Mettre à jour</button>
+      </div>
+
+      <!-- Blocages -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <p class="text-sm font-medium" style="color:var(--text-primary)">Invités bloqués</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Les blocages s'appliquent à cette soirée</p>
+          </div>
+          <span id="bannedCount" class="badge badge-neutral text-xs">0</span>
+        </div>
+        <div id="bannedList" class="space-y-2 text-sm" style="color:var(--text-secondary)">
+          <p class="text-xs" style="color:var(--text-muted)">Aucun invité bloqué</p>
+        </div>
+      </div>
+
+      <button id="closeSettingsBottom" class="btn btn-ghost btn-full">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modal Message ──────────────────────────────────────── -->
+<div id="messagePanel" class="hidden modal-backdrop">
+  <div class="modal max-w-md">
+    <div class="flex items-center justify-between px-6 py-5" style="border-bottom:1px solid var(--border)">
+      <h3 class="text-base font-semibold" style="color:var(--text-primary)">Message aux invités</h3>
+      <button id="closeMessagePanel" class="btn btn-ghost btn-icon btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-sm" style="color:var(--text-secondary)">Envoyer un message instantané sur tous les téléphones connectés.</p>
+      <textarea id="messageInput" rows="3" class="input resize-none" maxlength="200" placeholder="Dernières demandes dans 15 min !"></textarea>
+      <button id="sendMessage" class="btn btn-primary btn-full">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Envoyer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modal Ban ─────────────────────────────────────────── -->
+<div id="banModal" class="hidden modal-backdrop">
+  <div class="modal max-w-sm">
+    <div class="px-6 py-5" style="border-bottom:1px solid var(--border)">
+      <h3 class="text-base font-semibold" style="color:var(--text-primary)">Bloquer un invité</h3>
+      <p id="banModalName" class="text-sm mt-1" style="color:var(--text-secondary)"></p>
+    </div>
+    <div class="p-5 space-y-3">
+      <p class="text-xs" style="color:var(--text-muted)">Choisir la durée du blocage :</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button class="btn btn-ghost btn-sm" data-ban-duration="15">15 minutes</button>
+        <button class="btn btn-ghost btn-sm" data-ban-duration="30">30 minutes</button>
+        <button class="btn btn-ghost btn-sm" data-ban-duration="60">1 heure</button>
+        <button class="btn btn-ghost btn-sm" data-ban-duration="120">2 heures</button>
+      </div>
+      <button class="btn btn-danger btn-sm btn-full" data-ban-duration="0">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        Toute la soirée
+      </button>
+    </div>
+    <div class="px-5 pb-5">
+      <button id="cancelBanModal" class="btn btn-ghost btn-sm btn-full">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const eventId = window.location.pathname.split("/")[2];
+
+  // ── Persistance de la session modérateur ──────────────────
+  // Si un token est dans l'URL, le sauvegarder pour une reconnexion future
+  (function persistModToken() {
+    const urlToken = new URLSearchParams(window.location.search).get("token");
+    if (urlToken) {
+      localStorage.setItem(`djq-mod-${eventId}`, urlToken);
+      // Nettoyer l'URL sans rechargement
+      history.replaceState({}, "", `/mod/${eventId}`);
+    }
+  })();
+
+  const socket  = io();
+
+  // ── Données ────────────────────────────────────────────────
+  let pendingRequests = [];
+  let queue           = [];
+  let queueSortable   = null;
+  let votesEnabled    = true;
+
+  // ── Chargement initial ─────────────────────────────────────
+  async function loadEvent() {
+    try {
+      const r = await fetch(`/api/events/${eventId}`);
+      // Session expirée → tenter une reconnexion via le token sauvegardé
+      if (r.status === 401 || r.status === 403) {
+        const savedToken = localStorage.getItem(`djq-mod-${eventId}`);
+        if (savedToken) {
+          window.location.replace(`/mod/${eventId}?token=${savedToken}`);
+        } else {
+          window.location.href = "/";
+        }
+        return;
+      }
+      const data = await r.json();
+      if (data.error) return;
+      document.getElementById("eventName").textContent = data.name || "Soirée";
+      document.title = `Modération — ${data.name || "Soirée"}`;
+      votesEnabled = !!data.votes_enabled;
+      document.getElementById("votesToggle").checked       = !!data.votes_enabled;
+      document.getElementById("duplicatesToggle").checked  = !!data.allow_duplicates;
+      document.getElementById("autoAcceptToggle").checked  = !!data.auto_accept_enabled;
+      document.getElementById("rateLimitMax").value        = data.rate_limit_max    || 3;
+      document.getElementById("rateLimitWindow").value     = data.rate_limit_window_minutes || 15;
+      document.getElementById("autoAcceptBanner").classList.toggle("hidden", !data.auto_accept_enabled);
+      queue = data.queue || [];
+      renderQueue();
+    } catch (err) {
+      console.error("Erreur loadEvent:", err);
+    }
+  }
+
+  async function loadPendingRequests() {
+    try {
+      const data = await fetch(`/api/events/${eventId}/pending`).then((r) => r.json());
+      if (data.pending) { pendingRequests = data.pending; renderPending(); }
+    } catch (err) { console.error("Erreur pending:", err); }
+  }
+
+  // ── Rendu demandes en attente ──────────────────────────────
+  function renderPending() {
+    const container = document.getElementById("pendingRequests");
+    document.getElementById("pendingCount").textContent = `(${pendingRequests.length})`;
+    if (!pendingRequests.length) {
+      container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune demande</div>`;
+      return;
+    }
+    container.innerHTML = pendingRequests.map((r) => `
+      <div class="px-5 py-4">
+        <div class="flex gap-3 mb-3">
+          ${r.image_url ? `<img src="${r.image_url}" class="w-14 h-14 rounded-lg object-cover shrink-0">` : ""}
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold truncate" style="color:var(--text-primary)">${r.song_name}</p>
+            <p class="text-xs truncate mt-0.5" style="color:var(--text-secondary)">${r.artist}</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Demandé par ${r.user_name || "Anonyme"}</p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button data-action="accept" data-request-id="${r.id}" class="btn btn-success btn-sm flex-1">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Accepter
+          </button>
+          <button data-action="reject" data-request-id="${r.id}" class="btn btn-danger btn-sm flex-1">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Refuser
+          </button>
+          <button data-action="ban" data-request-id="${r.id}" data-user-name="${r.user_name || 'Anonyme'}"
+                  class="btn btn-ghost btn-sm shrink-0" title="Bloquer cet invité"
+                  style="color:var(--red);border-color:var(--red-dim)">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          </button>
+        </div>
+      </div>`).join("");
+  }
+
+  document.getElementById("pendingRequests").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const { action, requestId, userName } = btn.dataset;
+    if (action === "accept") socket.emit("accept-request", { requestId });
+    else if (action === "reject") socket.emit("reject-request", { requestId });
+    else if (action === "ban") openBanModal(requestId, userName);
+  });
+
+  // ── Rendu queue ────────────────────────────────────────────
+  function renderQueue() {
+    const container = document.getElementById("queue");
+    document.getElementById("queueCount").textContent = `(${queue.length})`;
+    if (!queue.length) {
+      container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Queue vide</div>`;
+      if (queueSortable) { queueSortable.destroy(); queueSortable = null; }
+      return;
+    }
+    container.innerHTML = queue.map((r) => {
+      const netVotes = (r.upvotes || 0) - (r.downvotes || 0);
+      const netColor = netVotes > 0 ? "var(--green)" : netVotes < 0 ? "var(--red)" : "var(--text-muted)";
+      return `
+        <div class="flex items-center gap-2 px-4 py-3 select-none" data-id="${r.id}" style="border-bottom:1px solid var(--border)">
+          <div class="drag-handle shrink-0 flex flex-col gap-0.5 cursor-grab active:cursor-grabbing px-1 py-2 rounded" style="color:var(--text-muted)">
+            <span class="block w-4 h-0.5 rounded" style="background:currentColor"></span>
+            <span class="block w-4 h-0.5 rounded" style="background:currentColor"></span>
+            <span class="block w-4 h-0.5 rounded" style="background:currentColor"></span>
+          </div>
+          ${r.image_url ? `<img src="${r.image_url}" class="w-11 h-11 rounded-lg object-cover shrink-0">` : ""}
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold truncate" style="color:var(--text-primary)">${r.song_name}</p>
+            <p class="text-xs truncate mt-0.5" style="color:var(--text-secondary)">${r.artist}</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">par ${r.user_name || "Anonyme"}</p>
+          </div>
+          ${votesEnabled ? `<span class="text-xs font-bold shrink-0 px-2 py-1 rounded-lg" style="background:var(--bg-elevated);color:${netColor}">${netVotes > 0 ? "+" : ""}${netVotes}</span>` : ""}
+        </div>`;
+    }).join("");
+
+    // Drag & drop
+    if (queueSortable) queueSortable.destroy();
+    queueSortable = new Sortable(container, {
+      animation: 150,
+      handle: ".drag-handle",
+      onEnd: () => {
+        const newOrder = [...container.querySelectorAll("[data-id]")].map((el) => ({ id: el.dataset.id }));
+        socket.emit("reorder-queue", { eventId, newQueue: newOrder });
+      },
+    });
+  }
+
+  // ── Paramètres ────────────────────────────────────────────
+  function toggleSettings(forceClose = false) {
+    const p = document.getElementById("settingsPanel");
+    const isHidden = p.classList.contains("hidden");
+    if (forceClose || !isHidden) p.classList.add("hidden");
+    else p.classList.remove("hidden");
+  }
+
+  document.getElementById("showSettings").addEventListener("click",        () => toggleSettings());
+  document.getElementById("closeSettings").addEventListener("click",       () => toggleSettings(true));
+  document.getElementById("closeSettingsBottom").addEventListener("click", () => toggleSettings(true));
+  document.getElementById("settingsPanel").addEventListener("click",       (e) => { if (e.target.id === "settingsPanel") toggleSettings(); });
+
+  document.getElementById("votesToggle").addEventListener("change", (e) => {
+    socket.emit("update-event-settings", { eventId, votesEnabled: e.target.checked });
+  });
+  document.getElementById("duplicatesToggle").addEventListener("change", (e) => {
+    fetch(`/api/events/${eventId}/toggle-duplicates`, { method: "POST" }).catch(console.error);
+  });
+  document.getElementById("autoAcceptToggle").addEventListener("change", (e) => {
+    socket.emit("update-event-settings", { eventId, autoAcceptEnabled: e.target.checked });
+    document.getElementById("autoAcceptBanner").classList.toggle("hidden", !e.target.checked);
+  });
+  document.getElementById("btnUpdateRateLimit").addEventListener("click", () => {
+    const max    = parseInt(document.getElementById("rateLimitMax").value, 10);
+    const window_ = parseInt(document.getElementById("rateLimitWindow").value, 10);
+    if (isNaN(max) || isNaN(window_)) return;
+    fetch(`/api/events/${eventId}/update-rate-limit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ max, window: window_ }),
+    }).catch(console.error);
+  });
+
+  // ── Message invités ────────────────────────────────────────
+  document.getElementById("showMessagePanel").addEventListener("click", () => {
+    document.getElementById("messagePanel").classList.remove("hidden");
+    document.getElementById("messageInput").focus();
+  });
+  document.getElementById("closeMessagePanel").addEventListener("click", () => {
+    document.getElementById("messagePanel").classList.add("hidden");
+  });
+  document.getElementById("messagePanel").addEventListener("click", (e) => {
+    if (e.target.id === "messagePanel") document.getElementById("messagePanel").classList.add("hidden");
+  });
+  document.getElementById("sendMessage").addEventListener("click", () => {
+    const msg = document.getElementById("messageInput").value.trim();
+    if (!msg) return;
+    socket.emit("dj-message", { eventId, message: msg });
+    document.getElementById("messageInput").value = "";
+    document.getElementById("messagePanel").classList.add("hidden");
+  });
+
+  // ── Système de ban ─────────────────────────────────────────
+  let banTargetRequestId = null;
+
+  function openBanModal(requestId, userName) {
+    banTargetRequestId = requestId;
+    document.getElementById("banModalName").textContent = `Invité : ${userName || "Anonyme"}`;
+    document.getElementById("banModal").classList.remove("hidden");
+  }
+  function closeBanModal() {
+    banTargetRequestId = null;
+    document.getElementById("banModal").classList.add("hidden");
+  }
+  document.getElementById("cancelBanModal").addEventListener("click", closeBanModal);
+  document.getElementById("banModal").addEventListener("click", (e) => {
+    if (e.target.id === "banModal") closeBanModal();
+  });
+  document.getElementById("banModal").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-ban-duration]");
+    if (!btn || !banTargetRequestId) return;
+    socket.emit("ban-user", { eventId, requestId: banTargetRequestId, duration: parseInt(btn.dataset.banDuration, 10) });
+    closeBanModal();
+  });
+
+  function renderBannedUsers(bans) {
+    const list  = document.getElementById("bannedList");
+    const count = document.getElementById("bannedCount");
+    count.textContent = bans.length;
+    if (!bans.length) {
+      list.innerHTML = `<p class="text-xs" style="color:var(--text-muted)">Aucun invité bloqué</p>`;
+      return;
+    }
+    list.innerHTML = bans.map((ban) => {
+      const permanent  = ban.banned_until === null;
+      const expireText = permanent
+        ? "Toute la soirée"
+        : `Jusqu'à ${new Date(ban.banned_until).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+      return `
+        <div class="flex items-center justify-between gap-2 py-2 rounded-lg px-2" style="background:var(--bg-elevated)">
+          <div class="min-w-0">
+            <p class="text-xs font-semibold truncate" style="color:var(--text-primary)">${ban.user_name || "Anonyme"}</p>
+            <p class="text-xs" style="color:${permanent ? "var(--red)" : "var(--amber)"}">${expireText}</p>
+          </div>
+          <button class="btn btn-ghost btn-sm shrink-0 text-xs" style="color:var(--text-muted)"
+                  data-unban-client="${ban.client_id}">
+            Débloquer
+          </button>
+        </div>`;
+    }).join("");
+  }
+
+  document.getElementById("bannedList").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-unban-client]");
+    if (!btn) return;
+    socket.emit("unban-user", { eventId, clientId: btn.dataset.unbanClient });
+  });
+
+  // ── Socket ────────────────────────────────────────────────
+  socket.on("connect", () => {
+    socket.emit("join-event", eventId);
+    socket.emit("get-banned-users", { eventId });
+  });
+  if (socket.connected) {
+    socket.emit("join-event", eventId);
+    socket.emit("get-banned-users", { eventId });
+  }
+
+  socket.on("new-request", (request) => {
+    if (!pendingRequests.some((r) => r.id === request.id) && request.status === "pending") {
+      pendingRequests.push(request);
+      renderPending();
+    }
+  });
+
+  socket.on("request-accepted", (data) => {
+    pendingRequests = pendingRequests.filter((r) => r.id !== data.requestId);
+    renderPending();
+  });
+
+  socket.on("request-rejected", (data) => {
+    pendingRequests = pendingRequests.filter((r) => r.id !== data.requestId);
+    renderPending();
+  });
+
+  socket.on("queue-updated", (data) => {
+    queue = data.queue || [];
+    renderQueue();
+  });
+
+  socket.on("vote-updated", (data) => {
+    const item = queue.find((r) => r.id === data.requestId);
+    if (item) { item.upvotes = data.upvotes; item.downvotes = data.downvotes; renderQueue(); }
+    const pen = pendingRequests.find((r) => r.id === data.requestId);
+    if (pen) { pen.upvotes = data.upvotes; pen.downvotes = data.downvotes; renderPending(); }
+  });
+
+  socket.on("event-settings-updated", (data) => {
+    if (data.votesEnabled      !== undefined) { document.getElementById("votesToggle").checked      = data.votesEnabled;      votesEnabled = data.votesEnabled; }
+    if (data.autoAcceptEnabled !== undefined) { document.getElementById("autoAcceptToggle").checked = data.autoAcceptEnabled;
+      document.getElementById("autoAcceptBanner").classList.toggle("hidden", !data.autoAcceptEnabled);
+    }
+  });
+
+  socket.on("banned-users-updated", (data) => renderBannedUsers(data.bans || []));
+
+  socket.on("event-ended", () => {
+    document.getElementById("eventName").textContent += " (terminée)";
+  });
+
+  // ── Toast ─────────────────────────────────────────────────
+  function showToast(msg, type = "success") {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.style.background = type === "error" ? "var(--red)" : "var(--accent)";
+    t.classList.remove("hidden");
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => t.classList.add("hidden"), 3000);
+  }
+
+  // ── Ajouter une chanson ────────────────────────────────────
+  (function initAddSong() {
+    let searchTimeout;
+
+    function openPanel() {
+      document.getElementById("addSongPanel").classList.remove("hidden");
+      setTimeout(() => document.getElementById("modSearchInput").focus(), 50);
+    }
+    function closePanel() {
+      document.getElementById("addSongPanel").classList.add("hidden");
+      document.getElementById("modSearchInput").value = "";
+      document.getElementById("modSearchResults").innerHTML = "";
+    }
+
+    document.getElementById("addSongBtn").addEventListener("click", openPanel);
+    document.getElementById("closeAddSong").addEventListener("click", closePanel);
+    document.getElementById("closeAddSongBottom").addEventListener("click", closePanel);
+    document.getElementById("addSongPanel").addEventListener("click", (e) => {
+      if (e.target.id === "addSongPanel") closePanel();
+    });
+
+    document.getElementById("modSearchInput").addEventListener("input", (e) => {
+      clearTimeout(searchTimeout);
+      const q = e.target.value.trim();
+      if (q.length < 2) { document.getElementById("modSearchResults").innerHTML = ""; return; }
+      searchTimeout = setTimeout(() => searchTracks(q), 400);
+    });
+
+    async function searchTracks(query) {
+      try {
+        const data = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&eventId=${eventId}`).then((r) => r.json());
+        const container = document.getElementById("modSearchResults");
+        if (data.error || !data.tracks?.length) {
+          container.innerHTML = `<p class="text-xs text-center py-4" style="color:var(--text-muted)">Aucun résultat</p>`;
+          return;
+        }
+        container.innerHTML = data.tracks.map((track) => {
+          const json = JSON.stringify(track).replace(/"/g, "&quot;");
+          return `
+            <div class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition hover:opacity-80"
+                 style="background:var(--bg-elevated);border:1px solid var(--border)" data-track="${json}">
+              <img src="${track.image}" alt="" class="w-10 h-10 rounded-md shrink-0 object-cover" />
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium truncate" style="color:var(--text-primary)">${track.name}</p>
+                <p class="text-xs truncate" style="color:var(--text-secondary)">${track.artist}</p>
+              </div>
+              <svg class="w-4 h-4 shrink-0" style="color:var(--accent)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>`;
+        }).join("");
+      } catch (err) { console.error("Erreur recherche:", err); }
+    }
+
+    document.getElementById("modSearchResults").addEventListener("click", async (e) => {
+      const card = e.target.closest("[data-track]");
+      if (!card) return;
+      const track = JSON.parse(card.dataset.track);
+      try {
+        const data = await fetch(`/api/events/${eventId}/add-song-dj`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ songData: track, userName: "Modérateur" }),
+        }).then((r) => r.json());
+        if (data.error) { showToast("Erreur : " + data.error, "error"); return; }
+        closePanel();
+        showToast(`"${track.name}" ajoutée à la queue`);
+      } catch { showToast("Erreur lors de l'ajout", "error"); }
+    });
+  })();
+
+  // ── Init ──────────────────────────────────────────────────
+  loadEvent();
+  loadPendingRequests();
+</script>
+</body>
+</html>

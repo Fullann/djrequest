@@ -43,6 +43,28 @@
 
     /* Safe area padding */
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+    /* Now Playing strip */
+    #nowPlayingStrip { transition: max-height 350ms cubic-bezier(.4,0,.2,1), opacity 350ms ease; }
+    #nowPlayingStrip.hidden-strip { max-height: 0; opacity: 0; overflow: hidden; }
+    #nowPlayingStrip.visible-strip { max-height: 100px; opacity: 1; }
+    #npProgressBar { transition: width 1s linear; }
+
+    /* DJ Message banner */
+    #djBanner { transition: transform 300ms cubic-bezier(.4,0,.2,1), opacity 300ms ease; pointer-events: none; }
+    #djBanner.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+    #djBanner.hide { transform: translateY(-120%); opacity: 0; }
+
+    @keyframes glow-pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+      50%      { box-shadow: 0 0 0 8px rgba(99,102,241,0); }
+    }
+    #djBanner.show { animation: glow-pulse 1.2s ease 0s 2; }
+
+    /* Donation gate slide-up */
+    #donationGate > div:last-child { transition: transform 350ms cubic-bezier(.32,.72,0,1); }
+    #donationBanner { transition: transform 300ms cubic-bezier(.4,0,.2,1), opacity 300ms ease; }
+    #donationBanner.hidden { transform: translateY(-120%); opacity: 0; }
   </style>
 </head>
 
@@ -71,6 +93,11 @@
         <div id="rateDots" class="flex items-center gap-1 justify-end mt-0.5"></div>
       </div>
 
+      <!-- Share button -->
+      <button id="shareBtn" onclick="shareEvent()" class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" title="Partager la soirée" style="background:var(--bg-elevated);border:1px solid var(--border)">
+        <svg class="w-4 h-4" style="color:var(--text-secondary)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </button>
+
       <!-- Theme toggle -->
       <button data-theme-toggle class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--bg-elevated);border:1px solid var(--border)">
         <svg class="w-4 h-4 icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -78,6 +105,45 @@
       </button>
     </div>
   </header>
+
+  <!-- ── DJ MESSAGE BANNER ────────────────────────────────────── -->
+  <div id="djBanner" class="hide fixed top-0 left-0 right-0 z-50 mx-3 mt-3">
+    <div class="flex items-start gap-3 rounded-2xl px-4 py-3.5 shadow-lg" style="background:var(--accent);color:#fff">
+      <svg class="w-5 h-5 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <p id="djBannerText" class="flex-1 text-sm font-semibold leading-snug"></p>
+      <button id="djBannerClose" class="shrink-0 -mr-1 -mt-0.5 w-6 h-6 rounded-full flex items-center justify-center opacity-80 hover:opacity-100" style="background:rgba(255,255,255,0.2)">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── NOW PLAYING STRIP ─────────────────────────────────────── -->
+  <div id="nowPlayingStrip" class="hidden-strip shrink-0" style="background:var(--bg-surface);border-bottom:1px solid var(--border)">
+    <div class="flex items-center gap-3 px-4 py-2.5">
+      <!-- Album art -->
+      <div class="relative shrink-0">
+        <img id="npAlbumArt" src="" alt="" class="w-11 h-11 rounded-xl object-cover" />
+        <!-- Animated vinyl ring -->
+        <div class="absolute inset-0 rounded-xl" style="background:linear-gradient(135deg,rgba(99,102,241,0.25),transparent);pointer-events:none"></div>
+      </div>
+      <!-- Info -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 mb-0.5">
+          <span class="text-xs font-bold tracking-widest uppercase" style="color:var(--accent);font-size:9px">▶ En cours</span>
+        </div>
+        <p id="npTrackName" class="text-sm font-bold truncate leading-tight" style="color:var(--text-primary)"></p>
+        <p id="npArtist" class="text-xs truncate" style="color:var(--text-secondary)"></p>
+        <!-- Progress bar -->
+        <div class="mt-1.5 h-1 rounded-full overflow-hidden" style="background:var(--bg-elevated)">
+          <div id="npProgressBar" class="h-full rounded-full" style="width:0%;background:var(--accent)"></div>
+        </div>
+      </div>
+      <!-- Timer -->
+      <div class="shrink-0 text-right">
+        <span id="npTimeRemaining" class="text-xs font-mono" style="color:var(--text-muted)">—</span>
+      </div>
+    </div>
+  </div>
 
   <!-- ── TAB CONTENT ────────────────────────────────────────── -->
 
@@ -105,6 +171,11 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <div id="guestHistoryWrap" class="shrink-0 rounded-2xl p-4 mb-3 hidden" style="background:var(--bg-surface);border:1px solid var(--border)">
+      <p class="text-xs font-semibold mb-2" style="color:var(--text-muted)">Tes demandes ce soir</p>
+      <ul id="guestHistoryList" class="space-y-1.5 text-xs max-h-40 overflow-y-auto no-scrollbar"></ul>
     </div>
 
     <!-- Error banner -->
@@ -152,6 +223,23 @@
     </div>
   </div>
 
+  <!-- ── TAB : TENDANCES ──────────────────────────────────────── -->
+  <div id="tab-trends" class="tab-panel no-scrollbar px-4 pt-4 pb-6">
+    <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)">Populaire ce soir</p>
+    <p class="text-xs mb-4" style="color:var(--text-muted)">Artistes et titres les plus demandés</p>
+    <div id="trendsLoading" class="text-sm py-8 text-center" style="color:var(--text-muted)">Chargement…</div>
+    <div id="trendsBody" class="hidden space-y-5">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color:var(--accent)">Top artistes</p>
+        <ol id="trendsArtists" class="space-y-2 list-decimal list-inside text-sm" style="color:var(--text-primary)"></ol>
+      </div>
+      <div>
+        <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color:var(--accent)">Top titres</p>
+        <ol id="trendsSongs" class="space-y-2 list-decimal list-inside text-sm" style="color:var(--text-primary)"></ol>
+      </div>
+    </div>
+  </div>
+
   <!-- ── TAB : FILE D'ATTENTE ─────────────────────────────────── -->
   <div id="tab-queue" class="tab-panel no-scrollbar">
     <div id="queueList" class="flex flex-col divide-y" style="border-color:var(--border)">
@@ -173,23 +261,93 @@
   <!-- ── BOTTOM NAV ─────────────────────────────────────────── -->
   <nav class="shrink-0 safe-bottom" style="background:var(--bg-surface);border-top:1px solid var(--border)">
     <div class="flex">
-      <button id="navSearch" onclick="switchTab('search')" class="flex-1 flex flex-col items-center gap-1 py-2.5 px-2 transition" style="color:var(--accent)">
+      <button id="navSearch" onclick="switchTab('search')" class="flex-1 flex flex-col items-center gap-1 py-2.5 px-1 transition" style="color:var(--accent)">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <span class="text-xs font-semibold">Proposer</span>
       </button>
-      <button id="navQueue" onclick="switchTab('queue')" class="flex-1 flex flex-col items-center gap-1 py-2.5 px-2 transition relative" style="color:var(--text-muted)">
+      <button id="navTrends" onclick="switchTab('trends')" class="flex-1 flex flex-col items-center gap-1 py-2.5 px-1 transition" style="color:var(--text-muted)">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+        </svg>
+        <span class="text-xs font-semibold">Tendances</span>
+      </button>
+      <button id="navQueue" onclick="switchTab('queue')" class="flex-1 flex flex-col items-center gap-1 py-2.5 px-1 transition relative" style="color:var(--text-muted)">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
           <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
         </svg>
-        <span class="text-xs font-semibold">File d'attente</span>
-        <span id="queueBadge" class="hidden absolute top-1.5 right-6 min-w-4 h-4 px-1 rounded-full text-xs font-bold flex items-center justify-center text-white" style="background:var(--accent);font-size:10px"></span>
+        <span class="text-xs font-semibold">File</span>
+        <span id="queueBadge" class="hidden absolute top-1.5 right-2 min-w-4 h-4 px-1 rounded-full text-xs font-bold flex items-center justify-center text-white" style="background:var(--accent);font-size:10px"></span>
       </button>
     </div>
   </nav>
 
+</div>
+
+<!-- ── DONATION GATE (obligatoire) ──────────────────────────── -->
+<div id="donationGate" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-end"
+     style="background:rgba(0,0,0,0.75);backdrop-filter:blur(6px)">
+  <div class="w-full max-w-sm rounded-t-3xl p-6 pb-10 space-y-5" style="background:var(--bg-surface)">
+    <!-- Handle -->
+    <div class="w-10 h-1 rounded-full mx-auto" style="background:var(--border)"></div>
+    <!-- Icon + title -->
+    <div class="text-center">
+      <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3" style="background:var(--accent-dim)">
+        <svg class="w-8 h-8" style="color:var(--accent)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+      </div>
+      <h2 class="text-lg font-bold" style="color:var(--text-primary)">Soutiens le DJ</h2>
+      <p id="donationGateMsg" class="text-sm mt-1" style="color:var(--text-secondary)">Un petit don est demandé avant de proposer une chanson.</p>
+    </div>
+    <!-- Amount badge -->
+    <div class="flex items-center justify-center">
+      <div class="px-6 py-3 rounded-2xl text-center" style="background:var(--bg-elevated);border:1px solid var(--border)">
+        <p class="text-3xl font-black" style="color:var(--accent)" id="donationGateAmount">2,00 €</p>
+        <p class="text-xs mt-0.5" style="color:var(--text-muted)">montant suggéré</p>
+      </div>
+    </div>
+    <!-- Pay button -->
+    <a id="donationPayBtn" href="#" target="_blank" rel="noopener noreferrer"
+       class="btn btn-primary btn-full text-base font-bold py-4 rounded-2xl"
+       style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Payer maintenant
+    </a>
+    <!-- Confirm (appears after click) -->
+    <div id="donationConfirmWrap" class="hidden space-y-3">
+      <div id="donationTimer" class="text-xs text-center font-medium" style="color:var(--text-muted)">Redirection vers le paiement…</div>
+      <button id="donationConfirmBtn" class="hidden btn btn-full rounded-2xl font-bold py-3.5" style="background:var(--green);color:#fff">
+        <svg class="w-5 h-5 mr-2 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        J'ai payé — Proposer une chanson
+      </button>
+    </div>
+    <!-- Skip (optionnel uniquement) -->
+    <button id="donationSkipBtn" class="hidden w-full text-center text-sm py-2" style="color:var(--text-muted);background:none;border:none;cursor:pointer">
+      Passer pour l'instant
+    </button>
+  </div>
+</div>
+
+<!-- ── DONATION BANNER (optionnel) ──────────────────────────── -->
+<div id="donationBanner" class="hidden fixed top-16 left-3 right-3 z-40 rounded-2xl shadow-xl"
+     style="background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff">
+  <div class="flex items-center gap-3 px-4 py-3">
+    <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-bold">Soutiens le DJ</p>
+      <p id="donationBannerMsg" class="text-xs opacity-80 truncate"></p>
+    </div>
+    <a id="donationBannerBtn" href="#" target="_blank" rel="noopener noreferrer"
+       class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold" style="background:rgba(255,255,255,0.25);color:#fff;text-decoration:none">
+      Donner
+    </a>
+    <button id="donationBannerClose" class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style="background:rgba(255,255,255,0.15)">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
 </div>
 
 <!-- ── BOTTOM SHEET : PRÉNOM ────────────────────────────────── -->
@@ -260,12 +418,74 @@
   function switchTab(tab) {
     activeTab = tab;
     document.getElementById("tab-search").classList.toggle("active", tab === "search");
+    document.getElementById("tab-trends").classList.toggle("active", tab === "trends");
     document.getElementById("tab-queue").classList.toggle("active",  tab === "queue");
     const accentColor = "var(--accent)";
     const muteColor   = "var(--text-muted)";
     document.getElementById("navSearch").style.color = tab === "search" ? accentColor : muteColor;
+    document.getElementById("navTrends").style.color = tab === "trends" ? accentColor : muteColor;
     document.getElementById("navQueue").style.color  = tab === "queue"  ? accentColor : muteColor;
     if (tab === "queue") document.getElementById("queueBadge").classList.add("hidden");
+    if (tab === "trends") loadTrendsTab();
+  }
+
+  let trendsLoaded = false;
+  async function loadTrendsTab() {
+    if (trendsLoaded) return;
+    try {
+      const res = await fetch(`/api/events/${eventId}/trends`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      trendsLoaded = true;
+      document.getElementById("trendsLoading").classList.add("hidden");
+      document.getElementById("trendsBody").classList.remove("hidden");
+      const artEl = document.getElementById("trendsArtists");
+      const songEl = document.getElementById("trendsSongs");
+      artEl.innerHTML = (data.topArtists || []).length
+        ? data.topArtists.map((a) =>
+            `<li><span class="font-medium">${escapeHtml(a.artist)}</span> <span style="color:var(--text-muted)">(${a.total})</span></li>`,
+          ).join("")
+        : `<li style="color:var(--text-muted)">Pas encore assez de demandes</li>`;
+      songEl.innerHTML = (data.topSongs || []).length
+        ? data.topSongs.map((s) =>
+            `<li><span class="font-medium">${escapeHtml(s.song_name)}</span> <span style="color:var(--text-muted)">— ${escapeHtml(s.artist)} (${s.total})</span></li>`,
+          ).join("")
+        : `<li style="color:var(--text-muted)">Pas encore assez de demandes</li>`;
+    } catch {
+      document.getElementById("trendsLoading").textContent = "Impossible de charger les tendances";
+    }
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement("div");
+    d.textContent = s == null ? "" : String(s);
+    return d.innerHTML;
+  }
+
+  function guestStatusLabel(st) {
+    const m = { pending: "En attente", accepted: "Acceptée", rejected: "Refusée", played: "Jouée" };
+    return m[st] || st;
+  }
+
+  async function loadGuestHistory() {
+    try {
+      const res = await fetch(`/api/events/${eventId}/guest-history/${encodeURIComponent(clientId)}`);
+      const data = await res.json();
+      const list = data.requests || [];
+      const wrap = document.getElementById("guestHistoryWrap");
+      const ul   = document.getElementById("guestHistoryList");
+      if (list.length === 0) {
+        wrap.classList.add("hidden");
+        return;
+      }
+      wrap.classList.remove("hidden");
+      ul.innerHTML = list.map((r) =>
+        `<li class="flex justify-between gap-2" style="color:var(--text-secondary)">
+          <span class="truncate"><span class="font-medium" style="color:var(--text-primary)">${escapeHtml(r.song_name)}</span> — ${escapeHtml(r.artist)}</span>
+          <span class="shrink-0 opacity-80">${guestStatusLabel(r.status)}</span>
+        </li>`,
+      ).join("");
+    } catch { /* silencieux */ }
   }
 
   // ── Search ──
@@ -273,6 +493,7 @@
   const clearBtn    = document.getElementById("clearSearch");
 
   searchInput.addEventListener("input", (e) => {
+    if (isBanned()) return; // bloqué
     const q = e.target.value.trim();
     clearBtn.classList.toggle("hidden", q.length === 0);
     clearTimeout(searchTimeout);
@@ -352,17 +573,108 @@
   }
 
   // ── Name bottom sheet ──
+  // ── Système de ban côté invité ───────────────────────────────────────────
+  let banState = null; // { message, until } — null = pas banni
+
+  function isBanned() {
+    if (!banState) return false;
+    if (banState.until === null) return true; // permanent
+    if (Date.now() < banState.until) return true;
+    banState = null; // expiré
+    hideBanBanner();
+    return false;
+  }
+
+  function applyBanState(message, remainingMs) {
+    banState = { message, until: remainingMs ? Date.now() + remainingMs : null };
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+    // Désactiver la recherche
+    lockSearchForBan();
+
+    // Afficher le bloc de ban dans la zone de recherche
+    renderBanOverlay(message, remainingMs);
+
+    // Nettoyer un éventuel timer précédent
+    if (banState._timer) clearTimeout(banState._timer);
+    if (remainingMs) {
+      banState._timer = setTimeout(() => {
+        banState = null;
+        unlockSearchAfterBan();
+      }, remainingMs);
+    }
+  }
+
+  function lockSearchForBan() {
+    searchInput.disabled    = true;
+    searchInput.value       = "";
+    searchInput.placeholder = "Recherche désactivée par le DJ";
+    searchInput.style.borderColor  = "var(--red, #ef4444)";
+    searchInput.style.opacity      = "0.5";
+    searchInput.style.cursor       = "not-allowed";
+    document.getElementById("clearSearch").classList.add("hidden");
+  }
+
+  function unlockSearchAfterBan() {
+    searchInput.disabled    = false;
+    searchInput.placeholder = "Rechercher une chanson…";
+    searchInput.style.borderColor = "var(--border)";
+    searchInput.style.opacity     = "1";
+    searchInput.style.cursor      = "";
+    // Retirer le bloc ban et remettre l'état vide
+    renderBanOverlay(null, null);
+    showEmptyState();
+  }
+
+  function renderBanOverlay(message, remainingMs) {
+    const container = document.getElementById("searchResults");
+    if (!message) {
+      // Juste vider — showEmptyState s'en charge ensuite
+      return;
+    }
+    const expiryText = remainingMs
+      ? `Blocage levé dans ${Math.ceil(remainingMs / 60000)} minute${Math.ceil(remainingMs / 60000) > 1 ? "s" : ""}`
+      : "Pour le reste de la soirée";
+    container.innerHTML = `
+      <div class="flex flex-col items-center gap-4 py-10 px-4">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center" style="background:var(--red-dim,rgba(239,68,68,.15));border:1.5px solid var(--red,#ef4444)">
+          <svg class="w-8 h-8" style="color:var(--red,#ef4444)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        </div>
+        <div class="text-center">
+          <p class="text-base font-bold mb-1" style="color:var(--red,#ef4444)">${message}</p>
+          <p class="text-sm" style="color:var(--text-muted)">${expiryText}</p>
+        </div>
+      </div>`;
+  }
+
+  function hideBanBanner() {
+    // Ancienne bannière flottante — plus utilisée, conservée pour compatibilité
+    const banner = document.getElementById("banBanner");
+    if (banner) banner.style.display = "none";
+  }
+
   function openNameSheet(track) {
+    // Vérifier si l'invité est banni
+    if (isBanned()) {
+      showError(banState?.message || "Tu es bloqué par le DJ.");
+      showBanBanner(banState?.message || "Tu es bloqué par le DJ.", banState?.until ? banState.until - Date.now() : null);
+      return;
+    }
     if (currentRateLimit.allowed === false) {
       const mins = currentRateLimit.remainingMinutes || 1;
       showError(`Limite atteinte — réessaie dans ${mins} min`);
+      return;
+    }
+    // Bloquer si don obligatoire non confirmé
+    if (isDonationBlocked()) {
+      document.getElementById("donationGate").classList.remove("hidden");
       return;
     }
     pendingTrack = track;
     document.getElementById("sheetTrackName").textContent   = track.name;
     document.getElementById("sheetTrackArtist").textContent = track.artist;
     document.getElementById("sheetTrackImg").src            = track.image;
-    document.getElementById("nameInput").value              = "";
+    document.getElementById("nameInput").value = localStorage.getItem("djq-user-name") || "";
     const sheet = document.getElementById("nameSheet");
     sheet.classList.remove("closed");
     sheet.classList.add("open");
@@ -379,6 +691,7 @@
   function submitRequest() {
     if (!pendingTrack) return;
     const userName = document.getElementById("nameInput").value.trim() || "Anonyme";
+    if (userName !== "Anonyme") localStorage.setItem("djq-user-name", userName);
     socket.emit("request-song", { eventId, songData: pendingTrack, userName, clientId });
     closeNameSheet();
   }
@@ -387,6 +700,24 @@
   document.getElementById("nameInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter") submitRequest();
   });
+
+  // ── Partage du lien ──
+  function shareEvent() {
+    const eventName = document.getElementById("eventName")?.textContent || "Soirée DJ";
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({ title: eventName, text: "Rejoins la soirée et propose tes musiques !", url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById("shareBtn");
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<svg class="w-4 h-4" style="color:var(--green)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+      }).catch(() => {
+        prompt("Copie ce lien :", url);
+      });
+    }
+  }
 
   // ── Rate limit display ──
   function updateRateLimitDisplay() {
@@ -434,7 +765,14 @@
 
     const configs = {
       pending:  { text: "En attente du DJ", bg: "var(--amber-dim)", color: "var(--amber)", dot: "var(--amber)" },
-      accepted: { text: `Acceptée — pos. ${myRequestData.position || "?"} (~${calcWait()} min)`, bg: "var(--green-dim)", color: "var(--green)", dot: "var(--green)" },
+      accepted: {
+        text: myRequestData.position === 1
+          ? "🎵 Prochaine chanson !"
+          : `Acceptée — pos. ${myRequestData.position || "?"} (~${calcWait()} min)`,
+        bg: myRequestData.position === 1 ? "var(--accent-dim, #4f46e533)" : "var(--green-dim)",
+        color: myRequestData.position === 1 ? "var(--accent)" : "var(--green)",
+        dot: myRequestData.position === 1 ? "var(--accent)" : "var(--green)"
+      },
       rejected: { text: "Non retenue", bg: "var(--red-dim)", color: "var(--red)", dot: "var(--red)" },
       played:   { text: "Jouée — Merci !", bg: "var(--cyan-dim)", color: "var(--cyan)", dot: "var(--cyan)" },
     };
@@ -607,6 +945,38 @@
     stopTitleBlink();
   }
 
+  function notifyNext(songName) {
+    // Vibration triple — distincte de "acceptée"
+    if (navigator.vibrate) navigator.vibrate([60, 40, 60, 40, 200]);
+
+    // Titre clignotant
+    stopTitleBlink();
+    let blink = true;
+    blinkInterval = setInterval(() => {
+      document.title = blink ? `🎵 C'est ton tour ! — ${songName}` : BASE_TITLE;
+      blink = !blink;
+    }, 700);
+    setTimeout(stopTitleBlink, 15000);
+
+    // Notification système
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("C'est bientôt ton tour !", {
+        body: `"${songName}" est la prochaine chanson !`,
+        icon: "/favicon.ico",
+        tag:  "dj-request-next",
+        silent: true,
+      });
+    }
+
+    // Toast visuel persistant (disparaît en 6s)
+    const t = document.getElementById("toast");
+    t.innerHTML = `🎵 Ta chanson est la prochaine !`;
+    t.style.background = "var(--accent)";
+    t.classList.remove("hidden");
+    clearTimeout(t._nextTimer);
+    t._nextTimer = setTimeout(() => t.classList.add("hidden"), 6000);
+  }
+
   function notifyPlayed(songName) {
     if (navigator.vibrate) navigator.vibrate([200]);
     stopTitleBlink();
@@ -659,9 +1029,11 @@
 
   socket.on("request-created", (data) => {
     myRequestId   = data.requestId;
+    myPrevPosition = null; // réinitialiser pour la nouvelle demande
     myRequestData = { status: "pending", songName: data.songName, artist: data.artist, image: data.image };
     if (data.rateLimitStatus) { currentRateLimit = data.rateLimitStatus; updateRateLimitDisplay(); }
     updateMyRequestCard();
+    loadGuestHistory();
     showToast("Demande envoyée !");
     // Reset search
     searchInput.value = "";
@@ -674,6 +1046,28 @@
     if (error.type === "rate-limit") {
       currentRateLimit = { ...currentRateLimit, allowed: false };
       updateRateLimitDisplay();
+    } else if (error.type === "banned") {
+      applyBanState(error.message, error.remainingMs || null);
+    }
+  });
+
+  socket.on("you-are-banned", (data) => {
+    const mins = data.remainingMs ? Math.ceil(data.remainingMs / 60000) : null;
+    const msg = data.permanent
+      ? "Le DJ t'a bloqué pour le reste de la soirée."
+      : `Le DJ t'a bloqué pendant ${mins} minute${mins > 1 ? "s" : ""}.`;
+
+    applyBanState(msg, data.remainingMs);
+
+    // Si la demande de cet utilisateur était en attente, la marquer comme rejetée localement
+    if (myRequestId && myRequestData.status === "pending") {
+      // Vérifier si notre demande est dans la liste des annulées
+      const cancelled = data.cancelledRequestIds || [];
+      if (cancelled.length === 0 || cancelled.includes(myRequestId)) {
+        myRequestData.status = "rejected";
+        myPrevPosition = null;
+        updateMyRequestCard();
+      }
     }
   });
 
@@ -682,8 +1076,19 @@
       myRequestData.status   = "accepted";
       myRequestData.position = data.position;
       updateMyRequestCard();
+      loadGuestHistory();
       notifyAccepted(myRequestData.songName || "Ta chanson");
       showToast("Ta chanson a été acceptée !");
+    }
+  });
+
+  socket.on("your-request-pending-again", (data) => {
+    if (myRequestId === data.requestId) {
+      myRequestData.status = "pending";
+      myPrevPosition = null;
+      updateMyRequestCard();
+      loadGuestHistory();
+      showToast("Ta demande est de nouveau en attente.");
     }
   });
 
@@ -691,20 +1096,32 @@
     if (myRequestId === data.requestId) {
       myRequestData.status = "rejected";
       updateMyRequestCard();
+      loadGuestHistory();
       notifyRejected();
       showToast("Ta demande n'a pas été retenue.");
     }
   });
 
+  let myPrevPosition = null; // pour détecter le passage en position 1
+
   socket.on("queue-updated", (data) => {
     fullQueue = data.queue;
     if (myRequestId && myRequestData.status === "accepted") {
-      const pos = data.queue.findIndex((r) => r.id === myRequestId) + 1;
+      const idx = data.queue.findIndex((r) => r.id === myRequestId);
+      const pos = idx + 1; // 0 si absent (jouée)
       if (pos > 0) {
+        // Passage en position 1 : prochaine chanson !
+        if (pos === 1 && myPrevPosition !== 1) {
+          notifyNext(myRequestData.songName || "Ta chanson");
+        }
+        myPrevPosition        = pos;
         myRequestData.position = pos;
       } else {
+        // Disparue de la queue = jouée
+        myPrevPosition    = null;
         myRequestData.status = "played";
         notifyPlayed(myRequestData.songName || "Ta chanson");
+        loadGuestHistory();
       }
       updateMyRequestCard();
     }
@@ -721,20 +1138,191 @@
     }
   });
 
-  socket.on("event-settings-updated", (data) => {
-    if (data.votesEnabled !== undefined) {
-      votesEnabled = data.votesEnabled;
-      updateMyRequestCard();
-      updateQueueDisplay();
-    }
-  });
-
   socket.on("event-ended", (data) => {
     searchInput.disabled    = true;
     searchInput.placeholder = "Soirée terminée";
     showError(data.message || "La soirée est terminée !");
     setTimeout(() => { window.location.href = `/event/${eventId}/thank-you`; }, 2000);
   });
+
+  // ── Now Playing ──
+  let npRafId       = null;
+  let npState       = null; // { durationMs, positionMs, isPlaying, timestamp }
+
+  function npFormatTime(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+  }
+
+  function npAnimateProgress() {
+    if (!npState || !npState.isPlaying) return;
+    const elapsed  = Date.now() - npState.timestamp;
+    const pos      = Math.min(npState.positionMs + elapsed, npState.durationMs);
+    const pct      = npState.durationMs > 0 ? (pos / npState.durationMs) * 100 : 0;
+    const remaining = npState.durationMs - pos;
+    document.getElementById("npProgressBar").style.width   = `${pct}%`;
+    document.getElementById("npTimeRemaining").textContent = `-${npFormatTime(remaining)}`;
+    npRafId = requestAnimationFrame(npAnimateProgress);
+  }
+
+  function npStartAnimation() {
+    if (npRafId) cancelAnimationFrame(npRafId);
+    npRafId = requestAnimationFrame(npAnimateProgress);
+  }
+
+  socket.on("now-playing", (data) => {
+    const { track, positionMs, durationMs, isPlaying, timestamp } = data;
+    if (!track) return;
+
+    npState = { positionMs, durationMs: track.durationMs, isPlaying, timestamp };
+
+    document.getElementById("npAlbumArt").src          = track.albumArt || "";
+    document.getElementById("npTrackName").textContent = track.name    || "";
+    document.getElementById("npArtist").textContent    = track.artist  || "";
+
+    // Snap progress bar immediately (no transition) then let RAF animate
+    const bar = document.getElementById("npProgressBar");
+    bar.style.transition = "none";
+    const pct = npState.durationMs > 0 ? (positionMs / npState.durationMs) * 100 : 0;
+    bar.style.width = `${pct}%`;
+    // Force reflow then re-enable transition
+    bar.getBoundingClientRect();
+    bar.style.transition = "";
+
+    const strip = document.getElementById("nowPlayingStrip");
+    strip.classList.remove("hidden-strip");
+    strip.classList.add("visible-strip");
+
+    if (isPlaying) {
+      npStartAnimation();
+    } else {
+      if (npRafId) { cancelAnimationFrame(npRafId); npRafId = null; }
+      const remaining = npState.durationMs - positionMs;
+      document.getElementById("npTimeRemaining").textContent = `-${npFormatTime(remaining)}`;
+    }
+  });
+
+  // ── DJ Message Banner ──
+  let djBannerTimer = null;
+
+  function showDjBanner(message) {
+    const banner = document.getElementById("djBanner");
+    document.getElementById("djBannerText").textContent = message;
+    banner.classList.remove("hide");
+    banner.classList.add("show");
+    if (djBannerTimer) clearTimeout(djBannerTimer);
+    djBannerTimer = setTimeout(hideDjBanner, 8000);
+    // Vibration courte pour attirer l'attention
+    if (navigator.vibrate) navigator.vibrate([30, 20, 30]);
+  }
+
+  function hideDjBanner() {
+    const banner = document.getElementById("djBanner");
+    banner.classList.remove("show");
+    banner.classList.add("hide");
+    if (djBannerTimer) { clearTimeout(djBannerTimer); djBannerTimer = null; }
+  }
+
+  document.getElementById("djBannerClose").addEventListener("click", hideDjBanner);
+
+  socket.on("dj-message", (data) => {
+    showDjBanner(data.message);
+  });
+
+  // ── Système de dons ──────────────────────────────────────────
+  let donationCfg = { enabled: false, required: false, amount: 2, link: "", message: "" };
+  let donationConfirmed = !!sessionStorage.getItem(`djq-donated-${eventId}`);
+
+  function fmtAmount(n) {
+    return Number(n).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+  }
+
+  function applyDonationConfig(cfg) {
+    donationCfg = { ...donationCfg, ...cfg };
+
+    if (!donationCfg.enabled) {
+      document.getElementById("donationGate").classList.add("hidden");
+      document.getElementById("donationBanner").classList.add("hidden");
+      return;
+    }
+
+    const msg = donationCfg.message || "Un petit don est apprécié pour soutenir le DJ.";
+
+    if (donationCfg.required && !donationConfirmed) {
+      // Gate obligatoire
+      document.getElementById("donationGateMsg").textContent    = msg;
+      document.getElementById("donationGateAmount").textContent = fmtAmount(donationCfg.amount);
+      document.getElementById("donationPayBtn").href            = donationCfg.link || "#";
+      document.getElementById("donationSkipBtn").classList.add("hidden");
+      document.getElementById("donationGate").classList.remove("hidden");
+    } else if (!donationCfg.required) {
+      // Bannière optionnelle
+      document.getElementById("donationBannerMsg").textContent = msg + " — " + fmtAmount(donationCfg.amount);
+      document.getElementById("donationBannerBtn").href        = donationCfg.link || "#";
+      document.getElementById("donationBanner").classList.remove("hidden");
+    }
+  }
+
+  function confirmDonation() {
+    donationConfirmed = true;
+    sessionStorage.setItem(`djq-donated-${eventId}`, "1");
+    document.getElementById("donationGate").classList.add("hidden");
+  }
+
+  // Bouton "Payer maintenant" → ouvre le lien + déclenche un compte à rebours
+  document.getElementById("donationPayBtn").addEventListener("click", () => {
+    const wrap  = document.getElementById("donationConfirmWrap");
+    const timer = document.getElementById("donationTimer");
+    const btn   = document.getElementById("donationConfirmBtn");
+    wrap.classList.remove("hidden");
+    btn.classList.add("hidden");
+    let remaining = 15;
+    timer.textContent = `Retour dans ${remaining}s…`;
+    const iv = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(iv);
+        timer.textContent = "Paiement effectué ?";
+        btn.classList.remove("hidden");
+      } else {
+        timer.textContent = `Retour dans ${remaining}s…`;
+      }
+    }, 1000);
+  });
+
+  document.getElementById("donationConfirmBtn").addEventListener("click", confirmDonation);
+  document.getElementById("donationSkipBtn").addEventListener("click", () => {
+    document.getElementById("donationGate").classList.add("hidden");
+  });
+  document.getElementById("donationBannerClose").addEventListener("click", () => {
+    document.getElementById("donationBanner").classList.add("hidden");
+  });
+
+  // Écouter les changements de settings en temps réel
+  socket.on("event-settings-updated", (data) => {
+    if (data.votesEnabled !== undefined) {
+      votesEnabled = data.votesEnabled;
+      updateMyRequestCard();
+      updateQueueDisplay();
+    }
+    // Mise à jour des dons en live
+    if (data.donationEnabled !== undefined || data.donationRequired !== undefined ||
+        data.donationLink    !== undefined) {
+      applyDonationConfig({
+        enabled:  data.donationEnabled  ?? donationCfg.enabled,
+        required: data.donationRequired ?? donationCfg.required,
+        amount:   data.donationAmount   ?? donationCfg.amount,
+        link:     data.donationLink     ?? donationCfg.link,
+        message:  data.donationMessage  ?? donationCfg.message,
+      });
+    }
+  });
+
+  // Bloquer la recherche si don obligatoire non confirmé
+  const _origHandleSearch = window._handleSearch; // guard (pas utilisé ici)
+  function isDonationBlocked() {
+    return donationCfg.enabled && donationCfg.required && !donationConfirmed;
+  }
 
   // ── Init ──
   fetch(`/api/events/${eventId}`)
@@ -744,8 +1332,31 @@
       votesEnabled = data.votes_enabled;
       fullQueue    = data.queue || [];
       updateQueueDisplay();
+
+      // Configurer les dons au chargement
+      if (data.donation_enabled) {
+        applyDonationConfig({
+          enabled:  !!data.donation_enabled,
+          required: !!data.donation_required,
+          amount:   data.donation_amount  || 2,
+          link:     data.donation_link    || "",
+          message:  data.donation_message || "",
+        });
+      }
+      loadGuestHistory();
     })
     .catch(() => showError("Impossible de charger l'événement"));
+
+  // PWA : manifest dynamique + service worker minimal
+  (function setupPwa() {
+    const mf = document.createElement("link");
+    mf.rel = "manifest";
+    mf.href = `/manifest-user.json?e=${encodeURIComponent(eventId)}`;
+    document.head.appendChild(mf);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw-user.js").catch(() => {});
+    }
+  })();
 </script>
 </body>
 </html>

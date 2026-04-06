@@ -12,4 +12,10 @@ router.post("/logout", requireAuth, authController.logout);
 // Infos utilisateur connecté
 router.get("/me", requireAuth, authController.getCurrentUser);
 
+router.patch("/me", requireAuth, authController.updateDisplayName);
+
+router.get("/stats", requireAuth, authController.getDjStats);
+
+router.post("/spotify/disconnect", requireAuth, authController.disconnectSpotify);
+
 module.exports = router;

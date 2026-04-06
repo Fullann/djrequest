@@ -149,15 +149,38 @@
             <span style="color:var(--text-muted)">${event.total_songs || 0} demandes</span>
           </div>
         </div>
-        <button class="btn btn-ghost btn-sm shrink-0" onclick="event.stopPropagation();viewEventDetails('${event.id}')">
-          Voir les stats
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
+        <div class="flex gap-2 shrink-0">
+          <button class="btn btn-ghost btn-sm" title="Rouvrir cette soirée"
+                  onclick="event.stopPropagation();reopenEvent('${event.id}', '${event.name.replace(/'/g, "\\'")}')">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
+            Rouvrir
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewEventDetails('${event.id}')">
+            Stats
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
       </div>`;
     }).join("");
   }
 
   function viewEventDetails(eventId) { window.location.href = `/event/${eventId}/stats`; }
+
+  async function reopenEvent(eventId, name) {
+    if (!confirm(`Rouvrir "${name}" ?\n\nLa soirée redeviendra active et vous pourrez reprendre les demandes.`)) return;
+    try {
+      const res = await fetch(`/api/events/${eventId}/reopen`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = `/dj/${eventId}`;
+      } else {
+        alert("Erreur : " + (data.error || "Impossible de rouvrir"));
+      }
+    } catch {
+      alert("Erreur réseau");
+    }
+  }
+
   loadHistory();
 </script>
 </body>

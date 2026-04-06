@@ -17,7 +17,7 @@
 
 <!-- ─── Top header ──────────────────────────────────────────── -->
 <header class="sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 py-3.5" style="background:var(--bg-surface);border-bottom:1px solid var(--border)">
-  <div class="flex items-center gap-2.5 flex-1 min-w-0">
+    <div class="flex items-center gap-2.5 flex-1 min-w-0">
     <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:var(--accent)">
       <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
@@ -27,7 +27,13 @@
     </div>
     <div class="min-w-0">
       <p id="eventName" class="text-sm font-semibold truncate" style="color:var(--text-primary)">Chargement...</p>
-      <p class="text-xs" style="color:var(--text-muted)">Interface DJ</p>
+      <div class="flex items-center gap-2">
+        <p class="text-xs" style="color:var(--text-muted)">Interface DJ</p>
+        <span id="spectatorBadge" class="hidden items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full" style="background:rgba(99,102,241,0.12);color:var(--accent)">
+          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span id="spectatorCount">0</span>
+        </span>
+      </div>
     </div>
   </div>
 
@@ -49,6 +55,10 @@
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span class="hidden sm:inline">Stats</span>
     </a>
+    <button id="showMessagePanel" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="Message aux invités" style="color:var(--cyan)">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="hidden sm:inline">Message</span>
+    </button>
     <button id="showSettings" class="btn btn-ghost btn-sm btn-icon sm:px-3" title="Paramètres">
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       <span class="hidden sm:inline">Réglages</span>
@@ -118,6 +128,28 @@
     Mode automatique activé — toutes les demandes sont acceptées automatiquement
   </div>
 
+  <!-- Alerte queue vide / presque vide -->
+  <div id="emptyQueueAlert" class="hidden mb-4 px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between gap-3" style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:var(--amber)">
+    <div class="flex items-center gap-2">
+      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="emptyQueueAlertText">File vide</span>
+    </div>
+    <button onclick="this.closest('#emptyQueueAlert').classList.add('hidden')" class="shrink-0 opacity-70 hover:opacity-100">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- Erreur Spotify (appareil absent / non Premium) -->
+  <div id="spotifyErrorBanner" class="hidden mb-4 px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between gap-3" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--red)">
+    <div class="flex items-center gap-2">
+      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="spotifyErrorText">Erreur Spotify</span>
+    </div>
+    <button onclick="this.closest('#spotifyErrorBanner').classList.add('hidden')" class="shrink-0 opacity-70 hover:opacity-100">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
     <!-- Demandes en attente -->
@@ -128,10 +160,14 @@
           <h2 class="text-sm font-semibold" style="color:var(--text-primary)">Demandes en attente</h2>
           <span id="pendingCount" class="badge badge-neutral text-xs">(0)</span>
         </div>
+        <div class="flex flex-wrap items-center gap-2 justify-end">
+          <button type="button" id="btnAcceptAllPending" class="btn btn-success btn-sm">Tout accepter</button>
+          <button type="button" id="btnRejectAllPending" class="btn btn-danger btn-sm">Tout refuser</button>
         <button id="sortByBPM" class="btn btn-ghost btn-sm" title="Trier par BPM ou popularité">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
           Trier
         </button>
+        </div>
       </div>
       <div id="pendingRequests" class="divide-y" style="border-color:var(--border)">
         <div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Aucune demande</div>
@@ -232,6 +268,19 @@
         <button id="btnUpdateRateLimit" class="btn btn-primary btn-sm btn-full">Mettre à jour</button>
       </div>
 
+      <!-- Anti-répétition (même morceau déjà joué) -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p class="text-sm font-medium" style="color:var(--text-primary)">Anti-répétition</p>
+        <p class="text-xs mt-0.5 mb-3" style="color:var(--text-muted)">Même chanson non reproposable avant X minutes après avoir été jouée (0 = désactivé).</p>
+        <div class="flex flex-wrap items-end gap-2">
+          <div class="flex-1 min-w-[120px]">
+            <label class="label">Minutes</label>
+            <input type="number" id="repeatCooldownMinutes" min="0" max="240" value="0" class="input" />
+          </div>
+          <button type="button" id="btnSaveRepeatCooldown" class="btn btn-primary btn-sm">Enregistrer</button>
+        </div>
+      </div>
+
       <!-- Thank you message -->
       <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
         <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Message de fin de soirée</p>
@@ -283,8 +332,181 @@
         </div>
       </div>
 
+      <!-- Système de dons -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <p class="text-sm font-medium" style="color:var(--text-primary)">Système de dons</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Proposer ou exiger un don avant les demandes</p>
+          </div>
+          <label class="flex items-center gap-0 cursor-pointer shrink-0">
+            <input type="checkbox" id="donationEnabledToggle" class="sr-only" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div id="donationOptions" class="hidden space-y-3">
+          <!-- Obligatoire -->
+          <div class="flex items-center justify-between py-2" style="border-top:1px solid var(--border)">
+            <div>
+              <p class="text-xs font-medium" style="color:var(--text-primary)">Don obligatoire</p>
+              <p class="text-xs" style="color:var(--text-muted)">Bloque les demandes jusqu'à confirmation</p>
+            </div>
+            <label class="flex items-center gap-0 cursor-pointer shrink-0">
+              <input type="checkbox" id="donationRequiredToggle" class="sr-only" />
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <!-- Montant -->
+          <div>
+            <label class="label">Montant suggéré (€)</label>
+            <input type="number" id="donationAmountInput" min="0.5" max="50" step="0.5" value="2" class="input" />
+          </div>
+          <!-- Lien de paiement -->
+          <div>
+            <label class="label">Lien de paiement</label>
+            <input type="url" id="donationLinkInput" placeholder="https://paypal.me/tonpseudo  ou  https://pay.sumup.com/..." class="input" autocomplete="off" />
+            <p class="text-xs mt-1" style="color:var(--text-muted)">PayPal, Twint, Lydia, Sumup, Stripe…</p>
+          </div>
+          <!-- Message -->
+          <div>
+            <label class="label">Message (optionnel)</label>
+            <input type="text" id="donationMessageInput" maxlength="200" placeholder="Soutiens le set, merci !" class="input" />
+          </div>
+          <!-- Sauvegarder -->
+          <button id="btnSaveDonation" class="btn btn-primary btn-sm btn-full">Enregistrer les réglages de dons</button>
+          <div id="donationSaveFeedback" class="hidden text-xs font-medium text-center py-1 rounded-lg" style="background:var(--green-dim);color:var(--green)">Réglages sauvegardés !</div>
+        </div>
+      </div>
+
+      <!-- Blocages d'invités -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <p class="text-sm font-medium" style="color:var(--text-primary)">Invités bloqués</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Les blocages s'appliquent à cette soirée</p>
+          </div>
+          <span id="bannedCount" class="badge badge-neutral text-xs">0</span>
+        </div>
+        <div id="bannedList" class="space-y-2 text-sm" style="color:var(--text-secondary)">
+          <p class="text-xs" style="color:var(--text-muted)">Aucun invité bloqué</p>
+        </div>
+      </div>
+
+      <!-- Modérateurs -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="flex items-center justify-between gap-3 mb-1">
+          <div>
+            <p class="text-sm font-medium" style="color:var(--text-primary)">Lien modérateur</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Donne accès à un assistant pour gérer les demandes</p>
+          </div>
+          <span id="modBadgeActive" class="hidden text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--amber-dim,rgba(245,158,11,0.12));color:var(--amber)">Actif</span>
+        </div>
+        <div id="modLinkBox" class="hidden mt-3 space-y-2">
+          <div class="flex gap-2">
+            <input id="modLinkInput" type="text" readonly class="input text-xs font-mono flex-1 cursor-text" style="background:var(--bg-elevated)" />
+            <button id="btnCopyModLink" class="btn btn-ghost btn-sm shrink-0" title="Copier">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+          <button id="btnRevokeModToken" class="btn btn-danger btn-sm btn-full">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Révoquer le lien
+          </button>
+        </div>
+        <button id="btnGenerateModToken" class="btn btn-primary btn-sm btn-full mt-3">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Générer un lien modérateur
+        </button>
+      </div>
+
       <button id="closeSettingsBottom" class="btn btn-ghost btn-full">Fermer</button>
     </div>
+  </div>
+</div>
+
+<!-- ─── Modal: Bloquer un invité ───────────────────────────── -->
+<div id="banModal" class="hidden modal-backdrop">
+  <div class="modal max-w-sm">
+    <div class="px-6 py-5" style="border-bottom:1px solid var(--border)">
+      <h3 class="text-base font-semibold" style="color:var(--text-primary)">Bloquer un invité</h3>
+      <p id="banModalName" class="text-sm mt-1" style="color:var(--text-secondary)"></p>
+    </div>
+    <div class="p-5 space-y-3">
+      <p class="text-xs" style="color:var(--text-muted)">Choisir la durée du blocage :</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button class="btn btn-ghost btn-sm" data-ban-duration="15">15 minutes</button>
+        <button class="btn btn-ghost btn-sm" data-ban-duration="30">30 minutes</button>
+        <button class="btn btn-ghost btn-sm" data-ban-duration="60">1 heure</button>
+        <button class="btn btn-ghost btn-sm" data-ban-duration="120">2 heures</button>
+      </div>
+      <button class="btn btn-danger btn-sm btn-full" data-ban-duration="0">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        Toute la soirée
+      </button>
+    </div>
+    <div class="px-5 pb-5">
+      <button id="cancelBanModal" class="btn btn-ghost btn-sm btn-full">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modal: Message aux invités ────────────────────────── -->
+<div id="messagePanel" class="hidden modal-backdrop">
+  <div class="modal max-w-md">
+    <div class="flex items-center justify-between px-6 py-5" style="border-bottom:1px solid var(--border)">
+      <h2 class="text-base font-semibold" style="color:var(--text-primary)">Message aux invités</h2>
+      <button id="closeMessagePanel" class="btn btn-ghost btn-icon btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-sm" style="color:var(--text-secondary)">Le message apparaîtra en bannière sur tous les téléphones connectés.</p>
+      <textarea id="djMessageInput" rows="3" maxlength="200" placeholder="Ex : Dernières demandes — on ferme dans 20 min !" class="input w-full resize-none text-sm" style="height:auto;min-height:80px;"></textarea>
+      <div class="flex items-center justify-between">
+        <span id="djMessageCount" class="text-xs" style="color:var(--text-secondary)">0 / 200</span>
+        <button id="sendDjMessage" class="btn btn-primary btn-sm">
+          <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Envoyer
+        </button>
+      </div>
+      <div id="djMessageFeedback" class="hidden rounded-lg px-3 py-2 text-xs font-medium" style="background:var(--green-muted);color:var(--green)">
+        Message envoyé !
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Preview Audio (hidden) ─────────────────────────────── -->
+<audio id="previewAudio" preload="none" crossorigin="anonymous"></audio>
+
+<!-- ─── Mini-player preview (flottant) ─────────────────────── -->
+<div id="previewBar" class="hidden fixed bottom-4 left-4 right-4 z-40 rounded-2xl shadow-2xl"
+     style="background:var(--bg-surface);border:1px solid var(--accent);max-width:560px;margin:0 auto">
+  <div class="flex items-center gap-3 px-4 py-3">
+    <!-- Artwork -->
+    <img id="previewArt" src="" alt="" class="w-10 h-10 rounded-xl object-cover shrink-0" />
+    <!-- Info + Progress -->
+    <div class="flex-1 min-w-0">
+      <p id="previewTitle" class="text-sm font-semibold truncate" style="color:var(--text-primary)"></p>
+      <p id="previewArtist" class="text-xs truncate" style="color:var(--text-secondary)"></p>
+      <div class="mt-1.5 h-1 rounded-full overflow-hidden" style="background:var(--bg-elevated)">
+        <div id="previewProgressBar" class="h-full rounded-full transition-none" style="width:0%;background:var(--accent)"></div>
+      </div>
+    </div>
+    <!-- Controls -->
+    <button id="previewPlayPauseBtn" class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style="background:var(--accent)">
+      <svg id="previewPlayIcon" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <svg id="previewPauseIcon" class="w-4 h-4 text-white hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    </button>
+    <!-- Output selector -->
+    <div id="previewOutputWrap" class="hidden shrink-0">
+      <select id="previewOutputSelect" class="text-xs rounded-lg px-2 py-1.5 border"
+              style="background:var(--bg-elevated);color:var(--text-primary);border-color:var(--border);max-width:120px"></select>
+    </div>
+    <!-- Close -->
+    <button id="previewCloseBtn" class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:var(--bg-elevated);color:var(--text-muted)">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
 </div>
 
@@ -352,6 +574,10 @@
 
 <!-- ─── Toast notification ─────────────────────────────────── -->
 <div id="toast" class="hidden fixed top-20 right-4 z-50 px-4 py-3 rounded-xl text-sm font-medium shadow-lg" style="background:var(--accent);color:#fff;max-width:300px"></div>
+<div id="rejectUndoBar" class="hidden fixed bottom-4 left-4 right-4 z-[60] max-w-lg mx-auto flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-xl" style="background:var(--bg-surface);border:1px solid var(--border)">
+  <span class="text-sm" style="color:var(--text-primary)">Demande refusée.</span>
+  <button type="button" id="rejectUndoBtn" class="btn btn-ghost btn-sm font-semibold shrink-0" style="color:var(--accent)">Annuler</button>
+</div>
 
 <script>
   const eventId = window.location.pathname.split("/")[2];
@@ -441,6 +667,23 @@
       if (isPlaying) startProgressUpdate();
       else stopProgressUpdate();
 
+      // Diffuser aux invités (debounce 300 ms pour éviter le spam pendant chargement)
+      clearTimeout(window._nowPlayingDebounce);
+      window._nowPlayingDebounce = setTimeout(() => {
+        socket.emit("broadcast-now-playing", {
+          eventId,
+          track: {
+            name:       track.name,
+            artist:     track.artists.map((a) => a.name).join(", "),
+            albumArt:   track.album.images[0]?.url || "",
+            durationMs: state.duration,
+          },
+          positionMs: state.position,
+          isPlaying:  !state.paused,
+          timestamp:  Date.now(),
+        });
+      }, 300);
+
       if (state.position === 0 && state.paused && autoPlayEnabled && !isAutoPlayLocked && !isCrossfading) {
         isAutoPlayLocked = true;
         setTimeout(() => { isAutoPlayLocked = false; }, 5000);
@@ -480,6 +723,42 @@
     const s = Math.floor(ms / 1000);
     return `${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`;
   }
+
+  // ── Modal Message aux invités ──
+  function toggleMessagePanel(close = false) {
+    const panel = document.getElementById("messagePanel");
+    if (close || !panel.classList.contains("hidden")) {
+      panel.classList.add("hidden");
+    } else {
+      panel.classList.remove("hidden");
+      document.getElementById("djMessageInput").focus();
+    }
+  }
+
+  document.getElementById("showMessagePanel").addEventListener("click", () => toggleMessagePanel());
+  document.getElementById("closeMessagePanel").addEventListener("click", () => toggleMessagePanel(true));
+  document.getElementById("messagePanel").addEventListener("click", (e) => { if (e.target.id === "messagePanel") toggleMessagePanel(true); });
+
+  const djMsgInput = document.getElementById("djMessageInput");
+  const djMsgCount = document.getElementById("djMessageCount");
+  djMsgInput.addEventListener("input", () => {
+    djMsgCount.textContent = `${djMsgInput.value.length} / 200`;
+  });
+
+  document.getElementById("sendDjMessage").addEventListener("click", () => {
+    const msg = djMsgInput.value.trim();
+    if (!msg) return;
+    socket.emit("dj-message", { eventId, message: msg });
+    const feedback = document.getElementById("djMessageFeedback");
+    feedback.classList.remove("hidden");
+    djMsgInput.value = "";
+    djMsgCount.textContent = "0 / 200";
+    setTimeout(() => feedback.classList.add("hidden"), 3000);
+  });
+
+  djMsgInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) document.getElementById("sendDjMessage").click();
+  });
 
   // ── Event listeners ──
   document.getElementById("showSettings").addEventListener("click", () => toggleSettings());
@@ -546,17 +825,20 @@
   document.getElementById("pendingRequests").addEventListener("click", (e) => {
     const button = e.target.closest("button");
     if (!button) return;
-    const { action, requestId } = button.dataset;
-    if (action === "accept") acceptRequest(requestId);
-    else if (action === "reject") rejectRequest(requestId);
+    const { action, requestId, previewUrl, trackName, artist, img, userName } = button.dataset;
+    if (action === "accept")       acceptRequest(requestId);
+    else if (action === "reject")  rejectRequest(requestId);
+    else if (action === "preview") startPreview(previewUrl, trackName, artist, img);
+    else if (action === "ban")     openBanModal(requestId, userName);
   });
 
   document.getElementById("queue").addEventListener("click", (e) => {
     const button = e.target.closest("button");
     if (!button) return;
-    const { action, requestId, spotifyUri } = button.dataset;
+    const { action, requestId, spotifyUri, previewUrl, trackName, artist, img } = button.dataset;
     if (action === "play" && spotifyUri) playTrack(spotifyUri, requestId);
     else if (action === "mark-played") markPlayed(requestId);
+    else if (action === "preview") startPreview(previewUrl, trackName, artist, img);
   });
 
   document.addEventListener("keydown", (e) => {
@@ -568,6 +850,37 @@
   });
 
   document.getElementById("sortByBPM").addEventListener("click", sortPendingByBPM);
+
+  document.getElementById("btnAcceptAllPending").addEventListener("click", () => {
+    if (pendingRequests.length === 0) return;
+    if (!confirm(`Accepter les ${pendingRequests.length} demande(s) en attente ?`)) return;
+    socket.emit("accept-all-pending", { eventId });
+  });
+  document.getElementById("btnRejectAllPending").addEventListener("click", () => {
+    if (pendingRequests.length === 0) return;
+    if (!confirm(`Refuser les ${pendingRequests.length} demande(s) en attente ?`)) return;
+    socket.emit("reject-all-pending", { eventId });
+  });
+
+  document.getElementById("btnSaveRepeatCooldown").addEventListener("click", () => {
+    let n = parseInt(document.getElementById("repeatCooldownMinutes").value, 10);
+    if (Number.isNaN(n)) n = 0;
+    n = Math.max(0, Math.min(240, n));
+    document.getElementById("repeatCooldownMinutes").value = n;
+    socket.emit("update-event-settings", { eventId, repeatCooldownMinutes: n });
+    showToast("Anti-répétition enregistrée", "info");
+  });
+
+  let undoRejectRequestId = null;
+  let undoRejectTimer     = null;
+  document.getElementById("rejectUndoBtn").addEventListener("click", () => {
+    if (undoRejectRequestId) {
+      socket.emit("undo-reject-request", { requestId: undoRejectRequestId });
+    }
+    document.getElementById("rejectUndoBar").classList.add("hidden");
+    undoRejectRequestId = null;
+    clearTimeout(undoRejectTimer);
+  });
 
   document.getElementById("btnSaveFallbackPlaylist").addEventListener("click", saveFallbackPlaylist);
   document.getElementById("btnClearFallbackPlaylist").addEventListener("click", () => {
@@ -589,10 +902,261 @@
   })();
 
 
+  // ── Preview Audio ──────────────────────────────────────────────
+  const previewAudio   = document.getElementById("previewAudio");
+  const previewBar     = document.getElementById("previewBar");
+  let   previewCurrent = null; // URL en cours
+
+  // Sélecteur de sorties audio (si l'API est supportée)
+  // Appelé seulement lors du premier clic Preview, pas au chargement de la page
+  let audioOutputsLoaded = false;
+  async function loadAudioOutputs() {
+    if (audioOutputsLoaded || !navigator.mediaDevices?.enumerateDevices) return;
+    audioOutputsLoaded = true;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const outputs = devices.filter((d) => d.kind === "audiooutput");
+      if (outputs.length <= 1) return;
+      const sel = document.getElementById("previewOutputSelect");
+      sel.innerHTML = outputs.map((d) =>
+        `<option value="${d.deviceId}">${d.label || "Sortie audio " + (outputs.indexOf(d) + 1)}</option>`
+      ).join("");
+      document.getElementById("previewOutputWrap").classList.remove("hidden");
+      sel.addEventListener("change", () => {
+        if (previewAudio.setSinkId) previewAudio.setSinkId(sel.value).catch(console.warn);
+      });
+    } catch { /* silencieux si permission refusée */ }
+  }
+
+  function startPreview(url, trackName, artistName, imgUrl) {
+    if (!url) return;
+    loadAudioOutputs(); // charge les sorties audio au premier clic (sans demander le micro)
+    if (previewCurrent === url && !previewAudio.paused) {
+      // Toggle : stopper si déjà en lecture
+      previewAudio.pause();
+      previewCurrent = null;
+      previewBar.classList.add("hidden");
+      return;
+    }
+    previewCurrent = url;
+    previewAudio.src = url;
+    previewAudio.play().catch(console.warn);
+    document.getElementById("previewTitle").textContent  = trackName  || "";
+    document.getElementById("previewArtist").textContent = artistName || "";
+    const art = document.getElementById("previewArt");
+    art.src = imgUrl || "";
+    art.classList.toggle("hidden", !imgUrl);
+    previewBar.classList.remove("hidden");
+    document.getElementById("previewProgressBar").style.width = "0%";
+    document.getElementById("previewPlayIcon").classList.remove("hidden");
+    document.getElementById("previewPauseIcon").classList.add("hidden");
+  }
+
+  previewAudio.addEventListener("play", () => {
+    document.getElementById("previewPlayIcon").classList.add("hidden");
+    document.getElementById("previewPauseIcon").classList.remove("hidden");
+  });
+  previewAudio.addEventListener("pause", () => {
+    document.getElementById("previewPlayIcon").classList.remove("hidden");
+    document.getElementById("previewPauseIcon").classList.add("hidden");
+  });
+  previewAudio.addEventListener("ended", () => {
+    previewCurrent = null;
+    previewBar.classList.add("hidden");
+    document.getElementById("previewProgressBar").style.width = "0%";
+  });
+  previewAudio.addEventListener("timeupdate", () => {
+    if (!previewAudio.duration) return;
+    const pct = (previewAudio.currentTime / previewAudio.duration) * 100;
+    document.getElementById("previewProgressBar").style.width = `${pct}%`;
+  });
+
+  document.getElementById("previewPlayPauseBtn").addEventListener("click", () => {
+    if (previewAudio.paused) previewAudio.play().catch(console.warn);
+    else previewAudio.pause();
+  });
+  document.getElementById("previewCloseBtn").addEventListener("click", () => {
+    previewAudio.pause();
+    previewAudio.src = "";
+    previewCurrent = null;
+    previewBar.classList.add("hidden");
+  });
+
+  // ── Système de dons ────────────────────────────────────────────
+  let donationSettings = {
+    enabled: false, required: false, amount: 2, link: "", message: "",
+  };
+
+  function applyDonationSettings(s) {
+    donationSettings = { ...donationSettings, ...s };
+    const enabled = !!donationSettings.enabled;
+    document.getElementById("donationEnabledToggle").checked = enabled;
+    document.getElementById("donationOptions").classList.toggle("hidden", !enabled);
+    if (s.required   !== undefined) document.getElementById("donationRequiredToggle").checked = !!s.required;
+    if (s.amount     !== undefined) document.getElementById("donationAmountInput").value       = s.amount;
+    if (s.link       !== undefined) document.getElementById("donationLinkInput").value         = s.link || "";
+    if (s.message    !== undefined) document.getElementById("donationMessageInput").value      = s.message || "";
+  }
+
+  document.getElementById("donationEnabledToggle").addEventListener("change", (e) => {
+    document.getElementById("donationOptions").classList.toggle("hidden", !e.target.checked);
+  });
+
+  document.getElementById("btnSaveDonation").addEventListener("click", () => {
+    const link    = document.getElementById("donationLinkInput").value.trim();
+    const amount  = parseFloat(document.getElementById("donationAmountInput").value);
+    const required = document.getElementById("donationRequiredToggle").checked;
+    const enabled  = document.getElementById("donationEnabledToggle").checked;
+    const message  = document.getElementById("donationMessageInput").value.trim();
+
+    if (enabled && (!link || !link.startsWith("https://"))) {
+      alert("Le lien de paiement doit commencer par https://");
+      return;
+    }
+
+    donationSettings = { enabled, required, amount: isNaN(amount) ? 2 : amount, link, message };
+    socket.emit("update-event-settings", {
+      eventId,
+      donationEnabled:  enabled,
+      donationRequired: required,
+      donationAmount:   donationSettings.amount,
+      donationLink:     link,
+      donationMessage:  message,
+    });
+
+    const fb = document.getElementById("donationSaveFeedback");
+    fb.classList.remove("hidden");
+    setTimeout(() => fb.classList.add("hidden"), 2500);
+  });
+
+  // ── Système de ban ─────────────────────────────────────────────────────────
+  let banTargetRequestId = null;
+
+  function openBanModal(requestId, userName) {
+    banTargetRequestId = requestId;
+    document.getElementById("banModalName").textContent = `Invité : ${userName || "Anonyme"}`;
+    document.getElementById("banModal").classList.remove("hidden");
+  }
+
+  function closeBanModal() {
+    banTargetRequestId = null;
+    document.getElementById("banModal").classList.add("hidden");
+  }
+
+  document.getElementById("cancelBanModal").addEventListener("click", closeBanModal);
+  document.getElementById("banModal").addEventListener("click", (e) => {
+    if (e.target.id === "banModal") closeBanModal();
+  });
+
+  // Clic sur une durée de ban
+  document.getElementById("banModal").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-ban-duration]");
+    if (!btn || !banTargetRequestId) return;
+    const duration = parseInt(btn.dataset.banDuration, 10);
+    socket.emit("ban-user", { eventId, requestId: banTargetRequestId, duration });
+    closeBanModal();
+  });
+
+  function renderBannedUsers(bans) {
+    const list  = document.getElementById("bannedList");
+    const count = document.getElementById("bannedCount");
+    count.textContent = bans.length;
+    if (bans.length === 0) {
+      list.innerHTML = `<p class="text-xs" style="color:var(--text-muted)">Aucun invité bloqué</p>`;
+      return;
+    }
+    list.innerHTML = bans.map((ban) => {
+      const permanent  = ban.banned_until === null;
+      const expireText = permanent
+        ? "Toute la soirée"
+        : `Jusqu'à ${new Date(ban.banned_until).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+      return `
+        <div class="flex items-center justify-between gap-2 py-2 rounded-lg px-2" style="background:var(--bg-elevated)">
+          <div class="min-w-0">
+            <p class="text-xs font-semibold truncate" style="color:var(--text-primary)">${ban.user_name || "Anonyme"}</p>
+            <p class="text-xs" style="color:${permanent ? "var(--red)" : "var(--amber)"}">${expireText}</p>
+          </div>
+          <button class="btn btn-ghost btn-sm shrink-0 text-xs" style="color:var(--text-muted)"
+                  data-unban-client="${ban.client_id}" title="Débloquer">
+            Débloquer
+          </button>
+        </div>`;
+    }).join("");
+  }
+
+  // Débannir depuis la liste des blocages
+  document.getElementById("bannedList").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-unban-client]");
+    if (!btn) return;
+    socket.emit("unban-user", { eventId, clientId: btn.dataset.unbanClient });
+  });
+
+  // Recevoir la liste mise à jour
+  socket.on("banned-users-updated", (data) => {
+    renderBannedUsers(data.bans || []);
+  });
+
+  // ── Lien modérateur ────────────────────────────────────────
+  (function initModToken() {
+    const btnGenerate = document.getElementById("btnGenerateModToken");
+    const btnRevoke   = document.getElementById("btnRevokeModToken");
+    const btnCopy     = document.getElementById("btnCopyModLink");
+    const linkInput   = document.getElementById("modLinkInput");
+    const linkBox     = document.getElementById("modLinkBox");
+    const badge       = document.getElementById("modBadgeActive");
+
+    function showModLink(url) {
+      linkInput.value = url;
+      linkBox.classList.remove("hidden");
+      btnGenerate.classList.add("hidden");
+      badge.classList.remove("hidden");
+    }
+    function hideModLink() {
+      linkBox.classList.add("hidden");
+      btnGenerate.classList.remove("hidden");
+      badge.classList.add("hidden");
+      linkInput.value = "";
+    }
+
+    btnGenerate.addEventListener("click", async () => {
+      try {
+        const csrf = document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || "";
+        const res  = await fetch(`/api/events/${eventId}/generate-mod-token`, {
+          method: "POST",
+          headers: { "x-csrf-token": csrf },
+        });
+        const data = await res.json();
+        if (data.modUrl) showModLink(data.modUrl);
+      } catch (err) { console.error("Erreur génération mod token:", err); }
+    });
+
+    btnRevoke.addEventListener("click", async () => {
+      if (!confirm("Révoquer le lien modérateur ? Les modérateurs actifs seront déconnectés.")) return;
+      try {
+        const csrf = document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || "";
+        await fetch(`/api/events/${eventId}/revoke-mod-token`, {
+          method: "POST",
+          headers: { "x-csrf-token": csrf },
+        });
+        hideModLink();
+      } catch (err) { console.error("Erreur révocation mod token:", err); }
+    });
+
+    btnCopy.addEventListener("click", () => {
+      navigator.clipboard.writeText(linkInput.value).then(() => {
+        btnCopy.innerHTML = `<svg class="w-4 h-4" style="color:var(--green)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        setTimeout(() => {
+          btnCopy.innerHTML = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+        }, 2000);
+      });
+    });
+  })();
+
   // ── Init ──
   // Rejoindre la room à chaque connexion/reconnexion Socket.IO
   socket.on("connect", () => {
     socket.emit("join-event", eventId);
+    socket.emit("get-banned-users", { eventId });
     // Après une reconnexion, resynchroniser l'état complet
     if (socket._reconnecting) {
       loadPendingRequests();
@@ -606,6 +1170,7 @@
   // Appel immédiat si la socket est déjà connectée (cas fréquent au chargement)
   if (socket.connected) {
     socket.emit("join-event", eventId);
+    socket.emit("get-banned-users", { eventId });
   }
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -632,6 +1197,8 @@
       document.getElementById("autoAcceptToggle").checked = autoAcceptEnabled;
       document.getElementById("rateLimitMax").value       = data.rate_limit_max || 3;
       document.getElementById("rateLimitWindow").value    = data.rate_limit_window_minutes || 15;
+      document.getElementById("repeatCooldownMinutes").value =
+        data.repeat_cooldown_minutes != null ? data.repeat_cooldown_minutes : 0;
       document.getElementById("thankYouMessage").value    = data.thank_you_message || "";
       if (autoAcceptEnabled) document.getElementById("autoAcceptBanner").classList.remove("hidden");
 
@@ -640,6 +1207,15 @@
       const playlistInput = document.getElementById("fallbackPlaylistInput");
       if (playlistInput) playlistInput.value = fallbackPlaylistUri || "";
       updateFallbackPlaylistUI();
+
+      // Réglages de dons
+      applyDonationSettings({
+        enabled:  !!data.donation_enabled,
+        required: !!data.donation_required,
+        amount:   data.donation_amount  || 2,
+        link:     data.donation_link    || "",
+        message:  data.donation_message || "",
+      });
 
       renderQueue();
       loadPendingRequests();
@@ -870,9 +1446,17 @@
       body: JSON.stringify({ uri, device_id: deviceId }),
     });
     if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || "Erreur inconnue");
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        showSpotifyError("Aucun appareil Spotify actif — ouvre Spotify sur cet appareil et réessaie.");
+      } else if (response.status === 403) {
+        showSpotifyError("Compte Spotify Premium requis pour la lecture à distance.");
+      } else if (response.status === 503 || response.status === 502) {
+        showSpotifyError("Spotify temporairement indisponible — réessaie dans quelques secondes.");
+      }
+      throw new Error(data.error || `Erreur HTTP ${response.status}`);
     }
+    hideSpotifyError();
   }
 
   // Attend que player_state_changed confirme le chargement d'un URI donné (max 3 s).
@@ -1050,6 +1634,13 @@
 
   socket.on("queue-updated", (data) => { queue = data.queue; renderQueue(); });
 
+  socket.on("spectator-count", (data) => {
+    const badge = document.getElementById("spectatorBadge");
+    document.getElementById("spectatorCount").textContent = data.count;
+    badge.classList.remove("hidden");
+    badge.classList.add("inline-flex");
+  });
+
   socket.on("vote-updated", (data) => {
     const req = queue.find((r) => r.id === data.requestId);
     if (req) { req.upvotes = data.upvotes; req.downvotes = data.downvotes; renderQueue(); }
@@ -1218,6 +1809,13 @@
           </div>
         </div>
         <div class="flex gap-2">
+          ${request.preview_url ? `
+          <button data-action="preview" data-preview-url="${request.preview_url}"
+                  data-track-name="${request.song_name}" data-artist="${request.artist}"
+                  data-img="${request.image_url || ""}"
+                  class="btn btn-ghost btn-sm" title="Écouter l'aperçu">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+          </button>` : ""}
           <button data-action="accept" data-request-id="${request.id}" class="btn btn-success btn-sm flex-1">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             Accepter
@@ -1226,15 +1824,63 @@
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             Refuser
           </button>
+          <button data-action="ban" data-request-id="${request.id}" data-user-name="${request.user_name || 'Anonyme'}"
+                  class="btn btn-ghost btn-sm shrink-0" title="Bloquer cet invité"
+                  style="color:var(--red);border-color:var(--red-dim)">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          </button>
         </div>
       </div>`).join("");
 
     loadAudioFeatures(pendingRequests);
   }
 
+  // ── Alerte file vide ──
+  let _prevQueueLen = -1;
+  function playAlertBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.4);
+      setTimeout(() => ctx.close(), 600);
+    } catch {}
+  }
+  function updateEmptyQueueAlert() {
+    const alert   = document.getElementById("emptyQueueAlert");
+    const alertTx = document.getElementById("emptyQueueAlertText");
+    const wasLow  = _prevQueueLen >= 0 && _prevQueueLen > 1;
+    if (queue.length === 0) {
+      alertTx.textContent = "⚠ File vide — plus aucune chanson en attente !";
+      alert.classList.remove("hidden");
+      if (wasLow) playAlertBeep();
+    } else if (queue.length === 1) {
+      alertTx.textContent = "⚠ File presque vide — il ne reste plus qu'une chanson";
+      alert.classList.remove("hidden");
+      if (wasLow) playAlertBeep();
+    } else {
+      alert.classList.add("hidden");
+    }
+    _prevQueueLen = queue.length;
+  }
+
+  // ── Erreur Spotify ──
+  function showSpotifyError(msg) {
+    document.getElementById("spotifyErrorText").textContent = msg;
+    document.getElementById("spotifyErrorBanner").classList.remove("hidden");
+  }
+  function hideSpotifyError() {
+    document.getElementById("spotifyErrorBanner").classList.add("hidden");
+  }
+
   function renderQueue() {
     const container = document.getElementById("queue");
     document.getElementById("queueCount").textContent = `(${queue.length})`;
+    updateEmptyQueueAlert();
     if (queue.length === 0) {
       container.innerHTML = `<div class="px-5 py-10 text-center text-sm" style="color:var(--text-muted)">Queue vide</div>`;
       return;
@@ -1264,6 +1910,13 @@
           ${renderAudioBadges(request.spotify_uri)}
         </div>
         <div class="flex flex-col gap-1 shrink-0">
+          ${request.preview_url ? `
+          <button data-action="preview" data-preview-url="${request.preview_url}"
+                  data-track-name="${request.song_name}" data-artist="${request.artist}"
+                  data-img="${request.image_url || ""}"
+                  class="btn btn-ghost btn-sm" title="Écouter l'aperçu">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+          </button>` : ""}
           ${request.spotify_uri ? `
           <button data-action="play" data-request-id="${request.id}" data-spotify-uri="${request.spotify_uri}" class="btn btn-success btn-sm">
             <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -1298,7 +1951,16 @@
 
   // ── Actions ──
   function acceptRequest(requestId) { socket.emit("accept-request", { eventId, requestId }); }
-  function rejectRequest(requestId) { socket.emit("reject-request", { eventId, requestId }); }
+  function rejectRequest(requestId) {
+    socket.emit("reject-request", { eventId, requestId });
+    undoRejectRequestId = requestId;
+    document.getElementById("rejectUndoBar").classList.remove("hidden");
+    clearTimeout(undoRejectTimer);
+    undoRejectTimer = setTimeout(() => {
+      document.getElementById("rejectUndoBar").classList.add("hidden");
+      undoRejectRequestId = null;
+    }, 5500);
+  }
   function markPlayed(requestId)    { socket.emit("mark-played", { eventId, requestId }); }
 
   window.addEventListener("beforeunload", stopProgressUpdate);

@@ -15,12 +15,13 @@ class DjController {
       );
       const dj = djRows[0];
 
-      // Événements ACTIFS uniquement (ended_at IS NULL)
+      // Événements non terminés (actifs + planifiés)
       const [events] = await db.query(
         `SELECT 
           e.id,
           e.name,
           e.created_at,
+          e.starts_at,
           e.ended_at,
           COUNT(DISTINCT r.id) as total_songs,
           COUNT(DISTINCT CASE WHEN r.status = 'played' THEN r.id END) as played_songs,

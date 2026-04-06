@@ -17,6 +17,13 @@ const eventIdValidator = [
     .withMessage("ID événement invalide"),
 ];
 
+const guestHistoryValidator = [
+  ...eventIdValidator,
+  param("clientId")
+    .matches(/^[a-zA-Z0-9_.-]{4,128}$/)
+    .withMessage("Identifiant client invalide"),
+];
+
 const updateRateLimitValidator = [
   ...eventIdValidator,
   body("max")
@@ -49,6 +56,7 @@ const spotifySearchValidator = [
 module.exports = {
   createEventValidator,
   eventIdValidator,
+  guestHistoryValidator,
   updateRateLimitValidator,
   toggleVotesValidator,
   spotifySearchValidator,

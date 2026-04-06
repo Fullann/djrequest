@@ -144,6 +144,53 @@ class AuthController {
       res.status(500).json({ error: "Erreur serveur" });
     }
   }
+
+  async updateDisplayName(req, res) {
+    const name = (req.body?.name || "").trim();
+    if (name.length < 2 || name.length > 80) {
+      return res.status(400).json({ error: "Le nom doit faire entre 2 et 80 caractères" });
+    }
+    try {
+      await db.query("UPDATE djs SET name = ? WHERE id = ?", [name, req.session.djId]);
+      res.json({ success: true, name });
+    } catch (error) {
+      console.error("Erreur update nom:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  async getDjStats(req, res) {
+    try {
+      const [[agg]] = await db.query(
+        `SELECT
+           COUNT(DISTINCT e.id) AS events_total,
+           COUNT(DISTINCT CASE WHEN e.ended_at IS NULL THEN e.id END) AS events_live,
+           COUNT(r.id) AS requests_total
+         FROM events e
+         LEFT JOIN requests r ON r.event_id = e.id
+         WHERE e.dj_id = ?`,
+        [req.session.djId],
+      );
+      res.json({ stats: agg });
+    } catch (error) {
+      console.error("Erreur stats DJ:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  async disconnectSpotify(req, res) {
+    try {
+      await db.query(
+        `UPDATE djs SET sp_access_token = NULL, sp_refresh_token = NULL, sp_token_expires_at = NULL
+         WHERE id = ?`,
+        [req.session.djId],
+      );
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erreur déconnexion Spotify:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
 }
 
 module.exports = new AuthController();

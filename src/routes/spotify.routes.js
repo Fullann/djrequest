@@ -4,6 +4,7 @@ const axios   = require("axios");
 const { eventIdValidator }       = require("../validators/events.validator");
 const { handleValidationErrors } = require("../middlewares/validation");
 const { getValidEventToken }     = require("../services/spotifyToken.service");
+const { requireAuth, requireEventOwnership } = require("../middlewares/auth");
 
 // Recherche Spotify
 router.get("/search", async (req, res) => {
@@ -132,9 +133,11 @@ router.get(
   },
 );
 
-// Token Spotify (pour le player)
+// Token Spotify (pour le player — DJ uniquement)
 router.get(
   "/token/:eventId",
+  requireAuth,
+  requireEventOwnership,
   eventIdValidator,
   handleValidationErrors,
   async (req, res) => {
@@ -153,9 +156,11 @@ router.get(
   },
 );
 
-// Play sur Spotify
+// Play sur Spotify (DJ uniquement)
 router.post(
   "/play/:eventId",
+  requireAuth,
+  requireEventOwnership,
   eventIdValidator,
   handleValidationErrors,
   async (req, res) => {
@@ -225,11 +230,13 @@ router.post(
   },
 );
 
-// Métadonnées enrichies des pistes (BPM si dispo, popularité en fallback)
+// Métadonnées enrichies des pistes (BPM si dispo, popularité en fallback — DJ uniquement)
 // Note: l'endpoint audio-features Spotify est restreint aux apps créées avant nov. 2024.
 // On essaie audio-features, sinon on utilise /v1/tracks (popularité comme proxy d'énergie).
 router.get(
   "/audio-features/:eventId",
+  requireAuth,
+  requireEventOwnership,
   eventIdValidator,
   handleValidationErrors,
   async (req, res) => {
@@ -303,9 +310,11 @@ router.get(
   },
 );
 
-// Piste aléatoire depuis une playlist (fallback quand la queue est vide)
+// Piste aléatoire depuis une playlist (fallback — DJ uniquement)
 router.get(
   "/playlist/:eventId/:playlistId",
+  requireAuth,
+  requireEventOwnership,
   eventIdValidator,
   handleValidationErrors,
   async (req, res) => {

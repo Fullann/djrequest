@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profil — DJ Queue</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/theme.js"></script>
+</head>
+<body style="background:var(--bg-base);color:var(--text-primary)">
+
+<div class="min-h-screen flex flex-col max-w-lg mx-auto px-4 py-6">
+  <header class="flex items-center gap-3 mb-8">
+    <a href="/dashboard" class="btn btn-ghost btn-icon btn-sm shrink-0" aria-label="Retour">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+      <h1 class="text-lg font-semibold" style="color:var(--text-primary)">Profil DJ</h1>
+      <p class="text-xs" style="color:var(--text-muted)">Nom affiché, stats et Spotify</p>
+    </div>
+  </header>
+
+  <section class="card p-5 mb-4">
+    <p class="text-xs font-medium uppercase tracking-widest mb-3" style="color:var(--text-muted)">Compte</p>
+    <div id="djMeta" class="flex items-center gap-3 mb-4">
+      <img id="djAvatar" src="" alt="" class="w-14 h-14 rounded-2xl object-cover hidden" />
+      <div class="min-w-0 flex-1">
+        <p id="djEmail" class="text-xs truncate" style="color:var(--text-muted)">—</p>
+        <p id="djSpotifyId" class="text-xs truncate mt-0.5" style="color:var(--text-muted)">—</p>
+      </div>
+    </div>
+    <label class="label">Nom affiché</label>
+    <input type="text" id="displayName" maxlength="80" class="input mb-3" placeholder="Ton nom de DJ" />
+    <button type="button" id="btnSaveName" class="btn btn-primary btn-sm btn-full">Enregistrer le nom</button>
+  </section>
+
+  <section class="card p-5 mb-4">
+    <p class="text-xs font-medium uppercase tracking-widest mb-3" style="color:var(--text-muted)">Statistiques globales</p>
+    <div class="grid grid-cols-3 gap-3 text-center">
+      <div class="p-3 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p id="statEvents" class="text-2xl font-bold" style="color:var(--accent)">—</p>
+        <p class="text-xs mt-1" style="color:var(--text-muted)">Soirées</p>
+      </div>
+      <div class="p-3 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p id="statLive" class="text-2xl font-bold" style="color:var(--green)">—</p>
+        <p class="text-xs mt-1" style="color:var(--text-muted)">Actives</p>
+      </div>
+      <div class="p-3 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p id="statRequests" class="text-2xl font-bold" style="color:var(--text-primary)">—</p>
+        <p class="text-xs mt-1" style="color:var(--text-muted)">Demandes</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card p-5 mb-6">
+    <p class="text-xs font-medium uppercase tracking-widest mb-2" style="color:var(--text-muted)">Spotify</p>
+    <p class="text-xs mb-4" style="color:var(--text-secondary)">Révoque les jetons stockés sur ce serveur. Les soirées en cours peuvent perdre la lecture jusqu’à nouvelle connexion.</p>
+    <button type="button" id="btnDisconnectSpotify" class="btn btn-ghost btn-sm btn-full" style="border:1px solid var(--border)">
+      Déconnecter Spotify
+    </button>
+  </section>
+
+  <button type="button" id="btnLogout" class="btn btn-danger btn-full">Se déconnecter</button>
+</div>
+
+<script src="/js/csrf.js"></script>
+<script>
+  function toast(msg, err) {
+    const t = document.createElement("div");
+    t.className = "fixed bottom-6 left-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-medium text-center shadow-lg";
+    t.style.background = err ? "var(--red)" : "var(--green)";
+    t.style.color = "#fff";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+
+  async function load() {
+    try {
+      const [meRes, stRes] = await Promise.all([
+        fetch("/api/auth/me"),
+        fetch("/api/auth/stats"),
+      ]);
+      const me = await meRes.json();
+      const st = await stRes.json();
+      if (!me.dj) return;
+      const d = me.dj;
+      document.getElementById("displayName").value = d.name || "";
+      document.getElementById("djEmail").textContent = d.email || "—";
+      document.getElementById("djSpotifyId").textContent = d.spotify_id ? `Spotify : ${d.spotify_id}` : "Spotify non lié";
+      if (d.spotify_avatar) {
+        const img = document.getElementById("djAvatar");
+        img.src = d.spotify_avatar;
+        img.classList.remove("hidden");
+      }
+      if (st.stats) {
+        document.getElementById("statEvents").textContent   = st.stats.events_total   ?? 0;
+        document.getElementById("statLive").textContent      = st.stats.events_live    ?? 0;
+        document.getElementById("statRequests").textContent = st.stats.requests_total ?? 0;
+      }
+    } catch (e) {
+      console.error(e);
+      toast("Impossible de charger le profil", true);
+    }
+  }
+
+  document.getElementById("btnSaveName").addEventListener("click", async () => {
+    const name = document.getElementById("displayName").value.trim();
+    const res = await fetch("/api/auth/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) toast("Nom enregistré");
+    else {
+      const j = await res.json().catch(() => ({}));
+      toast(j.error || "Erreur", true);
+    }
+  });
+
+  document.getElementById("btnDisconnectSpotify").addEventListener("click", async () => {
+    if (!confirm("Déconnecter Spotify de ce compte ?")) return;
+    const res = await fetch("/api/auth/spotify/disconnect", { method: "POST" });
+    if (res.ok) toast("Spotify déconnecté");
+    else toast("Erreur", true);
+  });
+
+  document.getElementById("btnLogout").addEventListener("click", async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/";
+  });
+
+  load();
+</script>
+</body>
+</html>

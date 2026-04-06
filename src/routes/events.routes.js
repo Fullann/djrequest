@@ -6,6 +6,7 @@ const eventsController = require("../controllers/events.controller");
 const {
   createEventValidator,
   eventIdValidator,
+  guestHistoryValidator,
   updateRateLimitValidator,
   toggleVotesValidator,
 } = require("../validators/events.validator");
@@ -14,6 +15,7 @@ const {
   requireAuth,
   requireEventOwnership,
   requireEventAccess,
+  requireModOrOwnership,
 } = require("../middlewares/auth");
 
 // Création événement
@@ -23,6 +25,22 @@ router.post(
   createEventValidator,
   handleValidationErrors,
   eventsController.createEvent,
+);
+
+// Tendances (public, page invité)
+router.get(
+  "/:eventId/trends",
+  eventIdValidator,
+  handleValidationErrors,
+  eventsController.getEventTrends,
+);
+
+// Historique des demandes d'un invité (client_id)
+router.get(
+  "/:eventId/guest-history/:clientId",
+  guestHistoryValidator,
+  handleValidationErrors,
+  eventsController.getGuestHistory,
 );
 
 // Info événement
@@ -39,6 +57,16 @@ router.get(
   eventIdValidator,
   handleValidationErrors,
   eventsController.getEventQRCode,
+);
+
+// Réglages (votes, anti-répétition, …)
+router.patch(
+  "/:eventId/settings",
+  requireAuth,
+  requireEventOwnership,
+  eventIdValidator,
+  handleValidationErrors,
+  eventsController.patchEventSettings,
 );
 
 // Stats
@@ -179,9 +207,10 @@ router.get(
   },
 );
 
-// Route pour ajouter une chanson en tant que DJ
+// Route pour ajouter une chanson (DJ ou modérateur)
 router.post(
   "/:eventId/add-song-dj",
+  requireModOrOwnership,
   eventIdValidator,
   handleValidationErrors,
   async (req, res) => {
@@ -303,6 +332,10 @@ router.post(
         });
       }
 
+      // Vider le cache now-playing de cet événement
+      const { clearNowPlayingCache } = require("../sockets/eventHandlers");
+      clearNowPlayingCache(eventId);
+
       res.json({ success: true, stats: stats[0] });
     } catch (error) {
       console.error("Erreur fin événement:", error);
@@ -310,6 +343,25 @@ router.post(
     }
   },
 );
+// Réouverture d'une soirée terminée
+router.post(
+  "/:eventId/reopen",
+  requireAuth,
+  requireEventOwnership,
+  eventIdValidator,
+  handleValidationErrors,
+  async (req, res) => {
+    const { eventId } = req.params;
+    try {
+      await db.query("UPDATE events SET ended_at = NULL WHERE id = ?", [eventId]);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Erreur reopen:", err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 // Historique des événements terminés
 router.get("/history", async (req, res) => {
   if (!req.session.djId) {

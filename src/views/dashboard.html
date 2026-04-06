@@ -48,6 +48,12 @@
         </svg>
         Historique
       </a>
+      <a href="/profile" class="nav-item">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        Profil
+      </a>
     </nav>
 
     <!-- Footer -->
@@ -189,6 +195,10 @@
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Historique
     </a>
+    <a href="/profile" class="nav-item">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profil
+    </a>
   </nav>
   <div class="p-3" style="border-top:1px solid var(--border)">
     <button id="btnLogoutMobile2" class="nav-item danger w-full">
@@ -210,6 +220,21 @@
     <form id="createEventForm">
       <label class="label">Nom de la soirée</label>
       <input type="text" id="eventName" required class="input mb-4" placeholder="Soirée du 10 mars" />
+
+      <!-- Planification (optionnel) -->
+      <div class="mb-4">
+        <label class="flex items-center gap-2 cursor-pointer mb-2">
+          <input type="checkbox" id="scheduleToggle" class="sr-only" />
+          <span class="toggle-track"></span>
+          <span class="text-sm" style="color:var(--text-secondary)">Planifier une heure d'ouverture</span>
+        </label>
+        <div id="scheduleFields" class="hidden mt-2">
+          <label class="label">Date et heure d'ouverture des demandes</label>
+          <input type="datetime-local" id="startsAt" class="input" />
+          <p class="text-xs mt-1" style="color:var(--text-muted)">Les invités verront "Soirée à venir" jusqu'à cette heure.</p>
+        </div>
+      </div>
+
       <div class="flex gap-3">
         <button type="button" id="btnCancelModal2" class="btn btn-ghost flex-1">Annuler</button>
         <button type="submit" class="btn btn-primary flex-1">Créer</button>
@@ -340,14 +365,22 @@
       });
       const escapedName = event.name.replace(/'/g, "\\'");
       const acceptedCount = event.accepted_count || 0;
+      const isScheduled = event.starts_at && new Date(event.starts_at) > new Date();
+      const badge = isScheduled
+        ? `<span class="badge shrink-0" style="background:rgba(245,158,11,0.12);color:var(--amber)">Planifiée</span>`
+        : `<span class="badge badge-green shrink-0">Live</span>`;
+      const scheduledInfo = isScheduled
+        ? `<p class="text-xs" style="color:var(--amber)">Ouvre le ${new Date(event.starts_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>`
+        : "";
       return `
       <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4" style="border-bottom:1px solid var(--border)">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-1">
             <h3 class="font-semibold text-sm truncate" style="color:var(--text-primary)">${event.name}</h3>
-            <span class="badge badge-green shrink-0">Live</span>
+            ${badge}
           </div>
-          <p class="text-xs mb-2" style="color:var(--text-muted)">${date}</p>
+          <p class="text-xs mb-1" style="color:var(--text-muted)">${date}</p>
+          ${scheduledInfo}
           <div class="flex flex-wrap gap-3 text-xs">
             <span style="color:var(--green)">${event.played_songs || 0} jouées</span>
             <span style="color:var(--amber)">${acceptedCount} en attente</span>
@@ -420,15 +453,24 @@
     document.getElementById("eventName").value = "";
   }
 
+  // Toggle planification
+  document.getElementById("scheduleToggle").addEventListener("change", (e) => {
+    document.getElementById("scheduleFields").classList.toggle("hidden", !e.target.checked);
+  });
+
   async function handleCreateEvent(e) {
     e.preventDefault();
     const name = document.getElementById("eventName").value.trim();
     if (!name) return;
+    const startsAtInput = document.getElementById("startsAt").value;
+    const starts_at = document.getElementById("scheduleToggle").checked && startsAtInput
+      ? startsAtInput
+      : null;
     try {
       const response = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, starts_at }),
       });
       const data = await response.json();
       if (response.ok) {

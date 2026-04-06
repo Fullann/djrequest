@@ -1,20 +1,30 @@
 const { v4: uuidv4 } = require("uuid");
-const QRCode = require("qrcode");
 const db = require("../config/database");
 const queueService = require("../services/queue.service");
+const { buildBrandedQrDataUrl } = require("../utils/qrBranded");
 
 class EventsController {
   async createEvent(req, res) {
     const eventId = uuidv4();
-    const { name } = req.body;
+    const { name, starts_at } = req.body;
     const djId = req.session.djId;
+
+    // starts_at : si fourni, normaliser en datetime UTC-compatible
+    let startsAtValue = null;
+    if (starts_at) {
+      const d = new Date(starts_at);
+      if (!isNaN(d.getTime())) {
+        // Formater en 'YYYY-MM-DD HH:MM:SS' pour MySQL
+        startsAtValue = d.toISOString().slice(0, 19).replace("T", " ");
+      }
+    }
 
     try {
       await db.query(
-        `INSERT INTO events (id, name, dj_id, allow_duplicates, votes_enabled, 
-         auto_accept_enabled, rate_limit_max, rate_limit_window_minutes) 
-         VALUES (?, ?, ?, FALSE, TRUE, FALSE, 3, 15)`,
-        [eventId, name, djId],
+        `INSERT INTO events (id, name, dj_id, starts_at, allow_duplicates, votes_enabled,
+         auto_accept_enabled, rate_limit_max, rate_limit_window_minutes)
+         VALUES (?, ?, ?, ?, FALSE, TRUE, FALSE, 3, 15)`,
+        [eventId, name, djId, startsAtValue],
       );
 
       // Copier automatiquement les tokens Spotify du DJ pour cet événement
@@ -36,7 +46,7 @@ class EventsController {
       }
 
       const userUrl = `${process.env.BASE_URL || "http://localhost:3000"}/user/${eventId}`;
-      const qrCodeDataUrl = await QRCode.toDataURL(userUrl);
+      const qrCodeDataUrl = await buildBrandedQrDataUrl(userUrl, name);
 
       res.json({
         eventId,
@@ -91,7 +101,7 @@ class EventsController {
         process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
       const userUrl = `${baseUrl}/user/${eventId}`;
 
-      const qrCodeDataUrl = await QRCode.toDataURL(userUrl);
+      const qrCodeDataUrl = await buildBrandedQrDataUrl(userUrl, rows[0].name);
 
       res.json({ qrCode: qrCodeDataUrl, userUrl });
     } catch (error) {
@@ -277,7 +287,7 @@ class EventsController {
 
     try {
       const [eventRows] = await db.query(
-        "SELECT id, name, created_at, ended_at, status FROM events WHERE id = ? AND dj_id = ?",
+        "SELECT id, name, created_at, ended_at FROM events WHERE id = ? AND dj_id = ?",
         [eventId, djId],
       );
       if (eventRows.length === 0) return res.status(404).json({ error: "Événement non trouvé" });
@@ -494,6 +504,105 @@ class EventsController {
       });
     } catch (error) {
       console.error("Erreur stats détaillées:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  /** Tendances publiques (invités) — top artistes / titres */
+  async getEventTrends(req, res) {
+    const { eventId } = req.params;
+    try {
+      const [eventRows] = await db.query("SELECT id, name FROM events WHERE id = ?", [eventId]);
+      if (eventRows.length === 0) {
+        return res.status(404).json({ error: "Événement non trouvé" });
+      }
+
+      const [topArtists] = await db.query(
+        `SELECT artist, COUNT(*) AS total, SUM(status='played') AS played
+         FROM requests WHERE event_id = ?
+         GROUP BY artist ORDER BY total DESC LIMIT 5`,
+        [eventId],
+      );
+
+      const [topSongs] = await db.query(
+        `SELECT song_name, artist, COUNT(*) AS total
+         FROM requests WHERE event_id = ?
+         GROUP BY song_name, artist ORDER BY total DESC LIMIT 5`,
+        [eventId],
+      );
+
+      res.json({
+        eventName: eventRows[0].name,
+        topArtists,
+        topSongs,
+      });
+    } catch (err) {
+      console.error("Erreur trends:", err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  /** Historique des demandes d'un invité (client_id) pour cette soirée */
+  async getGuestHistory(req, res) {
+    const { eventId, clientId } = req.params;
+    try {
+      const [ev] = await db.query("SELECT id FROM events WHERE id = ?", [eventId]);
+      if (ev.length === 0) {
+        return res.status(404).json({ error: "Événement non trouvé" });
+      }
+
+      const [rows] = await db.query(
+        `SELECT id, song_name, artist, status, created_at
+         FROM requests WHERE event_id = ? AND client_id = ?
+         ORDER BY created_at DESC LIMIT 12`,
+        [eventId, clientId],
+      );
+      res.json({ requests: rows });
+    } catch (err) {
+      console.error("Erreur guest-history:", err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  async patchEventSettings(req, res) {
+    const { eventId } = req.params;
+    const djId = req.session.djId;
+    try {
+      const [eventRows] = await db.query(
+        "SELECT * FROM events WHERE id = ? AND dj_id = ?",
+        [eventId, djId],
+      );
+      if (eventRows.length === 0) {
+        return res.status(404).json({ error: "Événement non trouvé" });
+      }
+
+      const { votes_enabled, repeat_cooldown_minutes } = req.body;
+      const updates = [];
+      const values = [];
+
+      if (typeof votes_enabled === "boolean") {
+        updates.push("votes_enabled = ?");
+        values.push(votes_enabled ? 1 : 0);
+      }
+      if (repeat_cooldown_minutes !== undefined) {
+        const n = parseInt(String(repeat_cooldown_minutes), 10);
+        if (!Number.isNaN(n) && n >= 0 && n <= 240) {
+          updates.push("repeat_cooldown_minutes = ?");
+          values.push(n);
+        }
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ error: "Aucun champ à mettre à jour" });
+      }
+
+      values.push(eventId);
+      await db.query(`UPDATE events SET ${updates.join(", ")} WHERE id = ?`, values);
+
+      const [fresh] = await db.query("SELECT * FROM events WHERE id = ?", [eventId]);
+      res.json({ success: true, event: fresh[0] });
+    } catch (err) {
+      console.error("Erreur patch settings:", err);
       res.status(500).json({ error: "Erreur serveur" });
     }
   }
