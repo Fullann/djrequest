@@ -24,6 +24,7 @@ Bienvenue dans la documentation complète du projet **DJ Queue**, une applicatio
 
 - Aux **DJ** de créer et gérer des soirées, accepter/refuser des demandes, contrôler la lecture Spotify, voir des statistiques en temps réel.
 - Aux **invités** de scanner un QR code, proposer des chansons Spotify, voter pour leurs préférées et être notifiés quand leur chanson est jouée.
+- À la régie de bénéficier d’un **anti-abus intelligent** (score + throttle progressif), d’**analytics live avancées** (heatmap, tempos, skip, engagement, CSV) et d’une projection **BPM sync**.
 
 ### Flux principal
 
@@ -88,6 +89,9 @@ mysql -u root -p dj_queue < db/migration_request_client_id.sql
 mysql -u root -p dj_queue < db/migration_mod_token.sql
 mysql -u root -p dj_queue < db/migration_starts_at.sql
 mysql -u root -p dj_queue < db/migration_repeat_cooldown.sql
+mysql -u root -p dj_queue < db/migration_projection_visuals.sql
+mysql -u root -p dj_queue < db/migration_projection_visuals_auto.sql
+mysql -u root -p dj_queue < db/migration_abuse_and_analytics.sql
 
 # 4. Lancer en développement
 npm run dev

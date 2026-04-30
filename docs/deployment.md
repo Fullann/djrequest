@@ -58,6 +58,9 @@ mysql -u djuser -p dj_queue < db/migration_request_client_id.sql
 mysql -u djuser -p dj_queue < db/migration_mod_token.sql
 mysql -u djuser -p dj_queue < db/migration_starts_at.sql
 mysql -u djuser -p dj_queue < db/migration_repeat_cooldown.sql
+mysql -u djuser -p dj_queue < db/migration_projection_visuals.sql
+mysql -u djuser -p dj_queue < db/migration_projection_visuals_auto.sql
+mysql -u djuser -p dj_queue < db/migration_abuse_and_analytics.sql
 ```
 
 ### 5. Lancer en développement
@@ -220,6 +223,10 @@ BASE_URL=https://ton-domaine.com
 ```bash
 mysql -u user -p db_name < migration_spotify_auth.sql
 # etc.
+# inclure aussi :
+mysql -u user -p db_name < migration_projection_visuals.sql
+mysql -u user -p db_name < migration_projection_visuals_auto.sql
+mysql -u user -p db_name < migration_abuse_and_analytics.sql
 ```
 
 4. **Redémarrer l'application** :
@@ -276,6 +283,8 @@ Après un déploiement, vérifier :
 - [ ] Accès à `/user/:eventId` → page invité chargée
 - [ ] WebSocket connecté (icône verte dans la console navigateur)
 - [ ] Recherche Spotify fonctionnelle
+- [ ] `/event/:eventId/stats` charge sans 500 et le bouton **Export CSV** fonctionne
+- [ ] Mode projection `bpm-sync` actif côté écran QR
 
 ### Monitoring externe
 

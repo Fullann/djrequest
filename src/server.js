@@ -353,6 +353,73 @@ app.post("/api/events/:eventId/revoke-mod-token", async (req, res) => {
   }
 });
 
+// Générer un lien co-DJ avec rôle fin
+app.post("/api/events/:eventId/generate-co-dj-link", async (req, res) => {
+  if (!req.session.djId) return res.status(401).json({ error: "Non authentifié" });
+  const { eventId } = req.params;
+  const role = String(req.body?.role || "").trim().toLowerCase();
+  const label = String(req.body?.label || "").trim().slice(0, 120) || null;
+  if (!["moderation", "queue_message", "playback"].includes(role)) {
+    return res.status(400).json({ error: "Rôle invalide" });
+  }
+  try {
+    const [rows] = await db.query("SELECT id FROM events WHERE id = ? AND dj_id = ?", [eventId, req.session.djId]);
+    if (rows.length === 0) return res.status(403).json({ error: "Accès refusé" });
+    const id = crypto.randomUUID();
+    const token = crypto.randomBytes(32).toString("hex");
+    await db.query(
+      "INSERT INTO co_dj_tokens (id, event_id, role, token, label) VALUES (?, ?, ?, ?, ?)",
+      [id, eventId, role, token, label],
+    );
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+    return res.json({ id, role, token, modUrl: `${baseUrl}/mod/${eventId}?token=${token}` });
+  } catch (err) {
+    console.error("Erreur generate-co-dj-link:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Lister liens co-DJ actifs
+app.get("/api/events/:eventId/co-dj-links", async (req, res) => {
+  if (!req.session.djId) return res.status(401).json({ error: "Non authentifié" });
+  const { eventId } = req.params;
+  try {
+    const [rows] = await db.query("SELECT id FROM events WHERE id = ? AND dj_id = ?", [eventId, req.session.djId]);
+    if (rows.length === 0) return res.status(403).json({ error: "Accès refusé" });
+    const [links] = await db.query(
+      `SELECT id, role, label, created_at
+       FROM co_dj_tokens
+       WHERE event_id = ? AND revoked_at IS NULL
+       ORDER BY created_at DESC`,
+      [eventId],
+    );
+    return res.json({ links });
+  } catch (err) {
+    console.error("Erreur co-dj-links:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Révoquer un lien co-DJ
+app.post("/api/events/:eventId/revoke-co-dj-link", async (req, res) => {
+  if (!req.session.djId) return res.status(401).json({ error: "Non authentifié" });
+  const { eventId } = req.params;
+  const { linkId } = req.body || {};
+  if (!linkId) return res.status(400).json({ error: "linkId requis" });
+  try {
+    const [rows] = await db.query("SELECT id FROM events WHERE id = ? AND dj_id = ?", [eventId, req.session.djId]);
+    if (rows.length === 0) return res.status(403).json({ error: "Accès refusé" });
+    await db.query(
+      "UPDATE co_dj_tokens SET revoked_at = NOW() WHERE id = ? AND event_id = ?",
+      [linkId, eventId],
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Erreur revoke-co-dj-link:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // Login modérateur : valider le token et créer la session
 app.get("/mod/:eventId", async (req, res) => {
   const { eventId } = req.params;
@@ -372,14 +439,37 @@ app.get("/mod/:eventId", async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      "SELECT id, name FROM events WHERE id = ? AND mod_token = ? AND ended_at IS NULL",
-      [eventId, token],
+      "SELECT id, name FROM events WHERE id = ? AND ended_at IS NULL",
+      [eventId],
     );
     if (rows.length === 0) {
       return renderErrorPage(res, 403, "Lien invalide", "Ce lien de modération est invalide ou la soirée est terminée.");
     }
+
+    let resolvedRole = "moderation";
+    // Token legacy
+    const [legacy] = await db.query(
+      "SELECT id FROM events WHERE id = ? AND mod_token = ? AND ended_at IS NULL",
+      [eventId, token],
+    );
+    if (legacy.length === 0) {
+      const [co] = await db.query(
+        `SELECT role
+         FROM co_dj_tokens
+         WHERE event_id = ? AND token = ? AND revoked_at IS NULL
+         LIMIT 1`,
+        [eventId, token],
+      );
+      if (co.length === 0) {
+        return renderErrorPage(res, 403, "Lien invalide", "Ce lien de modération est invalide ou révoqué.");
+      }
+      resolvedRole = co[0].role || "moderation";
+    } else {
+      resolvedRole = "queue_message";
+    }
+
     // Créer la session modérateur
-    req.session.modAccess = { eventId, eventName: rows[0].name };
+    req.session.modAccess = { eventId, eventName: rows[0].name, role: resolvedRole };
     res.sendFile(path.join(__dirname, "/views/mod.html"));
   } catch (err) {
     console.error("Erreur /mod/:eventId:", err);

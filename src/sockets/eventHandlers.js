@@ -28,11 +28,64 @@ async function verifyEventAccess(socket, eventId) {
   // Vérification modérateur
   const modAccess = session?.modAccess;
   if (modAccess?.eventId === eventId) {
-    return { authorized: true, role: "moderator" };
+    return {
+      authorized: true,
+      role: "moderator",
+      modRole: modAccess.role || "moderation",
+      actorName: modAccess.eventName || "Co-DJ",
+    };
   }
 
   socket.emit("error", { message: "Accès refusé" });
   return { authorized: false, role: null };
+}
+
+function canModerate(modRole) {
+  return ["moderation", "queue_message", "playback"].includes(modRole);
+}
+function canQueueMessage(modRole) {
+  return ["queue_message", "playback"].includes(modRole);
+}
+function canPlayback(modRole) {
+  return modRole === "playback";
+}
+
+async function verifyActionPermission(socket, eventId, capability) {
+  const access = await verifyEventAccess(socket, eventId);
+  if (!access.authorized) return null;
+  if (access.role === "dj") return { ...access, actorType: "dj", actorRole: "dj" };
+  const modRole = access.modRole || "moderation";
+  const allowed = capability === "moderation"
+    ? canModerate(modRole)
+    : capability === "queue_message"
+      ? canQueueMessage(modRole)
+      : canPlayback(modRole);
+  if (!allowed) {
+    socket.emit("error", { message: "Action non autorisée pour ce rôle co-DJ" });
+    return null;
+  }
+  return { ...access, actorType: "co-dj", actorRole: modRole };
+}
+
+async function logEventAction(eventId, actorInfo, actionType, targetId = null, meta = null) {
+  try {
+    await db.query(
+      `INSERT INTO event_action_logs
+       (event_id, actor_type, actor_name, actor_role, action_type, target_id, meta_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        eventId,
+        actorInfo?.actorType || "unknown",
+        actorInfo?.actorName || null,
+        actorInfo?.actorRole || null,
+        actionType,
+        targetId,
+        meta ? JSON.stringify(meta) : null,
+      ],
+    );
+  } catch {
+    // journal best-effort
+  }
 }
 
 /** Alias pour les handlers qui n'ont besoin que du booléen */
@@ -80,13 +133,89 @@ async function verifyDjOwnsRequest(socket, requestId) {
 // Stockage en mémoire du dernier "now-playing" par événement
 // Permet d'envoyer l'état courant aux nouveaux connectés (écran grand format, page user)
 const nowPlayingCache = new Map(); // eventId → payload
+const djMessageCache = new Map(); // eventId → { message, sentAt }
+const DJ_MESSAGE_TTL_MS = 5 * 60 * 1000;
 
 /** Refus récents éligibles à « Annuler » (fenêtre courte, mémoire processus) */
 const recentRejectUndo = new Map(); // requestId → rejectedAt (ms)
 const UNDO_REJECT_WINDOW_MS = 8000;
 
+function getRecentDjMessage(eventId) {
+  const row = djMessageCache.get(eventId);
+  if (!row) return null;
+  if (Date.now() - Number(row.sentAt || 0) > DJ_MESSAGE_TTL_MS) {
+    djMessageCache.delete(eventId);
+    return null;
+  }
+  return row;
+}
+
+async function getActivePoll(eventId) {
+  const [rows] = await db.query(
+    `SELECT id, question, options_json, created_at
+     FROM event_live_polls
+     WHERE event_id = ? AND is_active = 1
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [eventId],
+  );
+  return rows[0] || null;
+}
+
+async function buildPollPayload(eventId, clientId = null) {
+  const poll = await getActivePoll(eventId);
+  if (!poll) return null;
+
+  let options = [];
+  try {
+    options = JSON.parse(poll.options_json || "[]");
+  } catch {
+    options = [];
+  }
+  if (!Array.isArray(options) || options.length < 2) return null;
+
+  const [voteRows] = await db.query(
+    `SELECT option_index, COUNT(*) AS total
+     FROM event_live_poll_votes
+     WHERE poll_id = ?
+     GROUP BY option_index`,
+    [poll.id],
+  );
+  const counts = Array.from({ length: options.length }, () => 0);
+  voteRows.forEach((r) => {
+    const i = Number(r.option_index);
+    if (Number.isInteger(i) && i >= 0 && i < counts.length) counts[i] = Number(r.total || 0);
+  });
+  const totalVotes = counts.reduce((a, b) => a + b, 0);
+
+  let myVote = null;
+  if (clientId) {
+    const [myRows] = await db.query(
+      "SELECT option_index FROM event_live_poll_votes WHERE poll_id = ? AND client_id = ? LIMIT 1",
+      [poll.id, clientId],
+    );
+    if (myRows.length > 0) myVote = Number(myRows[0].option_index);
+  }
+
+  return {
+    id: poll.id,
+    question: poll.question,
+    options,
+    counts,
+    totalVotes,
+    percentages: counts.map((c) => (totalVotes > 0 ? Math.round((c * 100) / totalVotes) : 0)),
+    myVote,
+    isActive: true,
+    createdAt: poll.created_at,
+  };
+}
+
 function setupSocketHandlers(io) {
   io.on("connection", (socket) => {
+    socket.on("health-ping", (data, ack) => {
+      if (typeof ack === "function") ack({ ts: Date.now(), echo: data?.ts || null });
+    });
+
     // Rejoindre un événement
     // data peut être un string (DJ/QR) ou un objet { eventId, clientId } (user page)
     socket.on("join-event", async (data) => {
@@ -105,6 +234,16 @@ function setupSocketHandlers(io) {
       const cached = nowPlayingCache.get(eventId);
       if (cached) {
         socket.emit("now-playing", cached);
+      }
+
+      // Replay du dernier message DJ pour les nouveaux connectés (< 5 min)
+      const recentDjMessage = getRecentDjMessage(eventId);
+      if (recentDjMessage?.message) {
+        socket.emit("dj-message", {
+          message: recentDjMessage.message,
+          sentAt: recentDjMessage.sentAt,
+          replayed: true,
+        });
       }
 
       // Vérifier si ce client est banni (persistance après refresh)
@@ -145,6 +284,31 @@ function setupSocketHandlers(io) {
         socket.emit("rate-limit-status", rateLimitStatus);
       } catch (error) {
         console.error("Erreur rate limit status:", error);
+      }
+
+      // État du mode urgence (gel des nouvelles demandes)
+      try {
+        const [eRows] = await db.query(
+          "SELECT requests_frozen_until FROM events WHERE id = ? LIMIT 1",
+          [eventId],
+        );
+        const frozenUntil = eRows.length > 0 ? eRows[0].requests_frozen_until : null;
+        const remainingMs = frozenUntil ? Math.max(0, Number(frozenUntil) - Date.now()) : 0;
+        socket.emit("requests-freeze-updated", {
+          frozen: remainingMs > 0,
+          frozenUntil: remainingMs > 0 ? Number(frozenUntil) : null,
+          remainingMs,
+        });
+      } catch (err) {
+        console.error("Erreur requests-freeze join-event:", err);
+      }
+
+      // Sondage live actif (si présent)
+      try {
+        const pollPayload = await buildPollPayload(eventId, clientId);
+        socket.emit("live-poll-updated", { poll: pollPayload });
+      } catch (err) {
+        console.error("Erreur live-poll join-event:", err);
       }
     });
 
@@ -245,10 +409,18 @@ function setupSocketHandlers(io) {
         }
 
         // Récupérer les paramètres de l'événement
-        const [eventRows] = await db.query(
-          "SELECT allow_duplicates, auto_accept_enabled, repeat_cooldown_minutes FROM events WHERE id = ?",
-          [eventId],
-        );
+        let eventRows;
+        try {
+          [eventRows] = await db.query(
+            "SELECT allow_duplicates, auto_accept_enabled, repeat_cooldown_minutes, requests_frozen_until FROM events WHERE id = ?",
+            [eventId],
+          );
+        } catch {
+          [eventRows] = await db.query(
+            "SELECT allow_duplicates, auto_accept_enabled, repeat_cooldown_minutes FROM events WHERE id = ?",
+            [eventId],
+          );
+        }
 
         if (eventRows.length === 0) {
           socket.emit("request-error", { message: "Événement non trouvé" });
@@ -256,6 +428,16 @@ function setupSocketHandlers(io) {
         }
 
         const event = eventRows[0];
+        const frozenUntil = event.requests_frozen_until ? Number(event.requests_frozen_until) : null;
+        if (frozenUntil && Date.now() < frozenUntil) {
+          const remainingMs = Math.max(0, frozenUntil - Date.now());
+          socket.emit("request-error", {
+            type: "requests-frozen",
+            message: `Le DJ a temporairement gelé les nouvelles demandes (${formatRemainingDelay(remainingMs)} restantes).`,
+            remainingMs,
+          });
+          return;
+        }
 
         // Vérifier les doublons si non autorisés
         if (!event.allow_duplicates) {
@@ -380,6 +562,7 @@ function setupSocketHandlers(io) {
     // Voter pour une chanson
     socket.on("vote", async (data) => {
       const { requestId, voteType } = data;
+      const voterKey = socket.clientId || socket.id;
 
       if (!["up", "down"].includes(voteType)) {
         return;
@@ -412,8 +595,9 @@ function setupSocketHandlers(io) {
         // Vérifier si l'utilisateur a déjà voté
         const [existingVotes] = await db.query(
           "SELECT id, vote_type FROM votes WHERE request_id = ? AND socket_id = ?",
-          [requestId, socket.id],
+          [requestId, voterKey],
         );
+        let resolvedMyVote = voteType;
 
         if (existingVotes.length > 0) {
           const existingVote = existingVotes[0];
@@ -421,19 +605,22 @@ function setupSocketHandlers(io) {
           if (existingVote.vote_type === voteType) {
             // Retirer le vote
             await db.query("DELETE FROM votes WHERE id = ?", [existingVote.id]);
+            resolvedMyVote = null;
           } else {
             // Changer le vote
             await db.query("UPDATE votes SET vote_type = ? WHERE id = ?", [
               voteType,
               existingVote.id,
             ]);
+            resolvedMyVote = voteType;
           }
         } else {
           // Nouveau vote
           await db.query(
             "INSERT INTO votes (request_id, socket_id, vote_type) VALUES (?, ?, ?)",
-            [requestId, socket.id, voteType],
+            [requestId, voterKey, voteType],
           );
+          resolvedMyVote = voteType;
         }
 
         // Récupérer les votes mis à jour
@@ -453,6 +640,12 @@ function setupSocketHandlers(io) {
           upvotes: upvotes[0].count,
           downvotes: downvotes[0].count,
         });
+        socket.emit("vote-confirmed", {
+          requestId,
+          myVote: resolvedMyVote,
+          upvotes: upvotes[0].count,
+          downvotes: downvotes[0].count,
+        });
       } catch (error) {
         console.error("Erreur vote:", error);
         socket.emit("vote-error", { message: "Erreur lors du vote" });
@@ -466,6 +659,8 @@ function setupSocketHandlers(io) {
       try {
         const reqRow = await verifyDjOwnsRequest(socket, requestId);
         if (!reqRow) return;
+        const perm = await verifyActionPermission(socket, reqRow.event_id, "moderation");
+        if (!perm) return;
 
         const eventId = reqRow.event_id;
         const newPosition = await queueService.getNextQueuePosition(eventId);
@@ -483,6 +678,7 @@ function setupSocketHandlers(io) {
           requestId,
           position: newPosition,
         });
+        await logEventAction(eventId, perm, "accept-request", requestId, { position: newPosition });
       } catch (error) {
         console.error("Erreur accept-request:", error);
       }
@@ -495,6 +691,8 @@ function setupSocketHandlers(io) {
       try {
         const reqRow = await verifyDjOwnsRequest(socket, requestId);
         if (!reqRow) return;
+        const perm = await verifyActionPermission(socket, reqRow.event_id, "moderation");
+        if (!perm) return;
 
         await db.query("UPDATE requests SET status = ? WHERE id = ?", [
           "rejected",
@@ -509,6 +707,7 @@ function setupSocketHandlers(io) {
 
         io.to(reqRow.event_id).emit("request-rejected", { requestId });
         io.to(reqRow.socket_id).emit("your-request-rejected", { requestId });
+        await logEventAction(reqRow.event_id, perm, "reject-request", requestId, null);
       } catch (error) {
         console.error("Erreur reject-request:", error);
       }
@@ -553,7 +752,8 @@ function setupSocketHandlers(io) {
     socket.on("accept-all-pending", async (data) => {
       const { eventId } = data || {};
       if (!eventId) return;
-      if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+      const perm = await verifyActionPermission(socket, eventId, "moderation");
+      if (!perm) return;
 
       try {
         const [pending] = await db.query(
@@ -582,6 +782,7 @@ function setupSocketHandlers(io) {
 
         const queue = await queueService.getQueueWithVotes(eventId);
         io.to(eventId).emit("queue-updated", { queue });
+        await logEventAction(eventId, perm, "accept-all-pending", null, { count: pending.length });
       } catch (error) {
         console.error("Erreur accept-all-pending:", error);
       }
@@ -591,7 +792,8 @@ function setupSocketHandlers(io) {
     socket.on("reject-all-pending", async (data) => {
       const { eventId } = data || {};
       if (!eventId) return;
-      if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+      const perm = await verifyActionPermission(socket, eventId, "moderation");
+      if (!perm) return;
 
       try {
         const [pending] = await db.query(
@@ -609,6 +811,7 @@ function setupSocketHandlers(io) {
             io.to(row.socket_id).emit("your-request-rejected", { requestId: row.id });
           }
         }
+        await logEventAction(eventId, perm, "reject-all-pending", null, { count: pending.length });
       } catch (error) {
         console.error("Erreur reject-all-pending:", error);
       }
@@ -619,7 +822,8 @@ function setupSocketHandlers(io) {
       const { eventId, newQueue } = data;
 
       try {
-        if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+        const perm = await verifyActionPermission(socket, eventId, "queue_message");
+        if (!perm) return;
 
         if (!Array.isArray(newQueue)) return;
         for (let i = 0; i < newQueue.length; i++) {
@@ -631,6 +835,7 @@ function setupSocketHandlers(io) {
 
         const queue = await queueService.getQueueWithVotes(eventId);
         io.to(eventId).emit("queue-updated", { queue });
+        await logEventAction(eventId, perm, "reorder-queue", null, { size: newQueue.length });
       } catch (error) {
         console.error("Erreur reorder-queue:", error);
       }
@@ -641,7 +846,8 @@ function setupSocketHandlers(io) {
       const { eventId, requestId } = data;
 
       try {
-        if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+        const perm = await verifyActionPermission(socket, eventId, "playback");
+        if (!perm) return;
 
         await db.query(
           "UPDATE requests SET status = ?, played_at = NOW(), play_started_at = NOW(), queue_position = NULL WHERE id = ? AND event_id = ?",
@@ -650,6 +856,7 @@ function setupSocketHandlers(io) {
 
         const queue = await queueService.getQueueWithVotes(eventId);
         io.to(eventId).emit("queue-updated", { queue });
+        await logEventAction(eventId, perm, "mark-played", requestId, null);
       } catch (error) {
         console.error("Erreur mark-played:", error);
       }
@@ -659,11 +866,13 @@ function setupSocketHandlers(io) {
       const { eventId, requestId } = data || {};
       try {
         if (!eventId || !requestId) return;
-        if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+        const perm = await verifyActionPermission(socket, eventId, "playback");
+        if (!perm) return;
         await db.query(
           "UPDATE requests SET skipped_at = NOW() WHERE id = ? AND event_id = ? AND status = 'played'",
           [requestId, eventId],
         );
+        await logEventAction(eventId, perm, "mark-skipped", requestId, null);
       } catch (error) {
         console.error("Erreur mark-skipped:", error);
       }
@@ -673,17 +882,19 @@ function setupSocketHandlers(io) {
     socket.on("broadcast-now-playing", async (data) => {
       const { eventId } = data;
       if (!eventId) return;
-      if (!(await verifyDjOwnsEvent(socket, eventId))) return;
-      if (data?.track?.uri && !data.track.bpm) {
+      const perm = await verifyActionPermission(socket, eventId, "playback");
+      if (!perm) return;
+      if (data?.track?.uri && (!data.track.bpm || data.track.energy == null)) {
         try {
           const trackId = String(data.track.uri).split(":").pop();
           if (trackId) {
             const [rows] = await db.query(
-              "SELECT bpm FROM track_audio_cache WHERE track_id = ?",
+              "SELECT bpm, energy FROM track_audio_cache WHERE track_id = ?",
               [trackId],
             );
-            if (rows.length > 0 && rows[0].bpm) {
-              data.track.bpm = Number(rows[0].bpm);
+            if (rows.length > 0) {
+              if (rows[0].bpm) data.track.bpm = Number(rows[0].bpm);
+              if (rows[0].energy != null) data.track.energy = Number(rows[0].energy);
             }
           }
         } catch (err) {
@@ -703,8 +914,12 @@ function setupSocketHandlers(io) {
     socket.on("dj-message", async (data) => {
       const { eventId, message } = data;
       if (!eventId || !message?.trim()) return;
-      if (!(await verifyDjOwnsEvent(socket, eventId))) return;
-      socket.to(eventId).emit("dj-message", { message: message.trim() });
+      const perm = await verifyActionPermission(socket, eventId, "queue_message");
+      if (!perm) return;
+      const cleanMessage = String(message).trim();
+      djMessageCache.set(eventId, { message: cleanMessage, sentAt: Date.now() });
+      socket.to(eventId).emit("dj-message", { message: cleanMessage });
+      await logEventAction(eventId, perm, "dj-message", null, { message: cleanMessage.slice(0, 120) });
     });
 
     // ── Système de ban ──────────────────────────────────────────────────────
@@ -715,7 +930,8 @@ function setupSocketHandlers(io) {
       const { eventId, requestId, duration } = data;
 
       try {
-        if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+        const perm = await verifyActionPermission(socket, eventId, "moderation");
+        if (!perm) return;
 
         // Récupérer le clientId et userName depuis la demande
         const [reqRows] = await db.query(
@@ -779,6 +995,7 @@ function setupSocketHandlers(io) {
           [eventId],
         );
         socket.emit("banned-users-updated", { bans });
+        await logEventAction(eventId, perm, "ban-user", clientId, { duration });
       } catch (error) {
         console.error("Erreur ban-user:", error);
       }
@@ -789,18 +1006,29 @@ function setupSocketHandlers(io) {
       const { eventId, clientId } = data;
 
       try {
-        if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+        const perm = await verifyActionPermission(socket, eventId, "moderation");
+        if (!perm) return;
 
         await db.query(
           "DELETE FROM user_bans WHERE event_id = ? AND client_id = ?",
           [eventId, clientId],
         );
 
+        // Notifier immédiatement l'invité débloqué s'il est connecté
+        for (const [, s] of io.of("/").sockets) {
+          if (s.clientId === clientId && s.eventId === eventId) {
+            s.emit("you-are-unbanned", {
+              message: "Tu as été débloqué. Tu peux à nouveau proposer des musiques.",
+            });
+          }
+        }
+
         const [bans] = await db.query(
           "SELECT client_id, user_name, banned_until FROM user_bans WHERE event_id = ? ORDER BY user_name ASC",
           [eventId],
         );
         socket.emit("banned-users-updated", { bans });
+        await logEventAction(eventId, perm, "unban-user", clientId, null);
       } catch (error) {
         console.error("Erreur unban-user:", error);
       }
@@ -834,14 +1062,18 @@ function setupSocketHandlers(io) {
         donationAmount,
         donationLink,
         donationMessage,
+        donationGoalAmount,
+        donationsRaisedTotal,
         repeatCooldownMinutes,
         projectionVisualsEnabled,
         projectionVisualsMode,
         projectionVisualsAutoPerTrack,
+        requestFreezeMinutes,
       } = data;
 
       try {
-        if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+        const perm = await verifyActionPermission(socket, eventId, "queue_message");
+        if (!perm) return;
 
         // Construire la requête SQL dynamiquement
         const updates = [];
@@ -892,6 +1124,20 @@ function setupSocketHandlers(io) {
           updates.push("donation_message = ?");
           values.push((donationMessage || "").trim().slice(0, 500) || null);
         }
+        if (donationGoalAmount !== undefined) {
+          const goal = parseFloat(donationGoalAmount);
+          if (!Number.isNaN(goal) && goal >= 0 && goal <= 100000) {
+            updates.push("donation_goal_amount = ?");
+            values.push(goal);
+          }
+        }
+        if (donationsRaisedTotal !== undefined) {
+          const raised = parseFloat(donationsRaisedTotal);
+          if (!Number.isNaN(raised) && raised >= 0 && raised <= 100000) {
+            updates.push("donations_raised_total = ?");
+            values.push(raised);
+          }
+        }
 
         if (repeatCooldownMinutes !== undefined) {
           const n = parseInt(String(repeatCooldownMinutes), 10);
@@ -919,6 +1165,14 @@ function setupSocketHandlers(io) {
           values.push(projectionVisualsAutoPerTrack ? 1 : 0);
         }
 
+        if (requestFreezeMinutes !== undefined) {
+          const n = parseInt(String(requestFreezeMinutes), 10);
+          if (!Number.isNaN(n) && n >= 0 && n <= 30) {
+            updates.push("requests_frozen_until = ?");
+            values.push(n > 0 ? Date.now() + (n * 60 * 1000) : null);
+          }
+        }
+
         if (updates.length > 0) {
           values.push(eventId);
           await db.query(
@@ -935,6 +1189,8 @@ function setupSocketHandlers(io) {
             donationAmount,
             donationLink: donationLink ? (donationLink || "").trim().slice(0, 500) : undefined,
             donationMessage: donationMessage ? (donationMessage || "").trim().slice(0, 500) : undefined,
+            donationGoalAmount: donationGoalAmount !== undefined ? Number(donationGoalAmount) : undefined,
+            donationsRaisedTotal: donationsRaisedTotal !== undefined ? Number(donationsRaisedTotal) : undefined,
             repeatCooldownMinutes: repeatCooldownMinutes !== undefined
               ? parseInt(String(repeatCooldownMinutes), 10)
               : undefined,
@@ -947,10 +1203,107 @@ function setupSocketHandlers(io) {
             projectionVisualsAutoPerTrack: projectionVisualsAutoPerTrack !== undefined
               ? !!projectionVisualsAutoPerTrack
               : undefined,
+            requestFreezeMinutes: requestFreezeMinutes !== undefined
+              ? parseInt(String(requestFreezeMinutes), 10)
+              : undefined,
           });
+          await logEventAction(eventId, perm, "update-event-settings", null, {
+            hasDonationGoalUpdate: donationGoalAmount !== undefined || donationsRaisedTotal !== undefined,
+          });
+
+          if (requestFreezeMinutes !== undefined) {
+            const [evRows] = await db.query(
+              "SELECT requests_frozen_until FROM events WHERE id = ? LIMIT 1",
+              [eventId],
+            );
+            const frozenUntil = evRows.length > 0 ? evRows[0].requests_frozen_until : null;
+            const remainingMs = frozenUntil ? Math.max(0, Number(frozenUntil) - Date.now()) : 0;
+            io.to(eventId).emit("requests-freeze-updated", {
+              frozen: remainingMs > 0,
+              frozenUntil: remainingMs > 0 ? Number(frozenUntil) : null,
+              remainingMs,
+            });
+          }
         }
       } catch (error) {
         console.error("❌ Erreur update-event-settings:", error);
+      }
+    });
+
+    // Sondage live: créer / remplacer le sondage actif
+    socket.on("create-live-poll", async (data) => {
+      const { eventId, question, options } = data || {};
+      try {
+        if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+        const q = String(question || "").trim().slice(0, 255);
+        const opts = Array.isArray(options)
+          ? options.map((o) => String(o || "").trim().slice(0, 60)).filter(Boolean)
+          : [];
+        const uniqueOpts = [...new Set(opts)];
+        if (!q || uniqueOpts.length < 2 || uniqueOpts.length > 6) return;
+
+        await db.query(
+          "UPDATE event_live_polls SET is_active = 0, ended_at = NOW() WHERE event_id = ? AND is_active = 1",
+          [eventId],
+        );
+        const pollId = uuidv4();
+        await db.query(
+          `INSERT INTO event_live_polls (id, event_id, question, options_json, is_active)
+           VALUES (?, ?, ?, ?, 1)`,
+          [pollId, eventId, q, JSON.stringify(uniqueOpts)],
+        );
+        const payload = await buildPollPayload(eventId, null);
+        io.to(eventId).emit("live-poll-updated", { poll: payload });
+      } catch (err) {
+        console.error("Erreur create-live-poll:", err);
+      }
+    });
+
+    // Sondage live: voter
+    socket.on("vote-live-poll", async (data) => {
+      const { eventId, pollId, optionIndex } = data || {};
+      const clientId = socket.clientId || socket.id;
+      try {
+        if (!eventId || !pollId || !clientId) return;
+        const idx = parseInt(String(optionIndex), 10);
+        if (Number.isNaN(idx) || idx < 0) return;
+
+        const [pollRows] = await db.query(
+          "SELECT id, options_json FROM event_live_polls WHERE id = ? AND event_id = ? AND is_active = 1 LIMIT 1",
+          [pollId, eventId],
+        );
+        if (pollRows.length === 0) return;
+        let options = [];
+        try { options = JSON.parse(pollRows[0].options_json || "[]"); } catch { options = []; }
+        if (!Array.isArray(options) || idx >= options.length) return;
+
+        await db.query(
+          `INSERT INTO event_live_poll_votes (poll_id, client_id, option_index)
+           VALUES (?, ?, ?)
+           ON DUPLICATE KEY UPDATE option_index = VALUES(option_index)`,
+          [pollId, clientId, idx],
+        );
+
+        const payload = await buildPollPayload(eventId, null);
+        io.to(eventId).emit("live-poll-updated", { poll: payload });
+      } catch (err) {
+        console.error("Erreur vote-live-poll:", err);
+      }
+    });
+
+    // Sondage live: fermer
+    socket.on("close-live-poll", async (data) => {
+      const { eventId, pollId } = data || {};
+      try {
+        if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+        if (!pollId) return;
+        await db.query(
+          "UPDATE event_live_polls SET is_active = 0, ended_at = NOW() WHERE id = ? AND event_id = ?",
+          [pollId, eventId],
+        );
+        io.to(eventId).emit("live-poll-updated", { poll: null });
+      } catch (err) {
+        console.error("Erreur close-live-poll:", err);
       }
     });
 

@@ -178,6 +178,18 @@
       <ul id="guestHistoryList" class="space-y-1.5 text-xs max-h-40 overflow-y-auto no-scrollbar"></ul>
     </div>
 
+    <div id="requestsFreezeCard" class="hidden shrink-0 rounded-2xl p-3 mb-3" style="background:var(--amber-dim);border:1px solid rgba(245,158,11,0.3)">
+      <p class="text-xs font-bold mb-1" style="color:var(--amber)">Mode urgence DJ</p>
+      <p id="requestsFreezeText" class="text-xs" style="color:var(--text-secondary)">Les nouvelles demandes sont temporairement gelées.</p>
+    </div>
+
+    <div id="livePollCard" class="hidden shrink-0 rounded-2xl p-4 mb-3" style="background:var(--bg-surface);border:1px solid var(--border)">
+      <p class="text-xs font-bold uppercase tracking-wider mb-2" style="color:var(--accent)">Sondage live</p>
+      <p id="livePollQuestion" class="text-sm font-semibold mb-3" style="color:var(--text-primary)"></p>
+      <div id="livePollOptions" class="space-y-2"></div>
+      <p id="livePollMeta" class="text-xs mt-2" style="color:var(--text-muted)"></p>
+    </div>
+
     <!-- Error banner -->
     <div id="errorBanner" class="hidden shrink-0 flex items-start gap-2 px-3 py-2.5 rounded-xl" style="background:var(--red-dim);border:1px solid rgba(239,68,68,0.25)">
       <svg class="w-4 h-4 shrink-0 mt-0.5" style="color:var(--red)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -406,6 +418,7 @@
   let myRequestId      = null;
   let myRequestData    = {};
   let myVote           = null;
+  const myVotesByRequest = new Map();
 
   // ── Identifiant persistant (survit au refresh) ──
   let clientId = localStorage.getItem("djq-client-id");
@@ -575,6 +588,8 @@
   // ── Name bottom sheet ──
   // ── Système de ban côté invité ───────────────────────────────────────────
   let banState = null; // { message, until } — null = pas banni
+  let requestsFreezeState = { frozen: false, frozenUntil: null, remainingMs: 0 };
+  let currentLivePoll = null;
 
   function isBanned() {
     if (!banState) return false;
@@ -660,6 +675,11 @@
       showBanBanner(banState?.message || "Tu es bloqué par le DJ.", banState?.until ? banState.until - Date.now() : null);
       return;
     }
+    if (requestsFreezeState.frozen) {
+      const mins = Math.max(1, Math.ceil((requestsFreezeState.remainingMs || 0) / 60000));
+      showError(`Le DJ a gelé les nouvelles demandes (${mins} min restantes).`);
+      return;
+    }
     if (currentRateLimit.allowed === false) {
       const mins = currentRateLimit.remainingMinutes || 1;
       showError(`Limite atteinte — réessaie dans ${mins} min`);
@@ -681,6 +701,61 @@
     setTimeout(() => document.getElementById("nameInput").focus(), 350);
   }
 
+  function renderRequestsFreeze() {
+    const card = document.getElementById("requestsFreezeCard");
+    const txt = document.getElementById("requestsFreezeText");
+    if (!card || !txt) return;
+    if (!requestsFreezeState.frozen) {
+      card.classList.add("hidden");
+      return;
+    }
+    const mins = Math.max(1, Math.ceil((requestsFreezeState.remainingMs || 0) / 60000));
+    txt.textContent = `Les nouvelles demandes sont temporairement gelées (${mins} min restantes). Les votes restent actifs.`;
+    card.classList.remove("hidden");
+  }
+
+  function renderLivePoll() {
+    const card = document.getElementById("livePollCard");
+    const q = document.getElementById("livePollQuestion");
+    const opts = document.getElementById("livePollOptions");
+    const meta = document.getElementById("livePollMeta");
+    if (!card || !q || !opts || !meta) return;
+
+    if (!currentLivePoll || !currentLivePoll.isActive) {
+      card.classList.add("hidden");
+      return;
+    }
+    q.textContent = currentLivePoll.question || "Sondage";
+    const totalVotes = Number(currentLivePoll.totalVotes || 0);
+    const myVote = Number.isInteger(currentLivePoll.myVote) ? currentLivePoll.myVote : null;
+    opts.innerHTML = (currentLivePoll.options || []).map((label, i) => {
+      const pct = Number((currentLivePoll.percentages || [])[i] || 0);
+      const count = Number((currentLivePoll.counts || [])[i] || 0);
+      const voted = myVote === i;
+      return `
+        <button class="w-full text-left rounded-xl px-3 py-2.5" data-poll-option="${i}"
+                style="background:${voted ? "var(--accent-dim)" : "var(--bg-elevated)"};border:1px solid var(--border)">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-semibold truncate" style="color:var(--text-primary)">${label}</span>
+            <span class="text-xs tabular-nums" style="color:var(--text-secondary)">${pct}% · ${count}</span>
+          </div>
+        </button>`;
+    }).join("");
+    meta.textContent = `${totalVotes} vote${totalVotes > 1 ? "s" : ""}`;
+    card.classList.remove("hidden");
+
+    opts.querySelectorAll("[data-poll-option]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!currentLivePoll?.id) return;
+        const i = parseInt(btn.dataset.pollOption, 10);
+        if (Number.isNaN(i)) return;
+        currentLivePoll.myVote = i;
+        renderLivePoll();
+        socket.emit("vote-live-poll", { eventId, pollId: currentLivePoll.id, optionIndex: i });
+      });
+    });
+  }
+
   function closeNameSheet() {
     const sheet = document.getElementById("nameSheet");
     sheet.classList.remove("open");
@@ -690,6 +765,11 @@
 
   function submitRequest() {
     if (!pendingTrack) return;
+    if (requestsFreezeState.frozen) {
+      const mins = Math.max(1, Math.ceil((requestsFreezeState.remainingMs || 0) / 60000));
+      showError(`Le DJ a gelé les nouvelles demandes (${mins} min restantes).`);
+      return;
+    }
     const userName = document.getElementById("nameInput").value.trim() || "Anonyme";
     if (userName !== "Anonyme") localStorage.setItem("djq-user-name", userName);
     socket.emit("request-song", { eventId, songData: pendingTrack, userName, clientId });
@@ -812,6 +892,7 @@
     if (!votesEnabled)  { showError("Votes désactivés par le DJ"); return; }
     if (!myRequestId)   return;
     socket.emit("vote", { requestId: myRequestId, voteType: type });
+    myVotesByRequest.set(myRequestId, type);
     myVote = type;
     updateMyRequestCard();
   }
@@ -844,7 +925,7 @@
     container.innerHTML = fullQueue.map((song, index) => {
       const wait     = window.TimeUtils.estimateQueueWaitMinutes(fullQueue, index);
       const isMyTrack = song.id === myRequestId;
-      const myVoteQ  = isMyTrack ? myVote : null;
+      const myVoteQ  = myVotesByRequest.get(song.id) ?? (isMyTrack ? myVote : null);
       return `
         <div class="flex items-center gap-3 px-4 py-3.5 ${isMyTrack ? "relative" : ""}" style="${isMyTrack ? "background:var(--accent-dim);border-left:3px solid var(--accent)" : ""}">
           <div class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold" style="background:${isMyTrack ? "var(--accent)" : "var(--bg-elevated)"};color:${isMyTrack ? "#fff" : "var(--text-secondary)"}">
@@ -880,7 +961,13 @@
         const type = btn.dataset.voteAction;
         if (!votesEnabled) { showError("Votes désactivés par le DJ"); return; }
         socket.emit("vote", { requestId: rid, voteType: type });
-        if (rid === myRequestId) { myVote = type; updateMyRequestCard(); }
+        myVotesByRequest.set(rid, type);
+        if (rid === myRequestId) {
+          myVote = type;
+          updateMyRequestCard();
+        } else {
+          updateQueueDisplay();
+        }
       });
     });
   }
@@ -1026,6 +1113,29 @@
   }
 
   socket.on("rate-limit-status", (status) => { currentRateLimit = status; updateRateLimitDisplay(); });
+  socket.on("requests-freeze-updated", (data) => {
+    requestsFreezeState = {
+      frozen: !!data?.frozen,
+      frozenUntil: data?.frozenUntil || null,
+      remainingMs: Number(data?.remainingMs || 0),
+    };
+    renderRequestsFreeze();
+  });
+  socket.on("live-poll-updated", (data) => {
+    const incoming = data?.poll || null;
+    if (
+      incoming &&
+      incoming.id &&
+      incoming.myVote == null &&
+      currentLivePoll &&
+      currentLivePoll.id === incoming.id &&
+      Number.isInteger(currentLivePoll.myVote)
+    ) {
+      incoming.myVote = currentLivePoll.myVote;
+    }
+    currentLivePoll = incoming;
+    renderLivePoll();
+  });
 
   socket.on("request-created", (data) => {
     myRequestId   = data.requestId;
@@ -1046,6 +1156,13 @@
     if (error.type === "rate-limit") {
       currentRateLimit = { ...currentRateLimit, allowed: false };
       updateRateLimitDisplay();
+    } else if (error.type === "requests-frozen") {
+      requestsFreezeState = {
+        frozen: true,
+        frozenUntil: error.remainingMs ? Date.now() + Number(error.remainingMs) : null,
+        remainingMs: Number(error.remainingMs || 0),
+      };
+      renderRequestsFreeze();
     } else if (error.type === "banned") {
       applyBanState(error.message, error.remainingMs || null);
     }
@@ -1069,6 +1186,13 @@
         updateMyRequestCard();
       }
     }
+  });
+
+  socket.on("you-are-unbanned", (data) => {
+    if (banState?._timer) clearTimeout(banState._timer);
+    banState = null;
+    unlockSearchAfterBan();
+    showToast(data?.message || "Tu as été débloqué.");
   });
 
   socket.on("your-request-accepted", (data) => {
@@ -1106,6 +1230,10 @@
 
   socket.on("queue-updated", (data) => {
     fullQueue = data.queue;
+    const ids = new Set(fullQueue.map((r) => r.id));
+    for (const key of myVotesByRequest.keys()) {
+      if (!ids.has(key) && key !== myRequestId) myVotesByRequest.delete(key);
+    }
     if (myRequestId && myRequestData.status === "accepted") {
       const idx = data.queue.findIndex((r) => r.id === myRequestId);
       const pos = idx + 1; // 0 si absent (jouée)
@@ -1136,6 +1264,25 @@
       myRequestData.downvotes = data.downvotes;
       updateMyRequestCard();
     }
+  });
+
+  socket.on("vote-confirmed", (data) => {
+    const rid = data?.requestId;
+    if (!rid) return;
+    if (data.myVote == null) myVotesByRequest.delete(rid);
+    else myVotesByRequest.set(rid, data.myVote);
+
+    if (rid === myRequestId) {
+      myVote = data.myVote ?? null;
+      myRequestData.upvotes = Number(data.upvotes || myRequestData.upvotes || 0);
+      myRequestData.downvotes = Number(data.downvotes || myRequestData.downvotes || 0);
+      updateMyRequestCard();
+    }
+    updateQueueDisplay();
+  });
+
+  socket.on("vote-error", (data) => {
+    showError(data?.message || "Erreur lors du vote");
   });
 
   socket.on("event-ended", (data) => {
@@ -1316,6 +1463,12 @@
         message:  data.donationMessage  ?? donationCfg.message,
       });
     }
+
+    // Mise à jour live de la limitation des demandes côté invité
+    if (data.rateLimitMax !== undefined || data.rateLimitWindowMinutes !== undefined) {
+      // Rejouer join-event force le serveur à renvoyer `rate-limit-status`
+      socket.emit("join-event", { eventId, clientId });
+    }
   });
 
   // Bloquer la recherche si don obligatoire non confirmé
@@ -1331,6 +1484,13 @@
       document.getElementById("eventName").textContent = data.name || "Soirée";
       votesEnabled = data.votes_enabled;
       fullQueue    = data.queue || [];
+      const frozenUntil = data.requests_frozen_until ? Number(data.requests_frozen_until) : null;
+      requestsFreezeState = {
+        frozen: !!(frozenUntil && Date.now() < frozenUntil),
+        frozenUntil,
+        remainingMs: frozenUntil ? Math.max(0, frozenUntil - Date.now()) : 0,
+      };
+      renderRequestsFreeze();
       updateQueueDisplay();
 
       // Configurer les dons au chargement
@@ -1357,6 +1517,17 @@
       navigator.serviceWorker.register("/sw-user.js").catch(() => {});
     }
   })();
+
+  // Rafraîchir les compteurs temporaires (gel DJ)
+  setInterval(() => {
+    if (!requestsFreezeState.frozen || !requestsFreezeState.frozenUntil) return;
+    const left = Math.max(0, Number(requestsFreezeState.frozenUntil) - Date.now());
+    requestsFreezeState.remainingMs = left;
+    if (left <= 0) {
+      requestsFreezeState = { frozen: false, frozenUntil: null, remainingMs: 0 };
+    }
+    renderRequestsFreeze();
+  }, 1000);
 </script>
 </body>
 </html>

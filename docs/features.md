@@ -105,6 +105,7 @@ Accessible via le bouton "Réglages" (icône engrenage) :
 | Max demandes / invité | Nombre | Nombre max de demandes par fenêtre |
 | Fenêtre (minutes) | Nombre | Durée de la fenêtre de rate limit |
 | Anti-répétition (minutes) | Nombre | Délai minimum avant de reproposer un morceau déjà **joué** (0 = désactivé). Basé sur `played_at` + même `spotify_uri`. |
+| Anti-abus intelligent | Auto | Score invité (spam, doublons, refus répétés) avec throttle progressif et quota dynamique |
 | Playlist de secours | Texte | URI de la playlist Spotify de secours |
 | Crossfade | Toggle | Activer le fondu enchaîné |
 | Système de dons | Section | Voir [Dons](#système-de-dons) |
@@ -125,6 +126,11 @@ Bouton "Stats" : ouvre `/event/:eventId/stats` qui affiche :
 - Top 5 chansons les plus demandées
 - Chanson la plus votée en attente
 - Timeline des demandes par tranche de 15 minutes
+- Heatmap des demandes par heure (`00h` → `23h`)
+- Top tempos (buckets BPM)
+- Taux de skip (morceaux passés rapidement)
+- Engagement votes (votes totaux, votants uniques, votes/demande)
+- Bouton **Export CSV** (fin de soirée ou live) : téléchargement des données détaillées
 
 ---
 
@@ -267,6 +273,20 @@ Conçu pour être projeté sur un écran TV ou vidéoprojecteur.
 - **Chanson en cours** : grande pochette, titre, artiste, barre de progression
 - **File d'attente** : prochaines chansons (jusqu'à 5)
 - **Chansons récemment jouées**
+- **Visuels projection** (pilotés par réglages DJ) : aurora/pulse/strobe/spectrum/nebula/laser/vortex/party/dvd/**bpm-sync**
+
+### Scène visuelle pilotée par BPM
+
+- Le mode `bpm-sync` adapte la vitesse des pulsations à partir du BPM de la piste en cours (quand disponible).
+- Le BPM provient des métadonnées Spotify (cache `track_audio_cache`), avec fallback silencieux si non disponible.
+
+### Mode DVD personnalisé
+
+- Paramètres URL supportés sur `/event/:eventId/qr` :
+  - `dvd=logo&dvdLogo=https://...`
+  - `dvd=text&dvdText=...`
+  - `dvd=event`
+- Quand un paramètre `dvd=...` est présent, le mode DVD est **verrouillé** (pas d’override aléatoire par auto-switch par track).
 
 ### Actualisation
 

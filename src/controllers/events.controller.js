@@ -4,6 +4,26 @@ const queueService = require("../services/queue.service");
 const { buildBrandedQrDataUrl } = require("../utils/qrBranded");
 
 class EventsController {
+  async _tableExists(tableName) {
+    const [rows] = await db.query(
+      `SELECT COUNT(*) AS c
+       FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+      [tableName],
+    );
+    return Number(rows?.[0]?.c || 0) > 0;
+  }
+
+  async _columnExists(tableName, columnName) {
+    const [rows] = await db.query(
+      `SELECT COUNT(*) AS c
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [tableName, columnName],
+    );
+    return Number(rows?.[0]?.c || 0) > 0;
+  }
+
   async createEvent(req, res) {
     const eventId = uuidv4();
     const { name, starts_at } = req.body;
@@ -210,12 +230,23 @@ class EventsController {
     const { max, window } = req.body;
 
     try {
+      const maxInt = parseInt(max, 10);
+      const windowInt = parseInt(window, 10);
       await db.query(
         "UPDATE events SET rate_limit_max = ?, rate_limit_window_minutes = ? WHERE id = ?",
-        [max, window, eventId],
+        [maxInt, windowInt, eventId],
       );
 
-      res.json({ success: true, max, window });
+      // Push live update to all clients in the room (DJ + users)
+      const io = req.app.get("io");
+      if (io) {
+        io.to(eventId).emit("event-settings-updated", {
+          rateLimitMax: maxInt,
+          rateLimitWindowMinutes: windowInt,
+        });
+      }
+
+      res.json({ success: true, max: maxInt, window: windowInt });
     } catch (error) {
       console.error("Erreur update rate limit:", error);
       res.status(500).json({ error: "Erreur serveur" });
@@ -367,12 +398,24 @@ class EventsController {
       }));
 
       // ── Dernières demandes (live feed) ──
-      const [recentRequests] = await db.query(
-        `SELECT song_name, artist, user_name, status, created_at
-         FROM requests WHERE event_id = ?
-         ORDER BY created_at DESC LIMIT 10`,
-        [eventId],
-      );
+      let recentRequests = [];
+      try {
+        const [rows] = await db.query(
+          `SELECT song_name, artist, user_name, status, created_at, is_fallback_source
+           FROM requests WHERE event_id = ?
+           ORDER BY created_at DESC LIMIT 10`,
+          [eventId],
+        );
+        recentRequests = rows;
+      } catch {
+        const [rows] = await db.query(
+          `SELECT song_name, artist, user_name, status, created_at
+           FROM requests WHERE event_id = ?
+           ORDER BY created_at DESC LIMIT 10`,
+          [eventId],
+        );
+        recentRequests = rows;
+      }
 
       // ── Heatmap horaire (0..23) ──
       const [hourRows] = await db.query(
@@ -392,36 +435,63 @@ class EventsController {
       }));
 
       // ── Top tempos (via cache audio Spotify) ──
-      const [tempoRows] = await db.query(
-        `SELECT
-           CASE
-             WHEN tac.bpm < 90 THEN '<90'
-             WHEN tac.bpm BETWEEN 90 AND 109 THEN '90-109'
-             WHEN tac.bpm BETWEEN 110 AND 129 THEN '110-129'
-             WHEN tac.bpm BETWEEN 130 AND 149 THEN '130-149'
-             ELSE '150+'
-           END AS bpm_bucket,
-           COUNT(*) AS total
-         FROM requests r
-         JOIN track_audio_cache tac
-           ON tac.track_id = SUBSTRING_INDEX(r.spotify_uri, ':', -1)
-         WHERE r.event_id = ? AND tac.bpm IS NOT NULL
-         GROUP BY bpm_bucket
-         ORDER BY total DESC`,
-        [eventId],
-      );
+      let tempoRows = [];
+      try {
+        const hasTrackCache = await this._tableExists("track_audio_cache");
+        if (hasTrackCache) {
+          const [tmpRows] = await db.query(
+            `SELECT
+               CASE
+                 WHEN tac.bpm < 90 THEN '<90'
+                 WHEN tac.bpm BETWEEN 90 AND 109 THEN '90-109'
+                 WHEN tac.bpm BETWEEN 110 AND 129 THEN '110-129'
+                 WHEN tac.bpm BETWEEN 130 AND 149 THEN '130-149'
+                 ELSE '150+'
+               END AS bpm_bucket,
+               COUNT(*) AS total
+             FROM requests r
+             JOIN track_audio_cache tac
+               ON tac.track_id = SUBSTRING_INDEX(r.spotify_uri, ':', -1)
+             WHERE r.event_id = ? AND tac.bpm IS NOT NULL
+             GROUP BY bpm_bucket
+             ORDER BY total DESC`,
+            [eventId],
+          );
+          tempoRows = tmpRows;
+        }
+      } catch (tempoErr) {
+        console.warn("live-stats tempo fallback:", tempoErr.message || tempoErr);
+      }
 
       // ── Skip rate (morceaux joués skipés avant ~85%) ──
-      const [[skipStats]] = await db.query(
-        `SELECT
-           SUM(status='played') AS played_total,
-           SUM(skipped_at IS NOT NULL) AS skipped_total
-         FROM requests
-         WHERE event_id = ?`,
-        [eventId],
-      );
-      const playedTotal = Number(skipStats.played_total || 0);
-      const skippedTotal = Number(skipStats.skipped_total || 0);
+      let playedTotal = 0;
+      let skippedTotal = 0;
+      try {
+        const hasSkippedAt = await this._columnExists("requests", "skipped_at");
+        if (hasSkippedAt) {
+          const [[skipStats]] = await db.query(
+            `SELECT
+               SUM(status='played') AS played_total,
+               SUM(skipped_at IS NOT NULL) AS skipped_total
+             FROM requests
+             WHERE event_id = ?`,
+            [eventId],
+          );
+          playedTotal = Number(skipStats.played_total || 0);
+          skippedTotal = Number(skipStats.skipped_total || 0);
+        } else {
+          const [[legacySkipStats]] = await db.query(
+            `SELECT SUM(status='played') AS played_total
+             FROM requests
+             WHERE event_id = ?`,
+            [eventId],
+          );
+          playedTotal = Number(legacySkipStats.played_total || 0);
+          skippedTotal = 0;
+        }
+      } catch (skipErr) {
+        console.warn("live-stats skip fallback:", skipErr.message || skipErr);
+      }
       const skipRate = playedTotal > 0 ? Number(((skippedTotal / playedTotal) * 100).toFixed(1)) : 0;
 
       // ── Engagement votes ──
@@ -650,7 +720,7 @@ class EventsController {
         return res.status(404).json({ error: "Événement non trouvé" });
       }
 
-      const { votes_enabled, repeat_cooldown_minutes } = req.body;
+      const { votes_enabled, repeat_cooldown_minutes, request_freeze_minutes } = req.body;
       const updates = [];
       const values = [];
 
@@ -663,6 +733,13 @@ class EventsController {
         if (!Number.isNaN(n) && n >= 0 && n <= 240) {
           updates.push("repeat_cooldown_minutes = ?");
           values.push(n);
+        }
+      }
+      if (request_freeze_minutes !== undefined) {
+        const n = parseInt(String(request_freeze_minutes), 10);
+        if (!Number.isNaN(n) && n >= 0 && n <= 30) {
+          updates.push("requests_frozen_until = ?");
+          values.push(n > 0 ? Date.now() + (n * 60 * 1000) : null);
         }
       }
 
@@ -693,18 +770,20 @@ class EventsController {
         return res.status(404).json({ error: "Événement non trouvé" });
       }
 
+      const hasTrackCache = await this._tableExists("track_audio_cache");
+      const hasSkippedAt = await this._columnExists("requests", "skipped_at");
       const [rows] = await db.query(
         `SELECT
           r.created_at,
           r.played_at,
-          r.skipped_at,
+          ${hasSkippedAt ? "r.skipped_at" : "NULL AS skipped_at"},
           r.status,
           r.user_name,
           r.song_name,
           r.artist,
           r.spotify_uri,
-          COALESCE(tac.bpm, '') AS bpm,
-          COALESCE(tac.energy, '') AS energy,
+          ${hasTrackCache ? "COALESCE(tac.bpm, '')" : "''"} AS bpm,
+          ${hasTrackCache ? "COALESCE(tac.energy, '')" : "''"} AS energy,
           COALESCE((
             SELECT COUNT(*) FROM votes v WHERE v.request_id = r.id AND v.vote_type='up'
           ), 0) AS upvotes,
@@ -712,8 +791,7 @@ class EventsController {
             SELECT COUNT(*) FROM votes v WHERE v.request_id = r.id AND v.vote_type='down'
           ), 0) AS downvotes
          FROM requests r
-         LEFT JOIN track_audio_cache tac
-           ON tac.track_id = SUBSTRING_INDEX(r.spotify_uri, ':', -1)
+         ${hasTrackCache ? "LEFT JOIN track_audio_cache tac ON tac.track_id = SUBSTRING_INDEX(r.spotify_uri, ':', -1)" : ""}
          WHERE r.event_id = ?
          ORDER BY r.created_at ASC`,
         [eventId],

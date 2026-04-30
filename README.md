@@ -28,6 +28,8 @@ Une application web temps réel permettant aux participants d'une soirée de pro
 - 🔄 **Réorganisation** : Drag & drop pour modifier l'ordre
 - 🔁 **Anti-répétition** : Délai configurable avant de reproposer un morceau déjà joué (`repeat_cooldown_minutes`, basé sur `played_at`)
 - 📈 **Statistiques Live** : Nombre de demandes, votes, taux d'acceptation
+- 🛡️ **Anti-abus intelligent** : Score par invité (spam/doublons/refus), throttle progressif et quota dynamique
+- 📊 **Analytics live avancées** : Heatmap horaire, top tempos, taux de skip, engagement votes + export CSV
 - 🎵 **Lecture Automatique** : Intégration Spotify Player
 - 📊 **Historique Détaillé** : Stats complètes des événements passés
 - 🖼️ **QR personnalisé** : SVG avec nom de soirée + logo optionnel (`src/public/images/qr-logo.png`)
@@ -36,6 +38,7 @@ Une application web temps réel permettant aux participants d'une soirée de pro
   - Activation/désactivation des votes
   - Gestion des doublons
   - Rate limiting configurable
+  - Visuels projection (dont mode `bpm-sync`)
 
 ## 🚀 Technologies
 
@@ -183,6 +186,7 @@ PATCH  /api/events/:eventId/settings       - Réglages (votes, anti-répétition
 GET    /api/events/:eventId/qrcode          - QR Code (data URL SVG brandé)
 GET    /api/events/:eventId/stats           - Statistiques
 GET    /api/events/:eventId/live-stats      - Stats live (propriétaire)
+GET    /api/events/:eventId/live-stats.csv  - Export CSV des stats live (propriétaire)
 POST   /api/events/:eventId/end             - Terminer événement
 POST   /api/events/:eventId/toggle-votes    - Activer/désactiver votes
 POST   /api/events/:eventId/toggle-duplicates - Autoriser doublons
@@ -226,6 +230,7 @@ POST   /api/spotify/play/:eventId           - Lire musique
 'reject-all-pending'     // (DJ) Refuser toutes les demandes en attente
 'reorder-queue'          // (DJ) Réorganiser queue
 'mark-played'            // (DJ) Marquer comme jouée
+'mark-skipped'           // (DJ) Marquer un skip (next avant ~85%)
 'update-event-settings'  // (DJ) Incl. repeatCooldownMinutes (anti-répétition)
 ```
 
@@ -237,7 +242,7 @@ POST   /api/spotify/play/:eventId           - Lire musique
 'request-rejected'          // Demande refusée
 'reject-undone'             // Refus annulé côté room
 'your-request-pending-again'// Invité : sa demande est à nouveau en attente
-'request-error'             // Erreur demande (incl. type repeat-cooldown si configuré)
+'request-error'             // Erreur demande (incl. repeat-cooldown / abuse-throttle)
 'vote-updated'              // Votes mis à jour
 'event-ended'               // Événement terminé
 ```
@@ -363,6 +368,7 @@ npm test
 - [ ] CI/CD avec GitHub Actions
 - [ ] Monitoring avec Sentry
 - [ ] Analytics événements
+- [x] Analytics live avancées + export CSV
 - [ ] Mode playlist automatique
 - [ ] Support multi-langues
 - [ ] Application mobile (React Native)

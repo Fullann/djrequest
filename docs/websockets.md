@@ -97,6 +97,7 @@ Demande une chanson (action invité).
 - Rate limit par `clientId` en base de données
 - Vérification des doublons (si `allow_duplicates=false`)
 - **Anti-répétition** : si `repeat_cooldown_minutes > 0` sur l’événement, refus si une demande avec le même `spotify_uri` a déjà été jouée (`status = played`, `played_at` non NULL) dans la fenêtre de temps ; l’invité reçoit `request-error` avec `type: "repeat-cooldown"`
+- **Anti-abus intelligent** : score par invité (`clientId`) avec throttle progressif ; en cas d’abus l’invité reçoit `request-error` avec `type: "abuse-throttle"` et `remainingMs`.
 
 ---
 
@@ -190,6 +191,18 @@ Marque une chanson de la queue comme jouée (**DJ uniquement**).
 
 ---
 
+### `mark-skipped`
+
+Marque une piste comme “skippée” (changement au morceau suivant avant la fin).
+
+```typescript
+{ eventId: string; requestId: string }
+```
+
+**Auth :** `verifyEventAccess()` avec `role === "dj"` requis.
+
+---
+
 ### `reorder-queue`
 
 Réorganise l'ordre des chansons dans la queue par drag & drop (DJ ou modérateur).
@@ -217,6 +230,8 @@ Diffuse la chanson en cours de lecture aux invités (émis automatiquement depui
     artist:     string;
     albumArt:   string;    // URL image pochette
     durationMs: number;
+    uri?:       string;
+    bpm?:       number | null;
   };
   positionMs: number;       // position actuelle en ms
   isPlaying:  boolean;
@@ -350,6 +365,7 @@ Confirmation de création d'une demande, envoyé à l'invité auteur.
   image:           string | null;
   status:          "pending" | "accepted";
   rateLimitStatus: RateLimitStatus;  // voir request-error pour la structure
+  abuseScore?:     number;
 }
 ```
 
@@ -361,9 +377,10 @@ Erreur lors d'une demande (rate limit, doublon, ban, anti-répétition, événem
 
 ```typescript
 {
-  type?:       "rate-limit" | "duplicate" | "banned" | "repeat-cooldown";
+  type?:       "rate-limit" | "duplicate" | "banned" | "repeat-cooldown" | "abuse-throttle";
   message:     string;
   remainingMs?: number;   // si type="banned" et ban temporaire
+  abuseScore?: number;
 }
 ```
 
@@ -519,6 +536,8 @@ Morceau en cours de lecture (broadcast aux invités, PAS au DJ qui a émis).
     artist:     string;
     albumArt:   string;
     durationMs: number;
+    uri?:       string;
+    bpm?:       number | null;
   };
   positionMs: number;
   isPlaying:  boolean;
@@ -556,6 +575,10 @@ Mise à jour des paramètres de l'événement en temps réel.
 {
   votesEnabled?:     boolean;
   autoAcceptEnabled?: boolean;
+  repeatCooldownMinutes?: number;
+  projectionVisualsEnabled?: boolean;
+  projectionVisualsMode?: "aurora" | "pulse" | "strobe" | "spectrum" | "nebula" | "laser" | "vortex" | "party" | "dvd" | "bpm-sync";
+  projectionVisualsAutoPerTrack?: boolean;
   donationEnabled?:  boolean;
   donationRequired?: boolean;
   donationAmount?:   number;

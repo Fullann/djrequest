@@ -83,6 +83,8 @@ Demandes de chansons par les invités.
 | `queue_position` | INT | Oui | NULL | Position dans la queue (NULL si pas en queue) |
 | `created_at` | DATETIME | Non | NOW() | Date de la demande |
 | `played_at` | DATETIME | Oui | NULL | Date de lecture |
+| `play_started_at` | DATETIME | Oui | NULL | Date de démarrage de lecture (instrumentation live) |
+| `skipped_at` | DATETIME | Oui | NULL | Date de skip (passage au morceau suivant) |
 
 **FK :** `requests.event_id → events.id`  
 **Index :** `(event_id, status)`, `(event_id, spotify_uri)` (pour les doublons), `(client_id)`
@@ -140,6 +142,37 @@ Rate limiting par invité (identifié par `clientId` persistant).
 > **Note :** le nom de colonne `socket_id` est un vestige historique — il contient désormais le `clientId` persistant.
 
 **Nettoyage :** `cleanupExpired()` supprime les entrées expirées depuis plus d'1h (appelé toutes les heures via `setInterval` dans `server.js`, en même temps que la purge des bans expirés).
+
+---
+
+### Table `abuse_scores`
+
+Score anti-abus par invité et par soirée (throttle progressif côté socket).
+
+| Colonne | Type | Null | Défaut | Description |
+|---------|------|------|--------|-------------|
+| `event_id` | VARCHAR(36) | Non | — | ID de soirée (indexé) |
+| `client_id` | VARCHAR(255) | Non | — | Identifiant persistant invité |
+| `score` | DECIMAL(8,2) | Non | 0 | Score de risque cumulé |
+| `throttle_until` | BIGINT | Oui | NULL | Timestamp ms de fin de throttle |
+| `updated_at` | DATETIME | Non | CURRENT_TIMESTAMP | Dernière mise à jour |
+
+**Contrainte :** `PRIMARY KEY(event_id, client_id)`  
+**Note prod :** la migration principale ne force pas de FK pour éviter les erreurs `#1005` en mutualisé.
+
+---
+
+### Table `track_audio_cache`
+
+Cache local des métadonnées audio Spotify (analytics + projection BPM sync).
+
+| Colonne | Type | Null | Défaut | Description |
+|---------|------|------|--------|-------------|
+| `track_id` | VARCHAR(64) | Non | — | ID Spotify de la piste (PK) |
+| `bpm` | INT | Oui | NULL | Tempo estimé |
+| `energy` | DECIMAL(5,2) | Oui | NULL | Énergie (audio-features ou fallback popularité) |
+| `popularity` | INT | Oui | NULL | Popularité Spotify (fallback) |
+| `updated_at` | DATETIME | Non | CURRENT_TIMESTAMP | Dernière mise à jour |
 
 ---
 
@@ -217,6 +250,9 @@ Appliquer dans cet ordre sur une base existante (schéma `db/db.sql`) :
 | 7 | `migration_mod_token.sql` | Ajoute `mod_token` sur `events` (modération déléguée) |
 | 8 | `migration_starts_at.sql` | Ajoute `starts_at` sur `events` (planification) |
 | 9 | `migration_repeat_cooldown.sql` | Ajoute `repeat_cooldown_minutes` sur `events` (anti-répétition) |
+| 10 | `migration_projection_visuals.sql` | Ajoute `projection_visuals_enabled` + `projection_visuals_mode` |
+| 11 | `migration_projection_visuals_auto.sql` | Ajoute `projection_visuals_auto_per_track` |
+| 12 | `migration_abuse_and_analytics.sql` | Crée `abuse_scores`, `track_audio_cache`, ajoute `play_started_at` + `skipped_at` |
 
 ```bash
 # Appliquer toutes les migrations
@@ -229,6 +265,9 @@ mysql -h 127.0.0.1 -u djuser -p dj_queue < db/migration_request_client_id.sql
 mysql -h 127.0.0.1 -u djuser -p dj_queue < db/migration_mod_token.sql
 mysql -h 127.0.0.1 -u djuser -p dj_queue < db/migration_starts_at.sql
 mysql -h 127.0.0.1 -u djuser -p dj_queue < db/migration_repeat_cooldown.sql
+mysql -h 127.0.0.1 -u djuser -p dj_queue < db/migration_projection_visuals.sql
+mysql -h 127.0.0.1 -u djuser -p dj_queue < db/migration_projection_visuals_auto.sql
+mysql -h 127.0.0.1 -u djuser -p dj_queue < db/migration_abuse_and_analytics.sql
 ```
 
 > **Note :** sur o2switch ou tout serveur distant, utiliser `-h <host>` et le bon utilisateur MySQL.
@@ -241,6 +280,15 @@ MySQL exige que `user_bans.event_id` et `events.id` aient le **même charset et 
 2. Si le collationnement est `utf8mb4_unicode_ci` (fréquent sur MariaDB / mutualisé), appliquer **`db/migration_user_bans_o2switch_unicode.sql`** au lieu du fichier standard (ou après `DROP TABLE IF EXISTS user_bans` si la table vide a été créée).
 3. Si `events` est encore en **MyISAM**, convertir d’abord : `ALTER TABLE events ENGINE=InnoDB;` (vérifier les contraintes existantes).
 4. En dernier recours : **`db/migration_user_bans_no_fk.sql`** (pas de `FOREIGN KEY`, index sur `event_id` conservé).
+
+### Erreur `#150` sur `abuse_scores` (clé étrangère)
+
+Même cause (charset/collation/engine non alignés avec `events.id`).
+
+- Migration recommandée en production mutualisée : **`db/migration_abuse_and_analytics.sql`** (sans FK, avec index `event_id`).
+- Si tu veux absolument la FK, utiliser la variante alignée :
+  - `db/migration_abuse_scores_fk_mysql8.sql` (`utf8mb4_0900_ai_ci`)
+  - `db/migration_abuse_scores_fk_unicode.sql` (`utf8mb4_unicode_ci`)
 
 ---
 

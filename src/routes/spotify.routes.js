@@ -339,6 +339,47 @@ router.get(
   },
 );
 
+// Aperçu d'une playlist (nom + image + taille) — DJ uniquement
+router.get(
+  "/playlist-info/:eventId/:playlistId",
+  requireAuth,
+  requireEventOwnership,
+  eventIdValidator,
+  handleValidationErrors,
+  async (req, res) => {
+    const { eventId, playlistId } = req.params;
+    try {
+      const token = await getValidEventToken(eventId);
+      if (!token) {
+        return res.status(401).json({ error: "Token Spotify expiré ou absent" });
+      }
+
+      const infoRes = await axios.get(
+        `https://api.spotify.com/v1/playlists/${playlistId}`,
+        {
+          params: { fields: "name,images,tracks.total,owner(display_name),external_urls.spotify" },
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      return res.json({
+        id: playlistId,
+        name: infoRes.data?.name || "Playlist",
+        image: infoRes.data?.images?.[0]?.url || null,
+        totalTracks: Number(infoRes.data?.tracks?.total || 0),
+        owner: infoRes.data?.owner?.display_name || null,
+        url: infoRes.data?.external_urls?.spotify || null,
+      });
+    } catch (error) {
+      console.error(
+        "Erreur playlist-info:",
+        error.response?.data || error.message,
+      );
+      return res.status(500).json({ error: "Erreur lors de la récupération de la playlist" });
+    }
+  },
+);
+
 // Piste aléatoire depuis une playlist (fallback — DJ uniquement)
 router.get(
   "/playlist/:eventId/:playlistId",

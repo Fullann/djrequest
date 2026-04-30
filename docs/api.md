@@ -271,10 +271,14 @@ Met à jour des réglages d’événement (au moins un champ requis).
 ```json
 {
   "votes_enabled": true,
-  "repeat_cooldown_minutes": 30
+  "repeat_cooldown_minutes": 30,
+  "projection_visuals_enabled": true,
+  "projection_visuals_mode": "bpm-sync",
+  "projection_visuals_auto_per_track": false
 }
 ```
 - `repeat_cooldown_minutes` : entier **0–240** ; **0** = anti-répétition désactivée. Si > 0, un invité ne peut pas reproposer une piste déjà **jouée** (`status = played`, `played_at`) avant l’expiration du délai (vérifié à la demande, côté socket `request-song`).
+- `projection_visuals_mode` : `aurora | pulse | strobe | spectrum | nebula | laser | vortex | party | dvd | bpm-sync`.
 
 **Réponse :** `{ "success": true, "event": { ... } }` (ligne `events` complète après UPDATE).
 
@@ -355,9 +359,36 @@ Statistiques temps réel enrichies (disponibles pendant et après la soirée).
     { "slot": 0, "label": "+0min", "count": 5 },
     { "slot": 1, "label": "+15min", "count": 12 }
   ],
-  "recentRequests": [...]
+  "recentRequests": [...],
+  "hourlyHeatmap": [
+    { "hour": 21, "label": "21h", "count": 14 }
+  ],
+  "topTempos": [
+    { "bpm_bucket": "110-129", "total": 26 }
+  ],
+  "skip": {
+    "playedTotal": 40,
+    "skippedTotal": 9,
+    "skipRate": 22.5
+  },
+  "voteEngagement": {
+    "totalVotes": 140,
+    "uniqueVoters": 42,
+    "votedRequests": 31,
+    "votesPerRequest": 1.75
+  }
 }
 ```
+
+---
+
+### `GET /api/events/:eventId/live-stats.csv`
+
+Export CSV des stats de soirée (ligne par demande), prêt pour tableur/BI.
+
+**Auth requise :** Oui + propriétaire de l'événement  
+**Réponse :** `text/csv` avec colonnes :
+`created_at, played_at, skipped_at, status, user_name, song_name, artist, spotify_uri, bpm, energy, upvotes, downvotes`.
 
 ---
 
@@ -650,6 +681,8 @@ Retourne le BPM, l'énergie et la tonalité pour une liste de pistes.
 }
 ```
 > Si l'endpoint `audio-features` est restreint (apps créées après nov. 2024), retourne la popularité comme proxy d'énergie : `{ "bpm": null, "energy": 0.76, "popularity": 76 }`
+>
+> Les données sont aussi mises en cache en base (`track_audio_cache`) pour alimenter les analytics live et le mode projection BPM sync.
 
 ---
 

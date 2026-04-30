@@ -150,6 +150,35 @@
     </button>
   </div>
 
+  <!-- Santé live (résilience prod) -->
+  <div class="mb-4 p-4 rounded-xl" style="background:var(--bg-surface);border:1px solid var(--border)">
+    <div class="flex items-center justify-between gap-3 mb-2">
+      <p class="text-sm font-semibold" style="color:var(--text-primary)">Santé en direct</p>
+      <span id="liveHealthUpdatedAt" class="text-xs" style="color:var(--text-muted)">—</span>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+      <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p style="color:var(--text-muted)">Spotify token</p>
+        <p id="liveHealthSpotify" class="font-semibold" style="color:var(--text-primary)">—</p>
+      </div>
+      <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p style="color:var(--text-muted)">Latence socket</p>
+        <p id="liveHealthSocketLatency" class="font-semibold" style="color:var(--text-primary)">—</p>
+      </div>
+      <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p style="color:var(--text-muted)">Backlog queue</p>
+        <p id="liveHealthBacklog" class="font-semibold" style="color:var(--text-primary)">—</p>
+      </div>
+      <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p style="color:var(--text-muted)">Erreurs récentes</p>
+        <p id="liveHealthErrorsCount" class="font-semibold" style="color:var(--text-primary)">0</p>
+      </div>
+    </div>
+    <div id="liveHealthErrorsList" class="mt-2 space-y-1 text-xs" style="color:var(--text-secondary)">
+      <p style="color:var(--text-muted)">Aucune erreur récente</p>
+    </div>
+  </div>
+
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
     <!-- Demandes en attente -->
@@ -268,6 +297,39 @@
         <button id="btnUpdateRateLimit" class="btn btn-primary btn-sm btn-full">Mettre à jour</button>
       </div>
 
+      <!-- Mode urgence DJ -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Mode urgence DJ</p>
+          <span id="requestsFreezeBadge" class="hidden text-xs font-semibold px-2 py-0.5 rounded-full"
+                style="background:var(--amber-dim);color:var(--amber)">Demandes gelées</span>
+        </div>
+        <p class="text-xs mb-3" style="color:var(--text-muted)">Gèle temporairement les nouvelles demandes (les votes restent actifs).</p>
+        <div class="grid grid-cols-3 gap-2">
+          <button id="btnFreeze5" class="btn btn-ghost btn-sm">5 min</button>
+          <button id="btnFreeze10" class="btn btn-ghost btn-sm">10 min</button>
+          <button id="btnFreezeOff" class="btn btn-primary btn-sm">Désactiver</button>
+        </div>
+      </div>
+
+      <!-- Sondages live -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Sondage live</p>
+        <p class="text-xs mb-3" style="color:var(--text-muted)">Lance un mini vote visible invités + écran projection.</p>
+        <input id="pollQuestionInput" class="input mb-2" maxlength="255" placeholder="Question (ex: prochain style ?)"/>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <input id="pollOption1" class="input" maxlength="60" placeholder="Option 1 (ex: EDM)"/>
+          <input id="pollOption2" class="input" maxlength="60" placeholder="Option 2 (ex: 90s)"/>
+          <input id="pollOption3" class="input" maxlength="60" placeholder="Option 3 (optionnel)"/>
+          <input id="pollOption4" class="input" maxlength="60" placeholder="Option 4 (optionnel)"/>
+        </div>
+        <div class="flex gap-2 mb-2">
+          <button id="btnLaunchPoll" class="btn btn-primary btn-sm flex-1">Lancer le sondage</button>
+          <button id="btnClosePoll" class="btn btn-ghost btn-sm">Clore</button>
+        </div>
+        <div id="pollLiveState" class="hidden text-xs rounded-lg px-2.5 py-2" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-secondary)"></div>
+      </div>
+
       <!-- Anti-répétition (même morceau déjà joué) -->
       <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
         <p class="text-sm font-medium" style="color:var(--text-primary)">Anti-répétition</p>
@@ -346,6 +408,22 @@
           placeholder="https://open.spotify.com/playlist/... ou spotify:playlist:..."
           autocomplete="off"
         />
+        <div id="fallbackPlaylistPreview" class="hidden mb-2 rounded-xl p-2.5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <div class="flex items-center gap-2.5">
+            <img id="fallbackPlaylistPreviewImg" src="" alt="Playlist cover" class="w-12 h-12 rounded-lg object-cover shrink-0" />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <p id="fallbackPlaylistPreviewName" class="text-xs font-semibold truncate" style="color:var(--text-primary)">Playlist</p>
+                <span id="fallbackPlaylistVerifiedBadge"
+                      class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                      style="background:var(--green-dim);color:var(--green)">Playlist vérifiée</span>
+              </div>
+              <p id="fallbackPlaylistPreviewMeta" class="text-xs truncate mt-0.5" style="color:var(--text-secondary)"></p>
+            </div>
+            <a id="fallbackPlaylistPreviewLink" href="#" target="_blank" rel="noopener noreferrer"
+               class="btn btn-ghost btn-sm shrink-0" title="Ouvrir dans Spotify">Ouvrir</a>
+          </div>
+        </div>
         <div class="flex gap-2">
           <button id="btnSaveFallbackPlaylist" class="btn btn-primary btn-sm flex-1">Enregistrer</button>
           <button id="btnClearFallbackPlaylist" class="btn btn-ghost btn-sm" title="Retirer la playlist">
@@ -408,6 +486,16 @@
             <label class="label">Message (optionnel)</label>
             <input type="text" id="donationMessageInput" maxlength="200" placeholder="Soutiens le set, merci !" class="input" />
           </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="label">Objectif soirée (€)</label>
+              <input type="number" id="donationGoalAmountInput" min="0" max="100000" step="1" value="0" class="input" />
+            </div>
+            <div>
+              <label class="label">Collecté (€)</label>
+              <input type="number" id="donationsRaisedTotalInput" min="0" max="100000" step="0.5" value="0" class="input" />
+            </div>
+          </div>
           <!-- Sauvegarder -->
           <button id="btnSaveDonation" class="btn btn-primary btn-sm btn-full">Enregistrer les réglages de dons</button>
           <div id="donationSaveFeedback" class="hidden text-xs font-medium text-center py-1 rounded-lg" style="background:var(--green-dim);color:var(--green)">Réglages sauvegardés !</div>
@@ -425,6 +513,34 @@
         </div>
         <div id="bannedList" class="space-y-2 text-sm" style="color:var(--text-secondary)">
           <p class="text-xs" style="color:var(--text-muted)">Aucun invité bloqué</p>
+        </div>
+      </div>
+
+      <!-- Co-DJ rôles -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Mode co-DJ natif</p>
+        <p class="text-xs mb-3" style="color:var(--text-muted)">Génère des liens avec rôles fins.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 mb-2">
+          <select id="coDjRoleSelect" class="input">
+            <option value="moderation">Modération seulement</option>
+            <option value="queue_message">Queue + message</option>
+            <option value="playback">Lecture Spotify</option>
+          </select>
+          <button id="btnGenerateCoDjLink" class="btn btn-primary btn-sm">Générer lien</button>
+        </div>
+        <div id="coDjLinksList" class="space-y-1.5 text-xs" style="color:var(--text-secondary)">
+          <p style="color:var(--text-muted)">Aucun lien co-DJ</p>
+        </div>
+      </div>
+
+      <!-- Historique d'actions -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Historique actions</p>
+          <button id="btnRefreshActionLogs" class="btn btn-ghost btn-sm">Rafraîchir</button>
+        </div>
+        <div id="actionLogsList" class="space-y-1.5 text-xs max-h-44 overflow-y-auto">
+          <p style="color:var(--text-muted)">Aucune action récente</p>
         </div>
       </div>
 
@@ -644,6 +760,7 @@
   let isCrossfading       = false;
   let crossfadeDuration   = parseInt(localStorage.getItem("djq-crossfade") || "0");
   let fallbackPlaylistUri  = null;
+  let fallbackPlaylistPreviewKey = null;
   let isFallbackFetching   = false;
   let isAutoPlayLocked     = false;
   let currentPlayingRequestId = null;
@@ -651,6 +768,100 @@
   let projectionVisualsEnabled = false;
   let projectionVisualsMode    = "aurora";
   let projectionVisualsAutoPerTrack = false;
+  let requestsFrozenUntil = null;
+  let livePollState = null;
+  let recentClientErrors = [];
+  let socketLatencyMs = null;
+
+  function fmtDuration(ms) {
+    if (ms == null || Number.isNaN(ms)) return "—";
+    const s = Math.max(0, Math.floor(ms / 1000));
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return `${m}m ${rem}s`;
+  }
+  function pushClientError(message) {
+    const text = String(message || "").trim();
+    if (!text) return;
+    recentClientErrors.unshift({
+      message: text.slice(0, 140),
+      created_at: new Date().toISOString(),
+      source: "client",
+    });
+    recentClientErrors = recentClientErrors.slice(0, 8);
+  }
+  function renderLiveHealth(health) {
+    const spotifyEl = document.getElementById("liveHealthSpotify");
+    const latencyEl = document.getElementById("liveHealthSocketLatency");
+    const backlogEl = document.getElementById("liveHealthBacklog");
+    const errorsCountEl = document.getElementById("liveHealthErrorsCount");
+    const errorsListEl = document.getElementById("liveHealthErrorsList");
+    const updatedAtEl = document.getElementById("liveHealthUpdatedAt");
+
+    const sp = health?.spotify || {};
+    const spText = sp.status === "ok"
+      ? `OK (${fmtDuration(sp.expiresInMs)} restants)`
+      : sp.status === "expiring-soon"
+        ? `Expire bientôt (${fmtDuration(sp.expiresInMs)})`
+        : sp.status === "expired"
+          ? "Expiré"
+          : "Absent";
+    spotifyEl.textContent = spText;
+    spotifyEl.style.color = sp.status === "ok" ? "var(--green)" : (sp.status === "expiring-soon" ? "var(--amber)" : "var(--red)");
+
+    latencyEl.textContent = socketLatencyMs == null ? "—" : `${socketLatencyMs} ms`;
+    latencyEl.style.color = socketLatencyMs != null && socketLatencyMs > 250 ? "var(--amber)" : "var(--text-primary)";
+
+    const q = health?.queue || {};
+    backlogEl.textContent = `${Number(q.backlogTotal || 0)} (P:${Number(q.pending || 0)} / Q:${Number(q.accepted || 0)})`;
+
+    const mergedErrors = [...(health?.recentErrors || []), ...recentClientErrors]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 6);
+    errorsCountEl.textContent = String(mergedErrors.length);
+    if (!mergedErrors.length) {
+      errorsListEl.innerHTML = `<p style="color:var(--text-muted)">Aucune erreur récente</p>`;
+    } else {
+      errorsListEl.innerHTML = mergedErrors.map((e) => {
+        const at = e.created_at ? new Date(e.created_at).toLocaleTimeString("fr-FR") : "--:--";
+        const msg = (e.action_type || e.message || "Erreur").toString();
+        return `<p>• [${at}] ${msg}</p>`;
+      }).join("");
+    }
+
+    updatedAtEl.textContent = `MAJ ${new Date().toLocaleTimeString("fr-FR")}`;
+  }
+  async function pingSocketLatency() {
+    if (!socket.connected) {
+      socketLatencyMs = null;
+      return;
+    }
+    const start = Date.now();
+    try {
+      await new Promise((resolve, reject) => {
+        socket.timeout(2000).emit("health-ping", { ts: start }, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      socketLatencyMs = Date.now() - start;
+    } catch {
+      socketLatencyMs = null;
+      pushClientError("Ping socket timeout");
+    }
+  }
+  async function loadLiveHealth() {
+    try {
+      await pingSocketLatency();
+      const res = await fetch(`/api/events/${eventId}/live-health`);
+      const data = await res.json();
+      renderLiveHealth(data);
+    } catch (err) {
+      pushClientError(err?.message || "Erreur récupération live-health");
+      renderLiveHealth(null);
+    }
+  }
 
   // ── Spotify SDK ──
   window.onSpotifyWebPlaybackSDKReady = () => {
@@ -721,6 +932,7 @@
             durationMs: state.duration,
             uri:        currentTrackUri,
             bpm:        currentTrackUri ? audioFeatures[getTrackId(currentTrackUri)]?.bpm || null : null,
+            energy:     currentTrackUri ? audioFeatures[getTrackId(currentTrackUri)]?.energy || null : null,
           },
           positionMs: state.position,
           isPlaying:  !state.paused,
@@ -738,8 +950,14 @@
         }
       }
     });
-    spotifyPlayer.addListener("authentication_error", () => alert("Erreur d'authentification Spotify. Reconnectez-vous."));
-    spotifyPlayer.addListener("account_error", () => alert("Compte Spotify Premium requis"));
+    spotifyPlayer.addListener("authentication_error", () => {
+      pushClientError("Spotify authentication_error");
+      alert("Erreur d'authentification Spotify. Reconnectez-vous.");
+    });
+    spotifyPlayer.addListener("account_error", () => {
+      pushClientError("Spotify account_error (Premium requis)");
+      alert("Compte Spotify Premium requis");
+    });
     spotifyPlayer.connect();
   }
 
@@ -829,6 +1047,38 @@
   document.getElementById("duplicatesToggle").addEventListener("change", toggleDuplicates);
   document.getElementById("autoAcceptToggle").addEventListener("change", toggleAutoAccept);
   document.getElementById("btnUpdateRateLimit").addEventListener("click", updateRateLimit);
+  document.getElementById("btnFreeze5").addEventListener("click", () => {
+    socket.emit("update-event-settings", { eventId, requestFreezeMinutes: 5 });
+    showToast("Demandes gelées 5 min", "info");
+  });
+  document.getElementById("btnFreeze10").addEventListener("click", () => {
+    socket.emit("update-event-settings", { eventId, requestFreezeMinutes: 10 });
+    showToast("Demandes gelées 10 min", "info");
+  });
+  document.getElementById("btnFreezeOff").addEventListener("click", () => {
+    socket.emit("update-event-settings", { eventId, requestFreezeMinutes: 0 });
+    showToast("Gel des demandes désactivé", "info");
+  });
+
+  document.getElementById("btnLaunchPoll").addEventListener("click", () => {
+    const question = (document.getElementById("pollQuestionInput").value || "").trim();
+    const options = [
+      document.getElementById("pollOption1").value,
+      document.getElementById("pollOption2").value,
+      document.getElementById("pollOption3").value,
+      document.getElementById("pollOption4").value,
+    ].map((v) => String(v || "").trim()).filter(Boolean);
+    if (!question || options.length < 2) {
+      showToast("Question + 2 options minimum", "error");
+      return;
+    }
+    socket.emit("create-live-poll", { eventId, question, options });
+    showToast("Sondage lancé", "info");
+  });
+  document.getElementById("btnClosePoll").addEventListener("click", () => {
+    if (!livePollState?.id) return;
+    socket.emit("close-live-poll", { eventId, pollId: livePollState.id });
+  });
   document.getElementById("btnSaveMessage").addEventListener("click", saveThankYouMessage);
   document.getElementById("btnResetMessage").addEventListener("click", resetThankYouMessage);
 
@@ -955,6 +1205,12 @@
     document.getElementById("fallbackPlaylistInput").value = "";
     saveFallbackPlaylist();
   });
+  document.getElementById("fallbackPlaylistInput").addEventListener("blur", async () => {
+    const val = document.getElementById("fallbackPlaylistInput").value.trim();
+    fallbackPlaylistUri = val || null;
+    updateFallbackPlaylistUI();
+    await loadFallbackPlaylistPreview();
+  });
 
   // Crossfade slider
   (function initCrossfadeSlider() {
@@ -1052,7 +1308,7 @@
 
   // ── Système de dons ────────────────────────────────────────────
   let donationSettings = {
-    enabled: false, required: false, amount: 2, link: "", message: "",
+    enabled: false, required: false, amount: 2, link: "", message: "", goalAmount: 0, raisedTotal: 0,
   };
 
   function applyDonationSettings(s) {
@@ -1064,6 +1320,8 @@
     if (s.amount     !== undefined) document.getElementById("donationAmountInput").value       = s.amount;
     if (s.link       !== undefined) document.getElementById("donationLinkInput").value         = s.link || "";
     if (s.message    !== undefined) document.getElementById("donationMessageInput").value      = s.message || "";
+    if (s.goalAmount !== undefined) document.getElementById("donationGoalAmountInput").value   = s.goalAmount || 0;
+    if (s.raisedTotal !== undefined) document.getElementById("donationsRaisedTotalInput").value = s.raisedTotal || 0;
   }
 
   document.getElementById("donationEnabledToggle").addEventListener("change", (e) => {
@@ -1076,13 +1334,23 @@
     const required = document.getElementById("donationRequiredToggle").checked;
     const enabled  = document.getElementById("donationEnabledToggle").checked;
     const message  = document.getElementById("donationMessageInput").value.trim();
+    const goalAmount = parseFloat(document.getElementById("donationGoalAmountInput").value);
+    const raisedTotal = parseFloat(document.getElementById("donationsRaisedTotalInput").value);
 
     if (enabled && (!link || !link.startsWith("https://"))) {
       alert("Le lien de paiement doit commencer par https://");
       return;
     }
 
-    donationSettings = { enabled, required, amount: isNaN(amount) ? 2 : amount, link, message };
+    donationSettings = {
+      enabled,
+      required,
+      amount: isNaN(amount) ? 2 : amount,
+      link,
+      message,
+      goalAmount: isNaN(goalAmount) ? 0 : goalAmount,
+      raisedTotal: isNaN(raisedTotal) ? 0 : raisedTotal,
+    };
     socket.emit("update-event-settings", {
       eventId,
       donationEnabled:  enabled,
@@ -1090,6 +1358,8 @@
       donationAmount:   donationSettings.amount,
       donationLink:     link,
       donationMessage:  message,
+      donationGoalAmount: donationSettings.goalAmount,
+      donationsRaisedTotal: donationSettings.raisedTotal,
     });
 
     const fb = document.getElementById("donationSaveFeedback");
@@ -1150,6 +1420,42 @@
           </button>
         </div>`;
     }).join("");
+  }
+
+  function renderRequestsFreezeBadge() {
+    const badge = document.getElementById("requestsFreezeBadge");
+    if (!badge) return;
+    if (!requestsFrozenUntil || Date.now() >= Number(requestsFrozenUntil)) {
+      badge.classList.add("hidden");
+      return;
+    }
+    const remainingMs = Math.max(0, Number(requestsFrozenUntil) - Date.now());
+    const mins = Math.max(1, Math.ceil(remainingMs / 60000));
+    badge.textContent = `Demandes gelées (${mins} min)`;
+    badge.classList.remove("hidden");
+  }
+
+  function renderLivePollState() {
+    const box = document.getElementById("pollLiveState");
+    if (!box) return;
+    if (!livePollState?.isActive) {
+      box.classList.add("hidden");
+      return;
+    }
+    const options = livePollState.options || [];
+    const percentages = livePollState.percentages || [];
+    const counts = livePollState.counts || [];
+    box.innerHTML = `
+      <p class="font-semibold mb-1" style="color:var(--text-primary)">${livePollState.question || "Sondage actif"}</p>
+      ${options.map((o, i) => `
+        <div class="flex items-center justify-between gap-2">
+          <span class="truncate">${o}</span>
+          <span class="tabular-nums">${percentages[i] || 0}% · ${counts[i] || 0}</span>
+        </div>
+      `).join("")}
+      <p class="mt-1">Total votes: ${livePollState.totalVotes || 0}</p>
+    `;
+    box.classList.remove("hidden");
   }
 
   // Débannir depuis la liste des blocages
@@ -1220,11 +1526,95 @@
     });
   })();
 
+  async function loadCoDjLinks() {
+    try {
+      const res = await fetch(`/api/events/${eventId}/co-dj-links`);
+      const data = await res.json();
+      const list = document.getElementById("coDjLinksList");
+      const links = data.links || [];
+      if (!links.length) {
+        list.innerHTML = `<p style="color:var(--text-muted)">Aucun lien co-DJ</p>`;
+        return;
+      }
+      list.innerHTML = links.map((l) => `
+        <div class="flex items-center justify-between gap-2 p-2 rounded-lg" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <div class="min-w-0">
+            <p class="truncate font-medium">${l.label || "Lien co-DJ"}</p>
+            <p style="color:var(--text-muted)">${l.role}</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" data-revoke-co-dj="${l.id}">Révoquer</button>
+        </div>
+      `).join("");
+    } catch (err) {
+      console.error("Erreur co-dj-links:", err);
+    }
+  }
+
+  async function loadActionLogs() {
+    try {
+      const res = await fetch(`/api/events/${eventId}/action-logs`);
+      const data = await res.json();
+      const list = document.getElementById("actionLogsList");
+      const logs = data.logs || [];
+      if (!logs.length) {
+        list.innerHTML = `<p style="color:var(--text-muted)">Aucune action récente</p>`;
+        return;
+      }
+      list.innerHTML = logs.slice(0, 80).map((log) => `
+        <div class="p-2 rounded-lg" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p><strong>${log.actor_role || log.actor_type}</strong> · ${log.action_type}</p>
+          <p style="color:var(--text-muted)">${new Date(log.created_at).toLocaleTimeString("fr-FR")}</p>
+        </div>
+      `).join("");
+    } catch (err) {
+      console.error("Erreur action-logs:", err);
+    }
+  }
+
+  document.getElementById("btnGenerateCoDjLink")?.addEventListener("click", async () => {
+    try {
+      const role = document.getElementById("coDjRoleSelect").value;
+      const csrf = document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || "";
+      const res = await fetch(`/api/events/${eventId}/generate-co-dj-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ role }),
+      });
+      const data = await res.json();
+      if (data.modUrl) {
+        await navigator.clipboard.writeText(data.modUrl);
+        showToast("Lien co-DJ généré et copié");
+      }
+      loadCoDjLinks();
+    } catch (err) {
+      console.error("Erreur génération co-dj:", err);
+    }
+  });
+
+  document.getElementById("coDjLinksList")?.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-revoke-co-dj]");
+    if (!btn) return;
+    try {
+      const csrf = document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || "";
+      await fetch(`/api/events/${eventId}/revoke-co-dj-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ linkId: btn.dataset.revokeCoDj }),
+      });
+      loadCoDjLinks();
+    } catch (err) {
+      console.error("Erreur révocation co-dj:", err);
+    }
+  });
+
+  document.getElementById("btnRefreshActionLogs")?.addEventListener("click", loadActionLogs);
+
   // ── Init ──
   // Rejoindre la room à chaque connexion/reconnexion Socket.IO
   socket.on("connect", () => {
     socket.emit("join-event", eventId);
     socket.emit("get-banned-users", { eventId });
+    loadLiveHealth();
     // Après une reconnexion, resynchroniser l'état complet
     if (socket._reconnecting) {
       loadPendingRequests();
@@ -1233,12 +1623,30 @@
   });
   // Variable pour détecter les reconnexions
   socket._reconnecting = false;
-  socket.on("disconnect", () => { socket._reconnecting = true; });
+  socket.on("disconnect", () => {
+    socket._reconnecting = true;
+    pushClientError("Socket disconnected");
+    loadLiveHealth();
+  });
+  socket.on("connect_error", (err) => {
+    pushClientError(`Socket connect_error: ${err?.message || "unknown"}`);
+    loadLiveHealth();
+  });
+
+  window.addEventListener("error", (e) => {
+    pushClientError(e?.message || "Erreur JS");
+    loadLiveHealth();
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    pushClientError(e?.reason?.message || e?.reason || "Promise rejetée");
+    loadLiveHealth();
+  });
 
   // Appel immédiat si la socket est déjà connectée (cas fréquent au chargement)
   if (socket.connected) {
     socket.emit("join-event", eventId);
     socket.emit("get-banned-users", { eventId });
+    loadLiveHealth();
   }
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -1270,6 +1678,7 @@
       projectionVisualsEnabled = !!data.projection_visuals_enabled;
       projectionVisualsMode = (data.projection_visuals_mode || "aurora").toLowerCase();
       projectionVisualsAutoPerTrack = !!data.projection_visuals_auto_per_track;
+      requestsFrozenUntil = data.requests_frozen_until ? Number(data.requests_frozen_until) : null;
       document.getElementById("projectionVisualsToggle").checked = projectionVisualsEnabled;
       document.getElementById("projectionVisualsMode").value =
         ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party", "dvd", "bpm-sync"].includes(projectionVisualsMode)
@@ -1284,6 +1693,9 @@
       const playlistInput = document.getElementById("fallbackPlaylistInput");
       if (playlistInput) playlistInput.value = fallbackPlaylistUri || "";
       updateFallbackPlaylistUI();
+      loadFallbackPlaylistPreview();
+      renderRequestsFreezeBadge();
+      renderLivePollState();
 
       // Réglages de dons
       applyDonationSettings({
@@ -1292,16 +1704,21 @@
         amount:   data.donation_amount  || 2,
         link:     data.donation_link    || "",
         message:  data.donation_message || "",
+        goalAmount: Number(data.donation_goal_amount || 0),
+        raisedTotal: Number(data.donations_raised_total || 0),
       });
 
       renderQueue();
       loadPendingRequests();
+      loadCoDjLinks();
+      loadActionLogs();
       // Démarrer le fallback si queue vide et player déjà prêt
       tryStartFallback();
     })
     .catch(console.error);
 
   checkSpotifyStatus();
+  setInterval(renderRequestsFreezeBadge, 15000);
 
   // ── Functions ──
 
@@ -1699,6 +2116,7 @@
       }
     } catch { /* polling silencieux */ }
   }, 10000);
+  setInterval(loadLiveHealth, 15000);
 
   // ── Socket events ──
   socket.on("new-request", (request) => {
@@ -1732,6 +2150,16 @@
     if (pen) { pen.upvotes = data.upvotes; pen.downvotes = data.downvotes; renderPending(); }
   });
 
+  socket.on("requests-freeze-updated", (data) => {
+    requestsFrozenUntil = data?.frozen ? Number(data?.frozenUntil || 0) : null;
+    renderRequestsFreezeBadge();
+  });
+
+  socket.on("live-poll-updated", (data) => {
+    livePollState = data?.poll || null;
+    renderLivePollState();
+  });
+
   // ── Render ──
 
   // ── Playlist de secours ──
@@ -1758,6 +2186,54 @@
     }
   }
 
+  function clearFallbackPlaylistPreview() {
+    const wrap = document.getElementById("fallbackPlaylistPreview");
+    const verified = document.getElementById("fallbackPlaylistVerifiedBadge");
+    if (wrap) wrap.classList.add("hidden");
+    if (verified) verified.classList.add("hidden");
+    fallbackPlaylistPreviewKey = null;
+  }
+
+  async function loadFallbackPlaylistPreview() {
+    const id = extractPlaylistId(fallbackPlaylistUri);
+    if (!id) {
+      clearFallbackPlaylistPreview();
+      return;
+    }
+    if (fallbackPlaylistPreviewKey === id) return;
+
+    try {
+      const res = await fetch(`/api/spotify/playlist-info/${eventId}/${id}`);
+      if (!res.ok) {
+        clearFallbackPlaylistPreview();
+        return;
+      }
+      const info = await res.json();
+      const wrap = document.getElementById("fallbackPlaylistPreview");
+      const img  = document.getElementById("fallbackPlaylistPreviewImg");
+      const name = document.getElementById("fallbackPlaylistPreviewName");
+      const meta = document.getElementById("fallbackPlaylistPreviewMeta");
+      const link = document.getElementById("fallbackPlaylistPreviewLink");
+      const verified = document.getElementById("fallbackPlaylistVerifiedBadge");
+      if (!wrap || !img || !name || !meta || !link) return;
+
+      img.src = info.image || "";
+      img.style.display = info.image ? "block" : "none";
+      name.textContent = info.name || "Playlist";
+      const parts = [];
+      if (info.owner) parts.push(info.owner);
+      if (Number.isFinite(info.totalTracks)) parts.push(`${info.totalTracks} titres`);
+      meta.textContent = parts.join(" · ");
+      link.href = info.url || `https://open.spotify.com/playlist/${id}`;
+      if (verified) verified.classList.remove("hidden");
+      wrap.classList.remove("hidden");
+      fallbackPlaylistPreviewKey = id;
+    } catch (e) {
+      console.error("Preview playlist fallback:", e);
+      clearFallbackPlaylistPreview();
+    }
+  }
+
   async function saveFallbackPlaylist() {
     const input = document.getElementById("fallbackPlaylistInput");
     const val   = input.value.trim();
@@ -1771,6 +2247,7 @@
     fallbackPlaylistUri = val || null;
     socket.emit("update-event-settings", { eventId, fallbackPlaylistUri });
     updateFallbackPlaylistUI();
+    await loadFallbackPlaylistPreview();
     showToast(fallbackPlaylistUri ? "Playlist de secours enregistrée" : "Playlist de secours retirée");
   }
 
@@ -1793,6 +2270,19 @@
       const track = await res.json();
       if (!track.uri) return;
       await _startPlayback(track.uri);
+      try {
+        const csrf = document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || "";
+        await fetch(`/api/events/${eventId}/fallback-played`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-csrf-token": csrf,
+          },
+          body: JSON.stringify({ track }),
+        });
+      } catch (traceErr) {
+        console.warn("Trace fallback-played:", traceErr);
+      }
       showToast(`Secours : ${track.name} — ${track.artist}`);
     } catch (e) {
       console.error("Erreur fallback playlist:", e);

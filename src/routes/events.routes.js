@@ -77,6 +77,86 @@ router.get(
   eventsController.getEventStats,
 );
 
+// Santé live (qualité prod) pour interface DJ
+router.get(
+  "/:eventId/live-health",
+  requireAuth,
+  requireEventOwnership,
+  eventIdValidator,
+  handleValidationErrors,
+  async (req, res) => {
+    const { eventId } = req.params;
+    try {
+      const now = Date.now();
+      const [tokenRows] = await db.query(
+        "SELECT expires_at FROM spotify_tokens WHERE event_id = ? LIMIT 1",
+        [eventId],
+      );
+      let spotify = { status: "missing", expiresInMs: null };
+      if (tokenRows.length > 0) {
+        const expiresAt = Number(tokenRows[0].expires_at || 0);
+        const delta = expiresAt - now;
+        spotify = {
+          status: delta > 10 * 60 * 1000 ? "ok" : delta > 0 ? "expiring-soon" : "expired",
+          expiresInMs: delta,
+        };
+      }
+
+      const [queueRows] = await db.query(
+        `SELECT
+          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count,
+          SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) AS accepted_count,
+          MIN(CASE WHEN status = 'pending' THEN created_at ELSE NULL END) AS oldest_pending_at
+         FROM requests
+         WHERE event_id = ?`,
+        [eventId],
+      );
+      const row = queueRows[0] || {};
+      const pending = Number(row.pending_count || 0);
+      const accepted = Number(row.accepted_count || 0);
+      const oldestPendingAt = row.oldest_pending_at ? new Date(row.oldest_pending_at).getTime() : null;
+
+      const io = req.app.get("io");
+      const roomSize = io?.sockets?.adapter?.rooms?.get(eventId)?.size || 0;
+
+      let recentErrors = [];
+      try {
+        const [errRows] = await db.query(
+          `SELECT actor_type, actor_name, action_type, created_at, meta_json
+           FROM event_action_logs
+           WHERE event_id = ? AND action_type LIKE 'error-%'
+           ORDER BY created_at DESC
+           LIMIT 8`,
+          [eventId],
+        );
+        recentErrors = errRows || [];
+      } catch {
+        recentErrors = [];
+      }
+
+      res.json({
+        spotify,
+        socket: {
+          connectedClients: Number(roomSize),
+        },
+        queue: {
+          pending,
+          accepted,
+          backlogTotal: pending + accepted,
+          oldestPendingAgeMs: oldestPendingAt ? Math.max(0, now - oldestPendingAt) : null,
+        },
+        recentErrors,
+        server: {
+          uptimeSec: Math.floor(process.uptime()),
+        },
+      });
+    } catch (error) {
+      console.error("Erreur live-health:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 // Données publiques pour écran QR (grand écran)
 router.get(
   "/:eventId/display-data",
@@ -86,9 +166,16 @@ router.get(
     const { eventId } = req.params;
 
     try {
-      const [eventRows] = await db.query("SELECT id, name FROM events WHERE id = ?", [
-        eventId,
-      ]);
+      let eventRows;
+      try {
+        [eventRows] = await db.query("SELECT id, name, requests_frozen_until, donation_goal_amount, donations_raised_total FROM events WHERE id = ?", [
+          eventId,
+        ]);
+      } catch {
+        [eventRows] = await db.query("SELECT id, name, donation_goal_amount, donations_raised_total FROM events WHERE id = ?", [
+          eventId,
+        ]);
+      }
 
       if (eventRows.length === 0) {
         return res.status(404).json({ error: "Événement non trouvé" });
@@ -96,38 +183,106 @@ router.get(
 
       const [upcomingQueue] = await db.query(
         `SELECT
-          id,
-          song_name,
-          artist,
-          image_url,
-          user_name,
-          duration_ms,
-          queue_position
-        FROM requests
+          r.id,
+          r.song_name,
+          r.artist,
+          r.image_url,
+          r.user_name,
+          r.duration_ms,
+          r.queue_position,
+          COALESCE(v.upvotes, 0)   AS upvotes,
+          COALESCE(v.downvotes, 0) AS downvotes
+        FROM requests r
+        LEFT JOIN (
+          SELECT
+            request_id,
+            SUM(CASE WHEN vote_type = 'up' THEN 1 ELSE 0 END) AS upvotes,
+            SUM(CASE WHEN vote_type = 'down' THEN 1 ELSE 0 END) AS downvotes
+          FROM votes
+          GROUP BY request_id
+        ) v ON v.request_id = r.id
         WHERE event_id = ? AND status = 'accepted'
         ORDER BY queue_position ASC`,
         [eventId],
       );
 
-      const [recentPlayed] = await db.query(
-        `SELECT
-          id,
-          song_name,
-          artist,
-          image_url,
-          user_name,
-          played_at
-        FROM requests
-        WHERE event_id = ? AND status = 'played'
-        ORDER BY played_at DESC
-        LIMIT 12`,
-        [eventId],
-      );
+      let recentPlayed;
+      try {
+        [recentPlayed] = await db.query(
+          `SELECT
+            id,
+            song_name,
+            artist,
+            image_url,
+            user_name,
+            played_at,
+            is_fallback_source
+          FROM requests
+          WHERE event_id = ? AND status = 'played'
+          ORDER BY played_at DESC
+          LIMIT 12`,
+          [eventId],
+        );
+      } catch {
+        [recentPlayed] = await db.query(
+          `SELECT
+            id,
+            song_name,
+            artist,
+            image_url,
+            user_name,
+            played_at
+          FROM requests
+          WHERE event_id = ? AND status = 'played'
+          ORDER BY played_at DESC
+          LIMIT 12`,
+          [eventId],
+        );
+      }
+
+      let activePoll = null;
+      try {
+        const [pollRows] = await db.query(
+          `SELECT id, question, options_json, created_at
+           FROM event_live_polls
+           WHERE event_id = ? AND is_active = 1
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [eventId],
+        );
+        if (pollRows.length > 0) {
+          const p = pollRows[0];
+          let options = [];
+          try { options = JSON.parse(p.options_json || "[]"); } catch { options = []; }
+          const [voteRows] = await db.query(
+            "SELECT option_index, COUNT(*) AS total FROM event_live_poll_votes WHERE poll_id = ? GROUP BY option_index",
+            [p.id],
+          );
+          const counts = Array.from({ length: options.length }, () => 0);
+          voteRows.forEach((r) => {
+            const i = Number(r.option_index);
+            if (Number.isInteger(i) && i >= 0 && i < counts.length) counts[i] = Number(r.total || 0);
+          });
+          const totalVotes = counts.reduce((a, b) => a + b, 0);
+          activePoll = {
+            id: p.id,
+            question: p.question,
+            options,
+            counts,
+            totalVotes,
+            percentages: counts.map((c) => (totalVotes > 0 ? Math.round((c * 100) / totalVotes) : 0)),
+            isActive: true,
+          };
+        }
+      } catch {
+        activePoll = null;
+      }
 
       res.json({
         event: eventRows[0],
         upcomingQueue,
         recentPlayed,
+        activePoll,
       });
     } catch (error) {
       console.error("Erreur display-data:", error);
@@ -284,6 +439,65 @@ router.post(
   },
 );
 
+// Tracer un morceau lu depuis la playlist de secours (DJ)
+router.post(
+  "/:eventId/fallback-played",
+  requireAuth,
+  requireEventOwnership,
+  eventIdValidator,
+  handleValidationErrors,
+  async (req, res) => {
+    const { eventId } = req.params;
+    const t = req.body?.track || {};
+    const songName = String(t.name || "").trim().slice(0, 255);
+    const artist = String(t.artist || "").trim().slice(0, 255);
+    const spotifyUri = String(t.uri || "").trim().slice(0, 255);
+    if (!songName || !spotifyUri) {
+      return res.status(400).json({ error: "Track invalide" });
+    }
+    try {
+      const id = uuidv4();
+      try {
+        await db.query(
+          `INSERT INTO requests
+            (id, event_id, socket_id, client_id, user_name, song_name, artist, spotify_uri, image_url, duration_ms, preview_url, status, played_at, play_started_at, queue_position, is_fallback_source)
+           VALUES (?, ?, 'fallback', 'fallback', 'Playlist secours', ?, ?, ?, ?, ?, ?, 'played', NOW(), NOW(), NULL, 1)`,
+          [
+            id,
+            eventId,
+            songName,
+            artist || "Inconnu",
+            spotifyUri,
+            t.image || null,
+            Number.isFinite(Number(t.duration_ms)) ? Number(t.duration_ms) : null,
+            t.preview_url || null,
+          ],
+        );
+      } catch {
+        await db.query(
+          `INSERT INTO requests
+            (id, event_id, socket_id, client_id, user_name, song_name, artist, spotify_uri, image_url, duration_ms, preview_url, status, played_at, play_started_at, queue_position)
+           VALUES (?, ?, 'fallback', 'fallback', 'Playlist secours', ?, ?, ?, ?, ?, ?, 'played', NOW(), NOW(), NULL)`,
+          [
+            id,
+            eventId,
+            songName,
+            artist || "Inconnu",
+            spotifyUri,
+            t.image || null,
+            Number.isFinite(Number(t.duration_ms)) ? Number(t.duration_ms) : null,
+            t.preview_url || null,
+          ],
+        );
+      }
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Erreur fallback-played:", error);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 // Route pour terminer un événement
 router.post(
   "/:eventId/end",
@@ -425,6 +639,32 @@ router.post(
       res.json({ success: true, message });
     } catch (error) {
       console.error("Erreur mise à jour message:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// Historique d'actions co-DJ / DJ
+router.get(
+  "/:eventId/action-logs",
+  requireAuth,
+  requireEventOwnership,
+  eventIdValidator,
+  handleValidationErrors,
+  async (req, res) => {
+    const { eventId } = req.params;
+    try {
+      const [rows] = await db.query(
+        `SELECT actor_type, actor_name, actor_role, action_type, target_id, meta_json, created_at
+         FROM event_action_logs
+         WHERE event_id = ?
+         ORDER BY created_at DESC
+         LIMIT 200`,
+        [eventId],
+      );
+      res.json({ logs: rows });
+    } catch (error) {
+      console.error("Erreur action-logs:", error);
       res.status(500).json({ error: "Erreur serveur" });
     }
   },

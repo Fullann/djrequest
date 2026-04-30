@@ -448,11 +448,11 @@
           const cfg  = statusCfg[r.status] || statusCfg.pending;
           const time = new Date(r.created_at).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
           return `
-            <div class="feed-row">
+            <div class="feed-row" style="${r.is_fallback_source ? "border:1px solid rgba(99,102,241,.24); border-radius:.6rem; padding:.35rem .45rem;" : ""}">
               <span class="text-xs tabular-nums shrink-0 w-10" style="color:var(--text-muted)">${time}</span>
               <div class="flex-1 min-w-0">
                 <p class="text-xs font-medium truncate" style="color:var(--text-primary)">${r.song_name}</p>
-                <p class="text-xs truncate" style="color:var(--text-muted)">${r.artist} · ${r.user_name}</p>
+                <p class="text-xs truncate" style="color:var(--text-muted)">${r.artist} · ${r.user_name}${r.is_fallback_source ? " · Playlist secours" : ""}</p>
               </div>
               <span class="text-xs font-semibold shrink-0" style="color:${cfg.color}">${cfg.label}</span>
             </div>`;
