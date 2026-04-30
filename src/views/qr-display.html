@@ -39,6 +39,46 @@
     body.fx-aurora #ambientFx { animation: fxAurora 14s ease-in-out infinite; }
     body.fx-pulse #ambientFx  { animation: fxPulse 2.6s ease-in-out infinite; }
     body.fx-strobe #ambientFx { animation: fxStrobe 1s steps(2, end) infinite; }
+    body.fx-spectrum #ambientFx {
+      background:
+        conic-gradient(from 0deg, rgba(255,0,102,.4), rgba(255,196,0,.35), rgba(34,197,94,.35), rgba(59,130,246,.4), rgba(168,85,247,.4), rgba(255,0,102,.4));
+      filter: blur(32px) saturate(1.35);
+      animation: fxSpectrum 9s linear infinite;
+    }
+    body.fx-nebula #ambientFx {
+      background:
+        radial-gradient(circle at 12% 20%, rgba(56,189,248,.35), transparent 45%),
+        radial-gradient(circle at 75% 30%, rgba(244,114,182,.32), transparent 45%),
+        radial-gradient(circle at 45% 80%, rgba(99,102,241,.33), transparent 44%),
+        radial-gradient(circle at 88% 78%, rgba(16,185,129,.25), transparent 42%);
+      filter: blur(38px) saturate(1.4);
+      animation: fxNebula 18s ease-in-out infinite;
+    }
+    body.fx-laser #ambientFx {
+      background:
+        repeating-linear-gradient(110deg,
+          rgba(16,185,129,.35) 0 12px,
+          rgba(0,0,0,0) 12px 32px,
+          rgba(59,130,246,.25) 32px 44px,
+          rgba(0,0,0,0) 44px 66px);
+      filter: blur(8px) saturate(1.2);
+      animation: fxLaser 5.5s linear infinite;
+    }
+    body.fx-vortex #ambientFx {
+      background:
+        conic-gradient(from 120deg at 50% 50%,
+          rgba(99,102,241,.38),
+          rgba(236,72,153,.35),
+          rgba(16,185,129,.33),
+          rgba(99,102,241,.38));
+      filter: blur(26px) saturate(1.35);
+      animation: fxVortex 7s linear infinite;
+    }
+    body.fx-party #ambientFx {
+      animation:
+        fxPartyHue 4s linear infinite,
+        fxPulse 1.4s ease-in-out infinite;
+    }
     @keyframes fxAurora {
       0%,100% { transform: translate3d(0,0,0) scale(1); }
       33%     { transform: translate3d(1.5%, -2%, 0) scale(1.04); }
@@ -52,6 +92,28 @@
       0%   { opacity: .18; }
       49%  { opacity: .95; }
       100% { opacity: .18; }
+    }
+    @keyframes fxSpectrum {
+      from { transform: rotate(0deg) scale(1.04); }
+      to   { transform: rotate(360deg) scale(1.04); }
+    }
+    @keyframes fxNebula {
+      0%,100% { transform: translate3d(0,0,0) scale(1.02); }
+      25%     { transform: translate3d(-2%, 1%, 0) scale(1.08); }
+      50%     { transform: translate3d(1.5%, -2.2%, 0) scale(1.04); }
+      75%     { transform: translate3d(2%, 1.8%, 0) scale(1.09); }
+    }
+    @keyframes fxLaser {
+      from { transform: translateX(-10%) translateY(0); }
+      to   { transform: translateX(10%) translateY(0); }
+    }
+    @keyframes fxVortex {
+      from { transform: rotate(0deg) scale(1.02); }
+      to   { transform: rotate(-360deg) scale(1.02); }
+    }
+    @keyframes fxPartyHue {
+      0%   { filter: blur(24px) saturate(1.3) hue-rotate(0deg); }
+      100% { filter: blur(24px) saturate(1.3) hue-rotate(360deg); }
     }
     #ambientBg::after {
       content: '';
@@ -535,12 +597,32 @@
   // ── Fond ambiant couleur depuis pochette ─────────────────
   let projectionVisualsEnabled = false;
   let projectionVisualsMode = "aurora";
+  let projectionVisualsAutoPerTrack = false;
+  let lastProjectedTrackKey = null;
+  const visualModes = ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party"];
+
+  function pickNextMode(current) {
+    const pool = visualModes.filter((m) => m !== current);
+    return pool[Math.floor(Math.random() * pool.length)] || current || "aurora";
+  }
 
   function applyProjectionVisuals(enabled, mode = "aurora") {
     projectionVisualsEnabled = !!enabled;
-    projectionVisualsMode = ["aurora", "pulse", "strobe"].includes(mode) ? mode : "aurora";
+    projectionVisualsMode = ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party"]
+      .includes(mode)
+      ? mode
+      : "aurora";
     document.body.classList.toggle("proj-fx-on", projectionVisualsEnabled);
-    document.body.classList.remove("fx-aurora", "fx-pulse", "fx-strobe");
+    document.body.classList.remove(
+      "fx-aurora",
+      "fx-pulse",
+      "fx-strobe",
+      "fx-spectrum",
+      "fx-nebula",
+      "fx-laser",
+      "fx-vortex",
+      "fx-party",
+    );
     if (projectionVisualsEnabled) {
       document.body.classList.add(`fx-${projectionVisualsMode}`);
     }
@@ -571,6 +653,18 @@
 
   function showNowPlaying(data) {
     const { track, positionMs, isPlaying, timestamp } = data;
+    const trackKey = `${track?.name || ""}::${track?.artist || ""}::${track?.durationMs || ""}`;
+    if (
+      projectionVisualsEnabled &&
+      projectionVisualsAutoPerTrack &&
+      trackKey &&
+      trackKey !== lastProjectedTrackKey
+    ) {
+      projectionVisualsMode = pickNextMode(projectionVisualsMode);
+      applyProjectionVisuals(true, projectionVisualsMode);
+    }
+    lastProjectedTrackKey = trackKey || lastProjectedTrackKey;
+
     npState = {
       positionMs,
       durationMs: track.durationMs || 1,
@@ -678,6 +772,7 @@
         !!event.projection_visuals_enabled,
         (event.projection_visuals_mode || "aurora").toLowerCase(),
       );
+      projectionVisualsAutoPerTrack = !!event.projection_visuals_auto_per_track;
 
       // QR code
       if (qr.qrCode) document.getElementById("qrCode").src = qr.qrCode;
@@ -733,6 +828,9 @@
           : projectionVisualsEnabled,
         (data.projectionVisualsMode || projectionVisualsMode || "aurora").toLowerCase(),
       );
+    }
+    if (data.projectionVisualsAutoPerTrack !== undefined) {
+      projectionVisualsAutoPerTrack = !!data.projectionVisualsAutoPerTrack;
     }
   });
   socket.on("event-ended",      () => {

@@ -777,6 +777,7 @@ function setupSocketHandlers(io) {
         repeatCooldownMinutes,
         projectionVisualsEnabled,
         projectionVisualsMode,
+        projectionVisualsAutoPerTrack,
       } = data;
 
       try {
@@ -847,10 +848,15 @@ function setupSocketHandlers(io) {
 
         if (projectionVisualsMode !== undefined) {
           const mode = String(projectionVisualsMode || "").trim().toLowerCase();
-          if (["aurora", "pulse", "strobe"].includes(mode)) {
+          if (["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party"].includes(mode)) {
             updates.push("projection_visuals_mode = ?");
             values.push(mode);
           }
+        }
+
+        if (projectionVisualsAutoPerTrack !== undefined) {
+          updates.push("projection_visuals_auto_per_track = ?");
+          values.push(projectionVisualsAutoPerTrack ? 1 : 0);
         }
 
         if (updates.length > 0) {
@@ -877,6 +883,9 @@ function setupSocketHandlers(io) {
               : undefined,
             projectionVisualsMode: projectionVisualsMode !== undefined
               ? String(projectionVisualsMode || "").trim().toLowerCase()
+              : undefined,
+            projectionVisualsAutoPerTrack: projectionVisualsAutoPerTrack !== undefined
+              ? !!projectionVisualsAutoPerTrack
               : undefined,
           });
         }

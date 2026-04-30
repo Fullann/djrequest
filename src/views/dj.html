@@ -300,10 +300,19 @@
               <option value="aurora">Aurora (doux)</option>
               <option value="pulse">Pulse (rythmé)</option>
               <option value="strobe">Strobe (intense)</option>
+              <option value="spectrum">Spectrum (arc-en-ciel)</option>
+              <option value="nebula">Nebula (nuages mouvants)</option>
+              <option value="laser">Laser (balayage)</option>
+              <option value="vortex">Vortex (tourbillon)</option>
+              <option value="party">Party (combo auto)</option>
             </select>
           </div>
           <button type="button" id="btnSaveProjectionVisuals" class="btn btn-primary btn-sm">Appliquer</button>
         </div>
+        <label class="flex items-center gap-2 mt-3 cursor-pointer select-none">
+          <input type="checkbox" id="projectionVisualsAutoPerTrack" class="w-4 h-4" style="accent-color:var(--accent)" />
+          <span class="text-xs" style="color:var(--text-secondary)">Changer automatiquement d'effet à chaque musique</span>
+        </label>
       </div>
 
       <!-- Thank you message -->
@@ -637,6 +646,7 @@
   let isAutoPlayLocked     = false;
   let projectionVisualsEnabled = false;
   let projectionVisualsMode    = "aurora";
+  let projectionVisualsAutoPerTrack = false;
 
   // ── Spotify SDK ──
   window.onSpotifyWebPlaybackSDKReady = () => {
@@ -901,10 +911,13 @@
   document.getElementById("btnSaveProjectionVisuals").addEventListener("click", () => {
     projectionVisualsEnabled = document.getElementById("projectionVisualsToggle").checked;
     projectionVisualsMode    = document.getElementById("projectionVisualsMode").value || "aurora";
+    projectionVisualsAutoPerTrack =
+      document.getElementById("projectionVisualsAutoPerTrack").checked;
     socket.emit("update-event-settings", {
       eventId,
       projectionVisualsEnabled,
       projectionVisualsMode,
+      projectionVisualsAutoPerTrack,
     });
     showToast("Visuels de projection mis à jour", "info");
   });
@@ -1239,11 +1252,13 @@
         data.repeat_cooldown_minutes != null ? data.repeat_cooldown_minutes : 0;
       projectionVisualsEnabled = !!data.projection_visuals_enabled;
       projectionVisualsMode = (data.projection_visuals_mode || "aurora").toLowerCase();
+      projectionVisualsAutoPerTrack = !!data.projection_visuals_auto_per_track;
       document.getElementById("projectionVisualsToggle").checked = projectionVisualsEnabled;
       document.getElementById("projectionVisualsMode").value =
-        ["aurora", "pulse", "strobe"].includes(projectionVisualsMode)
+        ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party"].includes(projectionVisualsMode)
           ? projectionVisualsMode
           : "aurora";
+      document.getElementById("projectionVisualsAutoPerTrack").checked = projectionVisualsAutoPerTrack;
       document.getElementById("thankYouMessage").value    = data.thank_you_message || "";
       if (autoAcceptEnabled) document.getElementById("autoAcceptBanner").classList.remove("hidden");
 
