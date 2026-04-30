@@ -11,9 +11,13 @@ class RateLimitService {
     return rows[0] || { rate_limit_max: 3, rate_limit_window_minutes: 15 };
   }
 
-  async checkRateLimit(socketId, eventId) {
+  async checkRateLimit(socketId, eventId, opts = {}) {
     const settings = await this.getRateLimitSettings(eventId);
-    const RATE_LIMIT_MAX_REQUESTS = settings.rate_limit_max;
+    const reduction = Math.max(0, Number(opts.maxReduction || 0));
+    const RATE_LIMIT_MAX_REQUESTS = Math.max(
+      1,
+      Number(settings.rate_limit_max || 3) - reduction,
+    );
     const RATE_LIMIT_WINDOW_MS = settings.rate_limit_window_minutes * 60 * 1000;
     const now = Date.now();
 

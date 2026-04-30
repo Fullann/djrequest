@@ -80,6 +80,7 @@
       <!-- Lien DJ si live -->
       <a id="djLink" href="#" class="hidden btn btn-primary btn-sm shrink-0">Ouvrir la régie</a>
       <!-- Refresh manuel -->
+      <a id="exportCsvBtn" href="#" class="btn btn-ghost btn-sm shrink-0">Export CSV</a>
       <button id="refreshBtn" class="btn btn-ghost btn-icon btn-sm shrink-0" title="Rafraîchir">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       </button>
@@ -156,6 +157,34 @@
         </div>
       </div>
 
+      <!-- ── Analytics live avancées ─────────────────────────── -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="card overflow-hidden">
+          <div class="px-5 py-3.5" style="border-bottom:1px solid var(--border)">
+            <h2 class="text-sm font-semibold">Heatmap horaire</h2>
+          </div>
+          <div id="hourlyHeatmap" class="p-5 space-y-1.5">
+            <p class="text-sm text-center py-4" style="color:var(--text-muted)">Chargement…</p>
+          </div>
+        </div>
+        <div class="card overflow-hidden">
+          <div class="px-5 py-3.5" style="border-bottom:1px solid var(--border)">
+            <h2 class="text-sm font-semibold">Top tempos</h2>
+          </div>
+          <div id="topTempos" class="p-5 space-y-2">
+            <p class="text-sm text-center py-4" style="color:var(--text-muted)">Chargement…</p>
+          </div>
+        </div>
+        <div class="card overflow-hidden">
+          <div class="px-5 py-3.5" style="border-bottom:1px solid var(--border)">
+            <h2 class="text-sm font-semibold">Skip & votes</h2>
+          </div>
+          <div id="engagementStats" class="p-5 space-y-2">
+            <p class="text-sm text-center py-4" style="color:var(--text-muted)">Chargement…</p>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Top chansons + Feed live ──────────────────────── -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
@@ -223,7 +252,7 @@
   }
 
   function render(data) {
-    const { event, counts, topArtists, topSongs, hotPending, timeline, recentRequests } = data;
+    const { event, counts, topArtists, topSongs, hotPending, timeline, recentRequests, hourlyHeatmap, topTempos, skip, voteEngagement } = data;
 
     // ── En-tête ──
     document.title = `${event.name} — Stats DJ Queue`;
@@ -330,6 +359,65 @@
         `<p class="text-sm text-center py-4" style="color:var(--text-muted)">Pas encore de données</p>`;
     }
 
+    // ── Heatmap horaire ──
+    const maxHourly = hourlyHeatmap && hourlyHeatmap.length
+      ? Math.max(...hourlyHeatmap.map((h) => h.count), 1)
+      : 1;
+    document.getElementById("hourlyHeatmap").innerHTML = hourlyHeatmap && hourlyHeatmap.length
+      ? hourlyHeatmap.map((h) => {
+          const pct = Math.round((h.count / maxHourly) * 100);
+          return `
+            <div class="flex items-center gap-2">
+              <span class="text-xs tabular-nums shrink-0 w-10 text-right" style="color:var(--text-muted)">${h.label}</span>
+              <div class="bar-track flex-1">
+                <div class="bar-fill" style="width:${pct}%"></div>
+              </div>
+              <span class="text-xs tabular-nums shrink-0 w-6" style="color:var(--text-muted)">${h.count}</span>
+            </div>`;
+        }).join("")
+      : `<p class="text-sm text-center py-4" style="color:var(--text-muted)">Pas de données</p>`;
+
+    // ── Top tempos ──
+    const maxTempo = topTempos && topTempos.length ? Math.max(...topTempos.map((t) => Number(t.total || 0)), 1) : 1;
+    document.getElementById("topTempos").innerHTML = topTempos && topTempos.length
+      ? topTempos.map((t) => {
+          const total = Number(t.total || 0);
+          const pct = Math.round((total / maxTempo) * 100);
+          return `
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-medium" style="color:var(--text-primary)">${t.bpm_bucket} BPM</span>
+                <span class="text-xs tabular-nums" style="color:var(--text-muted)">${total}</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+            </div>`;
+        }).join("")
+      : `<p class="text-sm text-center py-4" style="color:var(--text-muted)">Tempo indisponible</p>`;
+
+    // ── Engagement ──
+    document.getElementById("engagementStats").innerHTML = `
+      <div class="flex items-center justify-between">
+        <span class="text-sm" style="color:var(--text-secondary)">Taux de skip</span>
+        <span class="font-semibold tabular-nums" style="color:var(--text-primary)">${skip?.skipRate || 0}%</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm" style="color:var(--text-secondary)">Skips / jouées</span>
+        <span class="font-semibold tabular-nums" style="color:var(--text-primary)">${skip?.skippedTotal || 0} / ${skip?.playedTotal || 0}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm" style="color:var(--text-secondary)">Votes totaux</span>
+        <span class="font-semibold tabular-nums" style="color:var(--text-primary)">${voteEngagement?.totalVotes || 0}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm" style="color:var(--text-secondary)">Votants uniques</span>
+        <span class="font-semibold tabular-nums" style="color:var(--text-primary)">${voteEngagement?.uniqueVoters || 0}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm" style="color:var(--text-secondary)">Votes / demande</span>
+        <span class="font-semibold tabular-nums" style="color:var(--text-primary)">${voteEngagement?.votesPerRequest || 0}</span>
+      </div>
+    `;
+
     // ── Top chansons ──
     document.getElementById("topSongs").innerHTML = topSongs.length
       ? topSongs.map((s, i) => `
@@ -393,6 +481,10 @@
 
   // ── Bouton refresh manuel ──
   document.getElementById("refreshBtn").addEventListener("click", loadStats);
+  document.getElementById("exportCsvBtn").addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = `/api/events/${eventId}/live-stats.csv`;
+  });
 
   // ── Init ──
   (async () => {

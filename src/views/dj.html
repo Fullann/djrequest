@@ -305,6 +305,8 @@
               <option value="laser">Laser (balayage)</option>
               <option value="vortex">Vortex (tourbillon)</option>
               <option value="party">Party (combo auto)</option>
+              <option value="dvd">DVD Bounce (rebond)</option>
+              <option value="bpm-sync">BPM Sync (réactif au tempo)</option>
             </select>
           </div>
           <button type="button" id="btnSaveProjectionVisuals" class="btn btn-primary btn-sm">Appliquer</button>
@@ -644,6 +646,8 @@
   let fallbackPlaylistUri  = null;
   let isFallbackFetching   = false;
   let isAutoPlayLocked     = false;
+  let currentPlayingRequestId = null;
+  let currentPlayingUri = null;
   let projectionVisualsEnabled = false;
   let projectionVisualsMode    = "aurora";
   let projectionVisualsAutoPerTrack = false;
@@ -707,6 +711,7 @@
       // Diffuser aux invités (debounce 300 ms pour éviter le spam pendant chargement)
       clearTimeout(window._nowPlayingDebounce);
       window._nowPlayingDebounce = setTimeout(() => {
+        const currentTrackUri = track?.uri || currentPlayingUri || null;
         socket.emit("broadcast-now-playing", {
           eventId,
           track: {
@@ -714,6 +719,8 @@
             artist:     track.artists.map((a) => a.name).join(", "),
             albumArt:   track.album.images[0]?.url || "",
             durationMs: state.duration,
+            uri:        currentTrackUri,
+            bpm:        currentTrackUri ? audioFeatures[getTrackId(currentTrackUri)]?.bpm || null : null,
           },
           positionMs: state.position,
           isPlaying:  !state.paused,
@@ -827,7 +834,17 @@
 
   document.getElementById("playPauseBtn").addEventListener("click", () => { if (spotifyPlayer) spotifyPlayer.togglePlay(); });
   document.getElementById("btnPrevious").addEventListener("click", () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); });
-  document.getElementById("btnNext").addEventListener("click", () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); });
+  document.getElementById("btnNext").addEventListener("click", () => {
+    if (
+      spotifyPlayer &&
+      currentPlayingRequestId &&
+      currentDuration > 0 &&
+      currentPosition / currentDuration < 0.85
+    ) {
+      socket.emit("mark-skipped", { eventId, requestId: currentPlayingRequestId });
+    }
+    if (spotifyPlayer) spotifyPlayer.nextTrack();
+  });
   document.getElementById("autoPlay")?.addEventListener("change", (e) => { autoPlayEnabled = e.target.checked; });
   document.getElementById("sortByVotes").addEventListener("click", sortQueueByVotes);
   document.getElementById("endEvent").addEventListener("click", endEventConfirm);
@@ -1255,7 +1272,7 @@
       projectionVisualsAutoPerTrack = !!data.projection_visuals_auto_per_track;
       document.getElementById("projectionVisualsToggle").checked = projectionVisualsEnabled;
       document.getElementById("projectionVisualsMode").value =
-        ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party"].includes(projectionVisualsMode)
+        ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party", "dvd", "bpm-sync"].includes(projectionVisualsMode)
           ? projectionVisualsMode
           : "aurora";
       document.getElementById("projectionVisualsAutoPerTrack").checked = projectionVisualsAutoPerTrack;
@@ -1596,7 +1613,12 @@
       return;
     }
     if (crossfadeDuration > 0 && isPlaying && spotifyPlayer && !isCrossfading) {
+      if (currentPlayingRequestId && currentDuration > 0 && currentPosition / currentDuration < 0.85) {
+        socket.emit("mark-skipped", { eventId, requestId: currentPlayingRequestId });
+      }
       performCrossfade(uri, requestId);
+      currentPlayingRequestId = requestId || null;
+      currentPlayingUri = uri || null;
       return;
     }
     // Bloquer l'auto-play pendant le chargement du morceau pour éviter les doubles lectures.
@@ -1604,6 +1626,8 @@
     setTimeout(() => { isAutoPlayLocked = false; }, 5000);
     try {
       await _startPlayback(uri);
+      currentPlayingRequestId = requestId || null;
+      currentPlayingUri = uri || null;
       setTimeout(() => socket.emit("mark-played", { eventId, requestId }), 2000);
     } catch (err) { alert("Erreur: " + err.message); }
   }

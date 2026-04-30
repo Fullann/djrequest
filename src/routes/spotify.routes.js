@@ -1,6 +1,7 @@
 const express = require("express");
 const router  = express.Router();
 const axios   = require("axios");
+const db = require("../config/database");
 const { eventIdValidator }       = require("../validators/events.validator");
 const { handleValidationErrors } = require("../middlewares/validation");
 const { getValidEventToken }     = require("../services/spotifyToken.service");
@@ -300,6 +301,34 @@ router.get(
         } catch (tracksErr) {
           console.error("tracks fallback:", tracksErr.response?.data || tracksErr.message);
         }
+      }
+
+      // ── Cache DB pour réutilisation analytics / projection BPM ──
+      try {
+        const rows = Object.entries(features);
+        if (rows.length > 0) {
+          const values = [];
+          const placeholders = rows.map(([trackId, v]) => {
+            values.push(
+              trackId,
+              Number.isFinite(v.bpm) ? v.bpm : null,
+              Number.isFinite(v.energy) ? v.energy : null,
+              Number.isFinite(v.popularity) ? v.popularity : null,
+            );
+            return "(?, ?, ?, ?)";
+          });
+          await db.query(
+            `INSERT INTO track_audio_cache (track_id, bpm, energy, popularity)
+             VALUES ${placeholders.join(",")}
+             ON DUPLICATE KEY UPDATE
+               bpm = VALUES(bpm),
+               energy = VALUES(energy),
+               popularity = VALUES(popularity)`,
+            values,
+          );
+        }
+      } catch (cacheErr) {
+        console.error("track_audio_cache upsert:", cacheErr.message || cacheErr);
       }
 
       res.json(features);

@@ -374,6 +374,76 @@ class EventsController {
         [eventId],
       );
 
+      // ── Heatmap horaire (0..23) ──
+      const [hourRows] = await db.query(
+        `SELECT HOUR(created_at) AS hour_slot, COUNT(*) AS count
+         FROM requests
+         WHERE event_id = ?
+         GROUP BY hour_slot
+         ORDER BY hour_slot ASC`,
+        [eventId],
+      );
+      const hourMap = {};
+      hourRows.forEach((h) => { hourMap[h.hour_slot] = Number(h.count || 0); });
+      const hourlyHeatmap = Array.from({ length: 24 }, (_, h) => ({
+        hour: h,
+        label: `${String(h).padStart(2, "0")}h`,
+        count: hourMap[h] || 0,
+      }));
+
+      // ── Top tempos (via cache audio Spotify) ──
+      const [tempoRows] = await db.query(
+        `SELECT
+           CASE
+             WHEN tac.bpm < 90 THEN '<90'
+             WHEN tac.bpm BETWEEN 90 AND 109 THEN '90-109'
+             WHEN tac.bpm BETWEEN 110 AND 129 THEN '110-129'
+             WHEN tac.bpm BETWEEN 130 AND 149 THEN '130-149'
+             ELSE '150+'
+           END AS bpm_bucket,
+           COUNT(*) AS total
+         FROM requests r
+         JOIN track_audio_cache tac
+           ON tac.track_id = SUBSTRING_INDEX(r.spotify_uri, ':', -1)
+         WHERE r.event_id = ? AND tac.bpm IS NOT NULL
+         GROUP BY bpm_bucket
+         ORDER BY total DESC`,
+        [eventId],
+      );
+
+      // ── Skip rate (morceaux joués skipés avant ~85%) ──
+      const [[skipStats]] = await db.query(
+        `SELECT
+           SUM(status='played') AS played_total,
+           SUM(skipped_at IS NOT NULL) AS skipped_total
+         FROM requests
+         WHERE event_id = ?`,
+        [eventId],
+      );
+      const playedTotal = Number(skipStats.played_total || 0);
+      const skippedTotal = Number(skipStats.skipped_total || 0);
+      const skipRate = playedTotal > 0 ? Number(((skippedTotal / playedTotal) * 100).toFixed(1)) : 0;
+
+      // ── Engagement votes ──
+      const [[eng]] = await db.query(
+        `SELECT
+           COUNT(v.id) AS total_votes,
+           COUNT(DISTINCT v.socket_id) AS voters,
+           COUNT(DISTINCT r.id) AS voted_requests
+         FROM requests r
+         LEFT JOIN votes v ON v.request_id = r.id
+         WHERE r.event_id = ?`,
+        [eventId],
+      );
+      const voteEngagement = {
+        totalVotes: Number(eng.total_votes || 0),
+        uniqueVoters: Number(eng.voters || 0),
+        votedRequests: Number(eng.voted_requests || 0),
+        votesPerRequest: counts.total > 0
+          ? Number((Number(eng.total_votes || 0) / Number(counts.total || 1)).toFixed(2))
+          : 0,
+      };
+
       res.json({
         event:   { ...event, isLive, durationMin },
         counts,
@@ -382,6 +452,10 @@ class EventsController {
         hotPending:     hotPending[0] || null,
         timeline,
         recentRequests,
+        hourlyHeatmap,
+        topTempos: tempoRows,
+        skip: { playedTotal, skippedTotal, skipRate },
+        voteEngagement,
       });
     } catch (err) {
       console.error("Erreur live-stats:", err);
@@ -604,6 +678,66 @@ class EventsController {
     } catch (err) {
       console.error("Erreur patch settings:", err);
       res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  async exportLiveStatsCsv(req, res) {
+    const { eventId } = req.params;
+    const djId = req.session.djId;
+    try {
+      const [eventRows] = await db.query(
+        "SELECT id, name FROM events WHERE id = ? AND dj_id = ?",
+        [eventId, djId],
+      );
+      if (eventRows.length === 0) {
+        return res.status(404).json({ error: "Événement non trouvé" });
+      }
+
+      const [rows] = await db.query(
+        `SELECT
+          r.created_at,
+          r.played_at,
+          r.skipped_at,
+          r.status,
+          r.user_name,
+          r.song_name,
+          r.artist,
+          r.spotify_uri,
+          COALESCE(tac.bpm, '') AS bpm,
+          COALESCE(tac.energy, '') AS energy,
+          COALESCE((
+            SELECT COUNT(*) FROM votes v WHERE v.request_id = r.id AND v.vote_type='up'
+          ), 0) AS upvotes,
+          COALESCE((
+            SELECT COUNT(*) FROM votes v WHERE v.request_id = r.id AND v.vote_type='down'
+          ), 0) AS downvotes
+         FROM requests r
+         LEFT JOIN track_audio_cache tac
+           ON tac.track_id = SUBSTRING_INDEX(r.spotify_uri, ':', -1)
+         WHERE r.event_id = ?
+         ORDER BY r.created_at ASC`,
+        [eventId],
+      );
+
+      const header = [
+        "created_at", "played_at", "skipped_at", "status", "user_name",
+        "song_name", "artist", "spotify_uri", "bpm", "energy", "upvotes", "downvotes",
+      ];
+      const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const csv = [
+        header.map(esc).join(","),
+        ...rows.map((r) => header.map((h) => esc(r[h])).join(",")),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="live-stats-${eventId}.csv"`,
+      );
+      return res.status(200).send(csv);
+    } catch (err) {
+      console.error("Erreur export CSV live-stats:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
     }
   }
 }

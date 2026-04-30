@@ -382,6 +382,15 @@ router.get(
   eventsController.getLiveStats,
 );
 
+router.get(
+  "/:eventId/live-stats.csv",
+  requireAuth,
+  requireEventOwnership,
+  eventIdValidator,
+  handleValidationErrors,
+  eventsController.exportLiveStatsCsv,
+);
+
 // Stats détaillées d'un événement
 router.get(
   "/:eventId/detailed-stats",

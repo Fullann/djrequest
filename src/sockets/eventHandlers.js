@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require("uuid");
 const db = require("../config/database");
 const queueService = require("../services/queue.service");
 const rateLimitService = require("../services/rateLimit.service");
+const abuseService = require("../services/abuse.service");
 const { formatRemainingDelay } = require("../utils/time.utils");
 
 /**
@@ -52,7 +53,7 @@ async function verifyDjOwnsRequest(socket, requestId) {
   const djId = session?.djId;
   if (djId) {
     const [rows] = await db.query(
-      `SELECT r.event_id, r.socket_id
+      `SELECT r.event_id, r.socket_id, r.client_id
          FROM requests r
          JOIN events e ON r.event_id = e.id
         WHERE r.id = ? AND e.dj_id = ?`,
@@ -65,7 +66,7 @@ async function verifyDjOwnsRequest(socket, requestId) {
   const modEventId = session?.modAccess?.eventId;
   if (modEventId) {
     const [rows] = await db.query(
-      `SELECT r.event_id, r.socket_id
+      `SELECT r.event_id, r.socket_id, r.client_id
          FROM requests r
         WHERE r.id = ? AND r.event_id = ?`,
       [requestId, modEventId],
@@ -214,16 +215,31 @@ function setupSocketHandlers(io) {
           }
         }
 
-        // Vérifier le rate limit
+        // Anti-abus progressif (avant rate limit)
+        const abuseBefore = await abuseService.getStatus(eventId, clientId);
+        if (abuseBefore.throttled) {
+          socket.emit("request-error", {
+            type: "abuse-throttle",
+            message: `Trop d'actions rapprochées. Réessaie dans ${formatRemainingDelay(abuseBefore.remainingMs)}.`,
+            remainingMs: abuseBefore.remainingMs,
+            abuseScore: abuseBefore.score,
+          });
+          return;
+        }
+
+        // Vérifier le rate limit (avec réduction potentielle de quota)
         const rateLimitCheck = await rateLimitService.checkRateLimit(
           clientId,
           eventId,
+          { maxReduction: abuseBefore.maxReduction },
         );
 
         if (!rateLimitCheck.allowed) {
+          await abuseService.addStrike(eventId, clientId, 0.6);
           socket.emit("request-error", {
             type: "rate-limit",
             message: `Limite atteinte. Réessaie dans ${formatRemainingDelay(rateLimitCheck.remainingMs)}.`,
+            abuseScore: abuseBefore.score,
           });
           return;
         }
@@ -249,6 +265,7 @@ function setupSocketHandlers(io) {
           );
 
           if (duplicate.isDuplicate) {
+            await abuseService.addStrike(eventId, clientId, 1.4);
             const location =
               duplicate.location === "queue"
                 ? "la queue"
@@ -278,6 +295,7 @@ function setupSocketHandlers(io) {
                 type: "repeat-cooldown",
                 message: `Ce morceau a déjà été joué récemment. Tu pourras le reproposer dans environ ${waitMin} min.`,
               });
+              await abuseService.addStrike(eventId, clientId, 0.9);
               return;
             }
           }
@@ -318,9 +336,11 @@ function setupSocketHandlers(io) {
         await rateLimitService.incrementRateLimit(clientId);
 
         // Récupérer le nouveau statut
+        const abuseAfter = await abuseService.decay(eventId, clientId, 0.2);
         const newRateLimitStatus = await rateLimitService.checkRateLimit(
           clientId,
           eventId,
+          { maxReduction: abuseAfter.maxReduction },
         );
 
         // Notifier l'utilisateur de la création
@@ -331,6 +351,7 @@ function setupSocketHandlers(io) {
           image:    safeImage,
           status,
           rateLimitStatus: newRateLimitStatus,
+          abuseScore: abuseAfter.score,
         });
 
         if (status === "accepted") {
@@ -479,6 +500,9 @@ function setupSocketHandlers(io) {
           "rejected",
           requestId,
         ]);
+        if (reqRow.client_id) {
+          await abuseService.addStrike(reqRow.event_id, reqRow.client_id, 0.8);
+        }
 
         recentRejectUndo.set(requestId, Date.now());
         setTimeout(() => recentRejectUndo.delete(requestId), UNDO_REJECT_WINDOW_MS);
@@ -509,6 +533,9 @@ function setupSocketHandlers(io) {
           "UPDATE requests SET status = 'pending', queue_position = NULL WHERE id = ?",
           [requestId],
         );
+        if (reqRow.client_id) {
+          await abuseService.decay(reqRow.event_id, reqRow.client_id, 0.5);
+        }
         recentRejectUndo.delete(requestId);
 
         const request = await queueService.getRequestWithVotes(requestId);
@@ -568,12 +595,15 @@ function setupSocketHandlers(io) {
 
       try {
         const [pending] = await db.query(
-          `SELECT id, socket_id FROM requests WHERE event_id = ? AND status = 'pending'`,
+          `SELECT id, socket_id, client_id FROM requests WHERE event_id = ? AND status = 'pending'`,
           [eventId],
         );
 
         for (const row of pending) {
           await db.query("UPDATE requests SET status = 'rejected' WHERE id = ?", [row.id]);
+          if (row.client_id) {
+            await abuseService.addStrike(eventId, row.client_id, 0.8);
+          }
           io.to(eventId).emit("request-rejected", { requestId: row.id });
           if (row.socket_id) {
             io.to(row.socket_id).emit("your-request-rejected", { requestId: row.id });
@@ -614,7 +644,7 @@ function setupSocketHandlers(io) {
         if (!(await verifyDjOwnsEvent(socket, eventId))) return;
 
         await db.query(
-          "UPDATE requests SET status = ?, played_at = NOW(), queue_position = NULL WHERE id = ? AND event_id = ?",
+          "UPDATE requests SET status = ?, played_at = NOW(), play_started_at = NOW(), queue_position = NULL WHERE id = ? AND event_id = ?",
           ["played", requestId, eventId],
         );
 
@@ -625,11 +655,41 @@ function setupSocketHandlers(io) {
       }
     });
 
+    socket.on("mark-skipped", async (data) => {
+      const { eventId, requestId } = data || {};
+      try {
+        if (!eventId || !requestId) return;
+        if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+        await db.query(
+          "UPDATE requests SET skipped_at = NOW() WHERE id = ? AND event_id = ? AND status = 'played'",
+          [requestId, eventId],
+        );
+      } catch (error) {
+        console.error("Erreur mark-skipped:", error);
+      }
+    });
+
     // Diffuser le morceau en cours aux invités (DJ → tous)
     socket.on("broadcast-now-playing", async (data) => {
       const { eventId } = data;
       if (!eventId) return;
       if (!(await verifyDjOwnsEvent(socket, eventId))) return;
+      if (data?.track?.uri && !data.track.bpm) {
+        try {
+          const trackId = String(data.track.uri).split(":").pop();
+          if (trackId) {
+            const [rows] = await db.query(
+              "SELECT bpm FROM track_audio_cache WHERE track_id = ?",
+              [trackId],
+            );
+            if (rows.length > 0 && rows[0].bpm) {
+              data.track.bpm = Number(rows[0].bpm);
+            }
+          }
+        } catch (err) {
+          console.error("Erreur enrichissement BPM now-playing:", err.message || err);
+        }
+      }
       // Mettre en cache pour les nouveaux connectés
       if (data.track) {
         nowPlayingCache.set(eventId, data);
@@ -848,7 +908,7 @@ function setupSocketHandlers(io) {
 
         if (projectionVisualsMode !== undefined) {
           const mode = String(projectionVisualsMode || "").trim().toLowerCase();
-          if (["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party"].includes(mode)) {
+          if (["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party", "dvd", "bpm-sync"].includes(mode)) {
             updates.push("projection_visuals_mode = ?");
             values.push(mode);
           }

@@ -79,6 +79,48 @@
         fxPartyHue 4s linear infinite,
         fxPulse 1.4s ease-in-out infinite;
     }
+    body.fx-bpm-sync #ambientFx {
+      animation: fxPulse var(--bpm-pulse, 1.2s) ease-in-out infinite;
+      filter: blur(24px) saturate(1.4);
+    }
+    body.fx-dvd #ambientFx { opacity: .2 !important; filter: blur(22px) saturate(1.2); }
+    #dvdBounce {
+      position: fixed;
+      left: 2vw;
+      top: 2vh;
+      z-index: 2;
+      width: min(17vw, 220px);
+      aspect-ratio: 16/9;
+      border-radius: 14px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.28);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 35px rgba(0,0,0,.35);
+      pointer-events: none;
+      animation: dvdHue 5.5s linear infinite;
+    }
+    body.fx-dvd.proj-fx-on #dvdBounce { display: flex; }
+    #dvdBounce .logo {
+      font-size: clamp(16px, 2vw, 30px);
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 0 16px rgba(255,255,255,.6);
+      user-select: none;
+    }
+    #dvdBounce .logo-img {
+      display: none;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 10px;
+      filter: drop-shadow(0 0 10px rgba(255,255,255,.35));
+      user-select: none;
+    }
     @keyframes fxAurora {
       0%,100% { transform: translate3d(0,0,0) scale(1); }
       33%     { transform: translate3d(1.5%, -2%, 0) scale(1.04); }
@@ -114,6 +156,10 @@
     @keyframes fxPartyHue {
       0%   { filter: blur(24px) saturate(1.3) hue-rotate(0deg); }
       100% { filter: blur(24px) saturate(1.3) hue-rotate(360deg); }
+    }
+    @keyframes dvdHue {
+      0%   { filter: hue-rotate(0deg); }
+      100% { filter: hue-rotate(360deg); }
     }
     #ambientBg::after {
       content: '';
@@ -449,6 +495,10 @@
 <!-- Fond ambiant coloré selon la pochette -->
 <div id="ambientBg"></div>
 <div id="ambientFx"></div>
+<div id="dvdBounce">
+  <span id="dvdBounceText" class="logo">DJ QUEUE</span>
+  <img id="dvdBounceLogo" class="logo-img" alt="DVD Logo" />
+</div>
 
 <!-- Message DJ -->
 <div id="djBanner">
@@ -599,7 +649,11 @@
   let projectionVisualsMode = "aurora";
   let projectionVisualsAutoPerTrack = false;
   let lastProjectedTrackKey = null;
-  const visualModes = ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party"];
+  const visualModes = ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party", "dvd", "bpm-sync"];
+  let dvdAnimId = null;
+  let dvdHue = 0;
+  let dvdConfig = { mode: "text", text: "DJ QUEUE", logoUrl: "" };
+  let currentEventName = "Soirée";
 
   function pickNextMode(current) {
     const pool = visualModes.filter((m) => m !== current);
@@ -608,7 +662,7 @@
 
   function applyProjectionVisuals(enabled, mode = "aurora") {
     projectionVisualsEnabled = !!enabled;
-    projectionVisualsMode = ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party"]
+    projectionVisualsMode = ["aurora", "pulse", "strobe", "spectrum", "nebula", "laser", "vortex", "party", "dvd", "bpm-sync"]
       .includes(mode)
       ? mode
       : "aurora";
@@ -622,10 +676,85 @@
       "fx-laser",
       "fx-vortex",
       "fx-party",
+      "fx-dvd",
+      "fx-bpm-sync",
     );
     if (projectionVisualsEnabled) {
       document.body.classList.add(`fx-${projectionVisualsMode}`);
     }
+    if (projectionVisualsEnabled && projectionVisualsMode === "dvd") startDvdBounce();
+    else stopDvdBounce();
+  }
+
+  function parseDvdConfigFromQuery() {
+    const qs = new URLSearchParams(window.location.search);
+    const mode = (qs.get("dvd") || "").toLowerCase();
+    const text = (qs.get("dvdText") || "").trim();
+    const logo = (qs.get("dvdLogo") || "").trim();
+    if (["text", "event", "logo"].includes(mode)) dvdConfig.mode = mode;
+    if (text) dvdConfig.text = text.slice(0, 32);
+    if (/^https?:\/\/.{4,}/i.test(logo)) dvdConfig.logoUrl = logo.slice(0, 512);
+  }
+
+  function applyDvdSource() {
+    const txt = document.getElementById("dvdBounceText");
+    const img = document.getElementById("dvdBounceLogo");
+    if (!txt || !img) return;
+
+    let mode = dvdConfig.mode;
+    if (mode === "logo" && !dvdConfig.logoUrl) mode = "event";
+
+    if (mode === "logo") {
+      txt.style.display = "none";
+      img.style.display = "block";
+      img.src = dvdConfig.logoUrl;
+      return;
+    }
+
+    img.style.display = "none";
+    txt.style.display = "inline";
+    txt.textContent = mode === "event"
+      ? (currentEventName || "Soirée").slice(0, 26)
+      : (dvdConfig.text || "DJ QUEUE");
+  }
+
+  function startDvdBounce() {
+    const el = document.getElementById("dvdBounce");
+    if (!el) return;
+    applyDvdSource();
+    let x = Math.max(8, Math.round(window.innerWidth * 0.06));
+    let y = Math.max(8, Math.round(window.innerHeight * 0.08));
+    let vx = 2.2;
+    let vy = 1.8;
+
+    const step = () => {
+      const maxX = window.innerWidth - el.offsetWidth - 8;
+      const maxY = window.innerHeight - el.offsetHeight - 8;
+      x += vx; y += vy;
+      if (x <= 8 || x >= maxX) {
+        vx *= -1;
+        x = Math.max(8, Math.min(maxX, x));
+        dvdHue = (dvdHue + 47) % 360;
+        el.style.filter = `hue-rotate(${dvdHue}deg)`;
+      }
+      if (y <= 8 || y >= maxY) {
+        vy *= -1;
+        y = Math.max(8, Math.min(maxY, y));
+        dvdHue = (dvdHue + 47) % 360;
+        el.style.filter = `hue-rotate(${dvdHue}deg)`;
+      }
+      el.style.transform = `translate(${x}px, ${y}px)`;
+      dvdAnimId = requestAnimationFrame(step);
+    };
+    cancelAnimationFrame(dvdAnimId);
+    dvdAnimId = requestAnimationFrame(step);
+  }
+
+  function stopDvdBounce() {
+    cancelAnimationFrame(dvdAnimId);
+    dvdAnimId = null;
+    const el = document.getElementById("dvdBounce");
+    if (el) el.style.filter = "";
   }
 
   function setAmbientColor(imageUrl) {
@@ -664,6 +793,11 @@
       applyProjectionVisuals(true, projectionVisualsMode);
     }
     lastProjectedTrackKey = trackKey || lastProjectedTrackKey;
+    if (projectionVisualsEnabled && projectionVisualsMode === "bpm-sync" && track?.bpm) {
+      const bpm = Math.max(60, Math.min(190, Number(track.bpm)));
+      const dur = Math.max(0.34, Math.min(1.4, 60 / bpm)).toFixed(2);
+      document.body.style.setProperty("--bpm-pulse", `${dur}s`);
+    }
 
     npState = {
       positionMs,
@@ -767,6 +901,8 @@
       // Nom de l'événement
       document.getElementById("eventName").textContent =
         display.event?.name || event.name || "Soirée";
+      currentEventName = display.event?.name || event.name || "Soirée";
+      applyDvdSource();
 
       applyProjectionVisuals(
         !!event.projection_visuals_enabled,
@@ -839,6 +975,7 @@
   });
 
   // Chargement initial + rafraîchissement toutes les 20s
+  parseDvdConfigFromQuery();
   loadData();
   setInterval(loadData, 20000);
 </script>
