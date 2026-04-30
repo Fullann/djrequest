@@ -24,6 +24,35 @@
       position: fixed; inset: 0; z-index: 0;
       transition: background 3s ease;
     }
+    #ambientFx {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      opacity: 0;
+      transition: opacity .5s ease;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(99,102,241,.35), transparent 45%),
+        radial-gradient(circle at 80% 30%, rgba(236,72,153,.3), transparent 40%),
+        radial-gradient(circle at 30% 80%, rgba(16,185,129,.28), transparent 45%);
+      filter: blur(28px) saturate(1.25);
+      mix-blend-mode: screen;
+    }
+    body.proj-fx-on #ambientFx { opacity: .85; }
+    body.fx-aurora #ambientFx { animation: fxAurora 14s ease-in-out infinite; }
+    body.fx-pulse #ambientFx  { animation: fxPulse 2.6s ease-in-out infinite; }
+    body.fx-strobe #ambientFx { animation: fxStrobe 1s steps(2, end) infinite; }
+    @keyframes fxAurora {
+      0%,100% { transform: translate3d(0,0,0) scale(1); }
+      33%     { transform: translate3d(1.5%, -2%, 0) scale(1.04); }
+      66%     { transform: translate3d(-1.5%, 2%, 0) scale(1.03); }
+    }
+    @keyframes fxPulse {
+      0%,100% { opacity: .45; transform: scale(1); }
+      50%     { opacity: .95; transform: scale(1.06); }
+    }
+    @keyframes fxStrobe {
+      0%   { opacity: .18; }
+      49%  { opacity: .95; }
+      100% { opacity: .18; }
+    }
     #ambientBg::after {
       content: '';
       position: absolute; inset: 0;
@@ -357,6 +386,7 @@
 
 <!-- Fond ambiant coloré selon la pochette -->
 <div id="ambientBg"></div>
+<div id="ambientFx"></div>
 
 <!-- Message DJ -->
 <div id="djBanner">
@@ -503,6 +533,19 @@
   }
 
   // ── Fond ambiant couleur depuis pochette ─────────────────
+  let projectionVisualsEnabled = false;
+  let projectionVisualsMode = "aurora";
+
+  function applyProjectionVisuals(enabled, mode = "aurora") {
+    projectionVisualsEnabled = !!enabled;
+    projectionVisualsMode = ["aurora", "pulse", "strobe"].includes(mode) ? mode : "aurora";
+    document.body.classList.toggle("proj-fx-on", projectionVisualsEnabled);
+    document.body.classList.remove("fx-aurora", "fx-pulse", "fx-strobe");
+    if (projectionVisualsEnabled) {
+      document.body.classList.add(`fx-${projectionVisualsMode}`);
+    }
+  }
+
   function setAmbientColor(imageUrl) {
     const bg = document.getElementById("ambientBg");
     if (!imageUrl) { bg.style.background = "#080810"; return; }
@@ -631,6 +674,11 @@
       document.getElementById("eventName").textContent =
         display.event?.name || event.name || "Soirée";
 
+      applyProjectionVisuals(
+        !!event.projection_visuals_enabled,
+        (event.projection_visuals_mode || "aurora").toLowerCase(),
+      );
+
       // QR code
       if (qr.qrCode) document.getElementById("qrCode").src = qr.qrCode;
 
@@ -677,6 +725,16 @@
   socket.on("request-accepted", loadData);
   socket.on("request-rejected", loadData);
   socket.on("vote-updated",     loadData);
+  socket.on("event-settings-updated", (data) => {
+    if (data.projectionVisualsEnabled !== undefined || data.projectionVisualsMode !== undefined) {
+      applyProjectionVisuals(
+        data.projectionVisualsEnabled !== undefined
+          ? !!data.projectionVisualsEnabled
+          : projectionVisualsEnabled,
+        (data.projectionVisualsMode || projectionVisualsMode || "aurora").toLowerCase(),
+      );
+    }
+  });
   socket.on("event-ended",      () => {
     document.querySelector(".live-pill").innerHTML = `<span style="color:rgba(255,255,255,.5)">Soirée terminée</span>`;
     loadData();

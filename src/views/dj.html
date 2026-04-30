@@ -281,6 +281,31 @@
         </div>
       </div>
 
+      <!-- Effets visuels écran de projection -->
+      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <p class="text-sm font-medium" style="color:var(--text-primary)">Effets visuels projection</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Active des animations colorées sur l'écran /event/:eventId/qr</p>
+          </div>
+          <label class="flex items-center gap-0 cursor-pointer shrink-0">
+            <input type="checkbox" id="projectionVisualsToggle" class="sr-only" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
+          <div>
+            <label class="label">Mode d'effet</label>
+            <select id="projectionVisualsMode" class="input">
+              <option value="aurora">Aurora (doux)</option>
+              <option value="pulse">Pulse (rythmé)</option>
+              <option value="strobe">Strobe (intense)</option>
+            </select>
+          </div>
+          <button type="button" id="btnSaveProjectionVisuals" class="btn btn-primary btn-sm">Appliquer</button>
+        </div>
+      </div>
+
       <!-- Thank you message -->
       <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
         <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Message de fin de soirée</p>
@@ -610,6 +635,8 @@
   let fallbackPlaylistUri  = null;
   let isFallbackFetching   = false;
   let isAutoPlayLocked     = false;
+  let projectionVisualsEnabled = false;
+  let projectionVisualsMode    = "aurora";
 
   // ── Spotify SDK ──
   window.onSpotifyWebPlaybackSDKReady = () => {
@@ -869,6 +896,17 @@
     document.getElementById("repeatCooldownMinutes").value = n;
     socket.emit("update-event-settings", { eventId, repeatCooldownMinutes: n });
     showToast("Anti-répétition enregistrée", "info");
+  });
+
+  document.getElementById("btnSaveProjectionVisuals").addEventListener("click", () => {
+    projectionVisualsEnabled = document.getElementById("projectionVisualsToggle").checked;
+    projectionVisualsMode    = document.getElementById("projectionVisualsMode").value || "aurora";
+    socket.emit("update-event-settings", {
+      eventId,
+      projectionVisualsEnabled,
+      projectionVisualsMode,
+    });
+    showToast("Visuels de projection mis à jour", "info");
   });
 
   let undoRejectRequestId = null;
@@ -1199,6 +1237,13 @@
       document.getElementById("rateLimitWindow").value    = data.rate_limit_window_minutes || 15;
       document.getElementById("repeatCooldownMinutes").value =
         data.repeat_cooldown_minutes != null ? data.repeat_cooldown_minutes : 0;
+      projectionVisualsEnabled = !!data.projection_visuals_enabled;
+      projectionVisualsMode = (data.projection_visuals_mode || "aurora").toLowerCase();
+      document.getElementById("projectionVisualsToggle").checked = projectionVisualsEnabled;
+      document.getElementById("projectionVisualsMode").value =
+        ["aurora", "pulse", "strobe"].includes(projectionVisualsMode)
+          ? projectionVisualsMode
+          : "aurora";
       document.getElementById("thankYouMessage").value    = data.thank_you_message || "";
       if (autoAcceptEnabled) document.getElementById("autoAcceptBanner").classList.remove("hidden");
 

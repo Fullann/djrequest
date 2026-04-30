@@ -775,6 +775,8 @@ function setupSocketHandlers(io) {
         donationLink,
         donationMessage,
         repeatCooldownMinutes,
+        projectionVisualsEnabled,
+        projectionVisualsMode,
       } = data;
 
       try {
@@ -838,6 +840,19 @@ function setupSocketHandlers(io) {
           }
         }
 
+        if (projectionVisualsEnabled !== undefined) {
+          updates.push("projection_visuals_enabled = ?");
+          values.push(projectionVisualsEnabled ? 1 : 0);
+        }
+
+        if (projectionVisualsMode !== undefined) {
+          const mode = String(projectionVisualsMode || "").trim().toLowerCase();
+          if (["aurora", "pulse", "strobe"].includes(mode)) {
+            updates.push("projection_visuals_mode = ?");
+            values.push(mode);
+          }
+        }
+
         if (updates.length > 0) {
           values.push(eventId);
           await db.query(
@@ -856,6 +871,12 @@ function setupSocketHandlers(io) {
             donationMessage: donationMessage ? (donationMessage || "").trim().slice(0, 500) : undefined,
             repeatCooldownMinutes: repeatCooldownMinutes !== undefined
               ? parseInt(String(repeatCooldownMinutes), 10)
+              : undefined,
+            projectionVisualsEnabled: projectionVisualsEnabled !== undefined
+              ? !!projectionVisualsEnabled
+              : undefined,
+            projectionVisualsMode: projectionVisualsMode !== undefined
+              ? String(projectionVisualsMode || "").trim().toLowerCase()
               : undefined,
           });
         }
