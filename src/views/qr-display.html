@@ -254,6 +254,15 @@
       overflow: hidden;
       position: relative;
     }
+    #npCard::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      border: 2px solid rgba(255,255,255,.16);
+      pointer-events: none;
+      z-index: 2;
+    }
     #npBgBlur {
       position: absolute; inset: 0;
       background-size: cover; background-position: center;
@@ -279,6 +288,29 @@
       height: clamp(140px, 18vw, 220px);
       display: grid;
       place-items: center;
+      padding: 10px;
+      border-radius: 1.15rem;
+      --np-art-progress: 0%;
+    }
+    #npArtWrapper::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background:
+        conic-gradient(
+          from -90deg,
+          #6366f1 0 var(--np-art-progress),
+          rgba(255,255,255,.16) var(--np-art-progress) 100%
+        );
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      mask-composite: exclude;
+      -webkit-mask-composite: xor;
+      padding: 3px;
+      filter: drop-shadow(0 0 10px rgba(99,102,241,.35));
+      pointer-events: none;
+      transition: background .28s linear;
     }
     #npArt {
       width: calc(clamp(140px, 18vw, 220px) - 24px);
@@ -288,29 +320,6 @@
       box-shadow: 0 20px 60px rgba(0,0,0,.6);
       display: block;
       transition: opacity .5s ease;
-    }
-    #npProgressCircleSvg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      transform: rotate(-90deg);
-      pointer-events: none;
-      filter: drop-shadow(0 0 14px rgba(99,102,241,.35));
-    }
-    #npCircleTrack {
-      fill: none;
-      stroke: rgba(255,255,255,.18);
-      stroke-width: 6;
-    }
-    #npProgressCircle {
-      fill: none;
-      stroke: url(#npCircleGrad);
-      stroke-width: 6;
-      stroke-linecap: round;
-      stroke-dasharray: 339.292;
-      stroke-dashoffset: 339.292;
-      transition: stroke-dashoffset .45s linear;
     }
     #npMeta {
       width: min(95%, 520px);
@@ -674,16 +683,6 @@
           <!-- Contenu quand une chanson joue -->
           <div id="npPlaying" style="display:none;width:100%;flex:1;flex-direction:column;align-items:center">
             <div id="npArtWrapper">
-              <svg id="npProgressCircleSvg" viewBox="0 0 120 120" aria-hidden="true">
-                <defs>
-                  <linearGradient id="npCircleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#6366f1"></stop>
-                    <stop offset="100%" stop-color="#8b5cf6"></stop>
-                  </linearGradient>
-                </defs>
-                <circle id="npCircleTrack" cx="60" cy="60" r="54"></circle>
-                <circle id="npProgressCircle" cx="60" cy="60" r="54"></circle>
-              </svg>
               <img id="npArt" src="" alt="Pochette" />
             </div>
             <div id="npMeta">
@@ -948,9 +947,14 @@
   // ── Now Playing (temps réel via Socket.IO) ───────────────
   let npState = null;
   let npRaf   = null;
-  const NP_CIRCLE_CIRC = 2 * Math.PI * 54;
 
   function npFmt(ms) { return fmt(ms); }
+  function setNpArtProgress(percent) {
+    const p = Math.max(0, Math.min(100, Number(percent || 0)));
+    const wrap = document.getElementById("npArtWrapper");
+    if (!wrap) return;
+    wrap.style.setProperty("--np-art-progress", `${p}%`);
+  }
 
   function npDraw() {
     if (!npState || !npState.isPlaying) return;
@@ -958,11 +962,7 @@
     const pos      = Math.min(npState.positionMs + elapsed, npState.durationMs);
     const progress = npState.durationMs > 0 ? (pos / npState.durationMs) * 100 : 0;
     const p = Math.max(0, Math.min(100, progress));
-    const ring = document.getElementById("npProgressCircle");
-    if (ring) {
-      ring.style.strokeDasharray = String(NP_CIRCLE_CIRC);
-      ring.style.strokeDashoffset = String(NP_CIRCLE_CIRC * (1 - (p / 100)));
-    }
+    setNpArtProgress(p);
     document.getElementById("npCurrent").textContent = npFmt(pos);
     npRaf = requestAnimationFrame(npDraw);
   }
@@ -1008,6 +1008,7 @@
   function clearNowPlaying() {
     npState = null;
     cancelAnimationFrame(npRaf);
+    setNpArtProgress(0);
     document.getElementById("npPlaying").style.display = "none";
     document.getElementById("npEmpty").style.display   = "flex";
     document.getElementById("npBgBlur").style.backgroundImage = "";
@@ -1170,11 +1171,7 @@
             document.getElementById("npArtist").textContent  = lastPlayed.artist    || "—";
             document.getElementById("npTotal").textContent   = "";
             document.getElementById("npCurrent").textContent = fmtTime(lastPlayed.played_at);
-            const ring = document.getElementById("npProgressCircle");
-            if (ring) {
-              ring.style.strokeDasharray = String(NP_CIRCLE_CIRC);
-              ring.style.strokeDashoffset = "0";
-            }
+            setNpArtProgress(100);
             document.getElementById("npPlaying").style.display = "flex";
             document.getElementById("npEmpty").style.display   = "none";
             setAmbientColor(lastPlayed.image_url);

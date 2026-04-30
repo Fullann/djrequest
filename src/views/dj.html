@@ -151,31 +151,39 @@
   </div>
 
   <!-- Santé live (résilience prod) -->
-  <div class="mb-4 p-4 rounded-xl" style="background:var(--bg-surface);border:1px solid var(--border)">
-    <div class="flex items-center justify-between gap-3 mb-2">
-      <p class="text-sm font-semibold" style="color:var(--text-primary)">Santé en direct</p>
-      <span id="liveHealthUpdatedAt" class="text-xs" style="color:var(--text-muted)">—</span>
+  <div class="mb-4">
+    <div class="flex items-center justify-end">
+      <button id="liveHealthToggleBtn" class="w-8 h-8 rounded-full flex items-center justify-center"
+              style="background:var(--bg-surface);border:1px solid var(--border)" title="État de santé">
+        <span id="liveHealthDot" class="w-2.5 h-2.5 rounded-full animate-pulse" style="background:var(--green)"></span>
+      </button>
     </div>
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-      <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
-        <p style="color:var(--text-muted)">Spotify token</p>
-        <p id="liveHealthSpotify" class="font-semibold" style="color:var(--text-primary)">—</p>
+    <div id="liveHealthPanel" class="hidden mt-2 p-4 rounded-xl" style="background:var(--bg-surface);border:1px solid var(--border)">
+      <div class="flex items-center justify-between gap-3 mb-2">
+        <p class="text-sm font-semibold" style="color:var(--text-primary)">Santé en direct</p>
+        <span id="liveHealthUpdatedAt" class="text-xs" style="color:var(--text-muted)">—</span>
       </div>
-      <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
-        <p style="color:var(--text-muted)">Latence socket</p>
-        <p id="liveHealthSocketLatency" class="font-semibold" style="color:var(--text-primary)">—</p>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+        <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p style="color:var(--text-muted)">Spotify token</p>
+          <p id="liveHealthSpotify" class="font-semibold" style="color:var(--text-primary)">—</p>
+        </div>
+        <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p style="color:var(--text-muted)">Latence socket</p>
+          <p id="liveHealthSocketLatency" class="font-semibold" style="color:var(--text-primary)">—</p>
+        </div>
+        <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p style="color:var(--text-muted)">Backlog queue</p>
+          <p id="liveHealthBacklog" class="font-semibold" style="color:var(--text-primary)">—</p>
+        </div>
+        <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p style="color:var(--text-muted)">Erreurs récentes</p>
+          <p id="liveHealthErrorsCount" class="font-semibold" style="color:var(--text-primary)">0</p>
+        </div>
       </div>
-      <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
-        <p style="color:var(--text-muted)">Backlog queue</p>
-        <p id="liveHealthBacklog" class="font-semibold" style="color:var(--text-primary)">—</p>
+      <div id="liveHealthErrorsList" class="mt-2 space-y-1 text-xs" style="color:var(--text-secondary)">
+        <p style="color:var(--text-muted)">Aucune erreur récente</p>
       </div>
-      <div class="rounded-lg p-2.5" style="background:var(--bg-base);border:1px solid var(--border)">
-        <p style="color:var(--text-muted)">Erreurs récentes</p>
-        <p id="liveHealthErrorsCount" class="font-semibold" style="color:var(--text-primary)">0</p>
-      </div>
-    </div>
-    <div id="liveHealthErrorsList" class="mt-2 space-y-1 text-xs" style="color:var(--text-secondary)">
-      <p style="color:var(--text-muted)">Aucune erreur récente</p>
     </div>
   </div>
 
@@ -772,6 +780,7 @@
   let livePollState = null;
   let recentClientErrors = [];
   let socketLatencyMs = null;
+  let liveHealthPanelOpen = false;
 
   function fmtDuration(ms) {
     if (ms == null || Number.isNaN(ms)) return "—";
@@ -798,6 +807,9 @@
     const errorsCountEl = document.getElementById("liveHealthErrorsCount");
     const errorsListEl = document.getElementById("liveHealthErrorsList");
     const updatedAtEl = document.getElementById("liveHealthUpdatedAt");
+    const healthPanelEl = document.getElementById("liveHealthPanel");
+    const healthDotEl = document.getElementById("liveHealthDot");
+    const healthBtnEl = document.getElementById("liveHealthToggleBtn");
 
     const sp = health?.spotify || {};
     const spText = sp.status === "ok"
@@ -828,6 +840,21 @@
         const msg = (e.action_type || e.message || "Erreur").toString();
         return `<p>• [${at}] ${msg}</p>`;
       }).join("");
+    }
+
+    const hasIssue =
+      sp.status === "expired" ||
+      sp.status === "missing" ||
+      sp.status === "expiring-soon" ||
+      (socketLatencyMs != null && socketLatencyMs > 350) ||
+      Number(q.pending || 0) >= 20 ||
+      mergedErrors.length > 0;
+    healthDotEl.style.background = hasIssue ? "var(--amber)" : "var(--green)";
+    if (healthBtnEl) {
+      healthBtnEl.title = hasIssue ? "Santé: attention (cliquer pour détails)" : "Santé: OK";
+    }
+    if (!liveHealthPanelOpen) {
+      healthPanelEl.classList.add("hidden");
     }
 
     updatedAtEl.textContent = `MAJ ${new Date().toLocaleTimeString("fr-FR")}`;
@@ -862,6 +889,11 @@
       renderLiveHealth(null);
     }
   }
+  document.getElementById("liveHealthToggleBtn")?.addEventListener("click", () => {
+    const panel = document.getElementById("liveHealthPanel");
+    liveHealthPanelOpen = !liveHealthPanelOpen;
+    panel.classList.toggle("hidden", !liveHealthPanelOpen);
+  });
 
   // ── Spotify SDK ──
   window.onSpotifyWebPlaybackSDKReady = () => {
