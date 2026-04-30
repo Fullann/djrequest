@@ -1072,7 +1072,6 @@
   // ── Récemment jouées ──────────────────────────────────────
   function renderPlayed(played = []) {
     const strip = document.getElementById("playedStrip");
-    document.getElementById("statPlayed").textContent = played.length;
     if (!played.length) {
       strip.innerHTML = `<span style="color:rgba(255,255,255,.2);font-size:.75rem">Aucune chanson jouée pour le moment</span>`;
       return;

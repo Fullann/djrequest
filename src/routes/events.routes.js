@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
+const queueService = require("../services/queue.service");
 const eventsController = require("../controllers/events.controller");
 const {
   createEventValidator,
@@ -489,6 +490,15 @@ router.post(
             t.preview_url || null,
           ],
         );
+      }
+      try {
+        const io = req.app.get("io");
+        if (io) {
+          const queue = await queueService.getQueueWithVotes(eventId);
+          io.to(eventId).emit("queue-updated", { queue });
+        }
+      } catch (emitErr) {
+        console.warn("fallback-played emit:", emitErr.message || emitErr);
       }
       return res.json({ success: true });
     } catch (error) {

@@ -251,155 +251,223 @@
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="p-6 space-y-4">
-
-      <!-- Votes toggle -->
-      <div class="flex items-start justify-between gap-4 p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <div>
-          <p class="text-sm font-medium" style="color:var(--text-primary)">Système de votes</p>
-          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Permet aux invités de voter pour leurs chansons préférées</p>
-        </div>
-        <label class="flex items-center gap-0 cursor-pointer shrink-0">
-          <input type="checkbox" id="votesToggle" class="sr-only" checked />
-          <span class="toggle-track"></span>
-        </label>
+    <div class="p-6 space-y-5">
+      <div class="rounded-xl p-3" style="background:var(--accent-dim);border:1px solid rgba(124,92,252,0.2)">
+        <p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--accent)">Réglages rapides</p>
+        <p class="text-xs mt-1" style="color:var(--text-secondary)">Commence ici pour gérer les demandes en live.</p>
       </div>
 
-      <!-- Duplicates toggle -->
-      <div class="flex items-start justify-between gap-4 p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <div>
-          <p class="text-sm font-medium" style="color:var(--text-primary)">Autoriser les doublons</p>
-          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Permet d'ajouter la même chanson plusieurs fois</p>
-        </div>
-        <label class="flex items-center gap-0 cursor-pointer shrink-0">
-          <input type="checkbox" id="duplicatesToggle" class="sr-only" />
-          <span class="toggle-track"></span>
-        </label>
-      </div>
+      <div class="space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--text-muted)">Demandes & modération</p>
 
-      <!-- Auto accept toggle -->
-      <div class="flex items-start justify-between gap-4 p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <div>
-          <p class="text-sm font-medium" style="color:var(--text-primary)">Mode automatique</p>
-          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Accepter automatiquement toutes les demandes sans validation</p>
-        </div>
-        <label class="flex items-center gap-0 cursor-pointer shrink-0">
-          <input type="checkbox" id="autoAcceptToggle" class="sr-only" />
-          <span class="toggle-track"></span>
-        </label>
-      </div>
-
-      <!-- Rate limiting -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <p class="text-sm font-medium mb-3" style="color:var(--text-primary)">Limitation des demandes</p>
-        <div class="grid grid-cols-2 gap-3 mb-3">
-          <div>
-            <label class="label">Max demandes</label>
-            <input type="number" id="rateLimitMax" min="1" max="20" value="3" class="input" />
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div class="flex items-start justify-between gap-3 p-3 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+            <div>
+              <p class="text-sm font-medium" style="color:var(--text-primary)">Votes</p>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted)">Réactions invités</p>
+            </div>
+            <label class="flex items-center gap-0 cursor-pointer shrink-0">
+              <input type="checkbox" id="votesToggle" class="sr-only" checked />
+              <span class="toggle-track"></span>
+            </label>
           </div>
-          <div>
-            <label class="label">Fenêtre (minutes)</label>
-            <input type="number" id="rateLimitWindow" min="5" max="60" value="15" class="input" />
+          <div class="flex items-start justify-between gap-3 p-3 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+            <div>
+              <p class="text-sm font-medium" style="color:var(--text-primary)">Doublons</p>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted)">Même titre autorisé</p>
+            </div>
+            <label class="flex items-center gap-0 cursor-pointer shrink-0">
+              <input type="checkbox" id="duplicatesToggle" class="sr-only" />
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="flex items-start justify-between gap-3 p-3 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+            <div>
+              <p class="text-sm font-medium" style="color:var(--text-primary)">Auto-accept</p>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted)">Sans validation DJ</p>
+            </div>
+            <label class="flex items-center gap-0 cursor-pointer shrink-0">
+              <input type="checkbox" id="autoAcceptToggle" class="sr-only" />
+              <span class="toggle-track"></span>
+            </label>
           </div>
         </div>
-        <button id="btnUpdateRateLimit" class="btn btn-primary btn-sm btn-full">Mettre à jour</button>
-      </div>
 
-      <!-- Mode urgence DJ -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <div class="flex items-center justify-between gap-3 mb-2">
-          <p class="text-sm font-medium" style="color:var(--text-primary)">Mode urgence DJ</p>
-          <span id="requestsFreezeBadge" class="hidden text-xs font-semibold px-2 py-0.5 rounded-full"
-                style="background:var(--amber-dim);color:var(--amber)">Demandes gelées</span>
-        </div>
-        <p class="text-xs mb-3" style="color:var(--text-muted)">Gèle temporairement les nouvelles demandes (les votes restent actifs).</p>
-        <div class="grid grid-cols-3 gap-2">
-          <button id="btnFreeze5" class="btn btn-ghost btn-sm">5 min</button>
-          <button id="btnFreeze10" class="btn btn-ghost btn-sm">10 min</button>
-          <button id="btnFreezeOff" class="btn btn-primary btn-sm">Désactiver</button>
-        </div>
-      </div>
-
-      <!-- Sondages live -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Sondage live</p>
-        <p class="text-xs mb-3" style="color:var(--text-muted)">Lance un mini vote visible invités + écran projection.</p>
-        <input id="pollQuestionInput" class="input mb-2" maxlength="255" placeholder="Question (ex: prochain style ?)"/>
-        <div class="grid grid-cols-2 gap-2 mb-2">
-          <input id="pollOption1" class="input" maxlength="60" placeholder="Option 1 (ex: EDM)"/>
-          <input id="pollOption2" class="input" maxlength="60" placeholder="Option 2 (ex: 90s)"/>
-          <input id="pollOption3" class="input" maxlength="60" placeholder="Option 3 (optionnel)"/>
-          <input id="pollOption4" class="input" maxlength="60" placeholder="Option 4 (optionnel)"/>
-        </div>
-        <div class="flex gap-2 mb-2">
-          <button id="btnLaunchPoll" class="btn btn-primary btn-sm flex-1">Lancer le sondage</button>
-          <button id="btnClosePoll" class="btn btn-ghost btn-sm">Clore</button>
-        </div>
-        <div id="pollLiveState" class="hidden text-xs rounded-lg px-2.5 py-2" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-secondary)"></div>
-      </div>
-
-      <!-- Anti-répétition (même morceau déjà joué) -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <p class="text-sm font-medium" style="color:var(--text-primary)">Anti-répétition</p>
-        <p class="text-xs mt-0.5 mb-3" style="color:var(--text-muted)">Même chanson non reproposable avant X minutes après avoir été jouée (0 = désactivé).</p>
-        <div class="flex flex-wrap items-end gap-2">
-          <div class="flex-1 min-w-[120px]">
-            <label class="label">Minutes</label>
-            <input type="number" id="repeatCooldownMinutes" min="0" max="240" value="0" class="input" />
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p class="text-sm font-medium mb-3" style="color:var(--text-primary)">Limitation des demandes</p>
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="label">Max demandes</label>
+              <input type="number" id="rateLimitMax" min="1" max="20" value="3" class="input" />
+            </div>
+            <div>
+              <label class="label">Fenêtre (minutes)</label>
+              <input type="number" id="rateLimitWindow" min="5" max="60" value="15" class="input" />
+            </div>
           </div>
-          <button type="button" id="btnSaveRepeatCooldown" class="btn btn-primary btn-sm">Enregistrer</button>
+          <button id="btnUpdateRateLimit" class="btn btn-primary btn-sm btn-full">Mettre à jour</button>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <p class="text-sm font-medium" style="color:var(--text-primary)">Mode urgence DJ</p>
+            <span id="requestsFreezeBadge" class="hidden text-xs font-semibold px-2 py-0.5 rounded-full"
+                  style="background:var(--amber-dim);color:var(--amber)">Demandes gelées</span>
+          </div>
+          <p class="text-xs mb-3" style="color:var(--text-muted)">Gèle temporairement les nouvelles demandes (les votes restent actifs).</p>
+          <div class="grid grid-cols-3 gap-2">
+            <button id="btnFreeze5" class="btn btn-ghost btn-sm">5 min</button>
+            <button id="btnFreeze10" class="btn btn-ghost btn-sm">10 min</button>
+            <button id="btnFreezeOff" class="btn btn-primary btn-sm">Désactiver</button>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p class="text-sm font-medium" style="color:var(--text-primary)">Anti-répétition</p>
+          <p class="text-xs mt-0.5 mb-3" style="color:var(--text-muted)">Même chanson non reproposable avant X minutes après lecture (0 = off).</p>
+          <div class="flex flex-wrap items-end gap-2">
+            <div class="flex-1 min-w-[120px]">
+              <label class="label">Minutes</label>
+              <input type="number" id="repeatCooldownMinutes" min="0" max="240" value="0" class="input" />
+            </div>
+            <button type="button" id="btnSaveRepeatCooldown" class="btn btn-primary btn-sm">Enregistrer</button>
+          </div>
         </div>
       </div>
 
-      <!-- Effets visuels écran de projection -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <div class="flex items-start justify-between gap-4 mb-3">
-          <div>
-            <p class="text-sm font-medium" style="color:var(--text-primary)">Effets visuels projection</p>
-            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Active des animations colorées sur l'écran /event/:eventId/qr</p>
+      <div class="space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--text-muted)">Interaction invités</p>
+
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Sondage live</p>
+          <p class="text-xs mb-3" style="color:var(--text-muted)">Mini-vote visible invités + écran projection.</p>
+          <input id="pollQuestionInput" class="input mb-2" maxlength="255" placeholder="Question (ex: prochain style ?)"/>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <input id="pollOption1" class="input" maxlength="60" placeholder="Option 1 (ex: EDM)"/>
+            <input id="pollOption2" class="input" maxlength="60" placeholder="Option 2 (ex: 90s)"/>
+            <input id="pollOption3" class="input" maxlength="60" placeholder="Option 3 (optionnel)"/>
+            <input id="pollOption4" class="input" maxlength="60" placeholder="Option 4 (optionnel)"/>
           </div>
-          <label class="flex items-center gap-0 cursor-pointer shrink-0">
-            <input type="checkbox" id="projectionVisualsToggle" class="sr-only" />
-            <span class="toggle-track"></span>
+          <div class="flex gap-2 mb-2">
+            <button id="btnLaunchPoll" class="btn btn-primary btn-sm flex-1">Lancer le sondage</button>
+            <button id="btnClosePoll" class="btn btn-ghost btn-sm">Clore</button>
+          </div>
+          <div id="pollLiveState" class="hidden text-xs rounded-lg px-2.5 py-2" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-secondary)"></div>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+          <div class="flex items-start justify-between gap-4 mb-3">
+            <div>
+              <p class="text-sm font-medium" style="color:var(--text-primary)">Système de dons</p>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted)">Proposer ou exiger un don avant demande</p>
+            </div>
+            <label class="flex items-center gap-0 cursor-pointer shrink-0">
+              <input type="checkbox" id="donationEnabledToggle" class="sr-only" />
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div id="donationOptions" class="hidden space-y-3">
+            <div class="flex items-center justify-between py-2" style="border-top:1px solid var(--border)">
+              <div>
+                <p class="text-xs font-medium" style="color:var(--text-primary)">Don obligatoire</p>
+                <p class="text-xs" style="color:var(--text-muted)">Bloque les demandes jusqu'à confirmation</p>
+              </div>
+              <label class="flex items-center gap-0 cursor-pointer shrink-0">
+                <input type="checkbox" id="donationRequiredToggle" class="sr-only" />
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div>
+              <label class="label">Montant suggéré (€)</label>
+              <input type="number" id="donationAmountInput" min="0.5" max="50" step="0.5" value="2" class="input" />
+            </div>
+            <div>
+              <label class="label">Lien de paiement</label>
+              <input type="url" id="donationLinkInput" placeholder="https://paypal.me/tonpseudo  ou  https://pay.sumup.com/..." class="input" autocomplete="off" />
+              <p class="text-xs mt-1" style="color:var(--text-muted)">PayPal, Twint, Lydia, Sumup, Stripe…</p>
+            </div>
+            <div>
+              <label class="label">Message (optionnel)</label>
+              <input type="text" id="donationMessageInput" maxlength="200" placeholder="Soutiens le set, merci !" class="input" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="label">Objectif soirée (€)</label>
+                <input type="number" id="donationGoalAmountInput" min="0" max="100000" step="1" value="0" class="input" />
+              </div>
+              <div>
+                <label class="label">Collecté (€)</label>
+                <input type="number" id="donationsRaisedTotalInput" min="0" max="100000" step="0.5" value="0" class="input" />
+              </div>
+            </div>
+            <button id="btnSaveDonation" class="btn btn-primary btn-sm btn-full">Enregistrer les réglages de dons</button>
+            <div id="donationSaveFeedback" class="hidden text-xs font-medium text-center py-1 rounded-lg" style="background:var(--green-dim);color:var(--green)">Réglages sauvegardés !</div>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Message de fin de soirée</p>
+          <p class="text-xs mb-3" style="color:var(--text-muted)">Affiché aux invités quand la soirée se termine</p>
+          <textarea id="thankYouMessage" rows="3" class="input resize-none mb-3" placeholder="Merci d'avoir participé !&#10;On espère que vous avez passé un excellent moment."></textarea>
+          <div class="flex justify-end gap-2">
+            <button id="btnResetMessage" class="btn btn-ghost btn-sm">Réinitialiser</button>
+            <button id="btnSaveMessage" class="btn btn-primary btn-sm">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--text-muted)">Lecture & écran</p>
+
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+          <div class="flex items-start justify-between gap-4 mb-3">
+            <div>
+              <p class="text-sm font-medium" style="color:var(--text-primary)">Effets visuels projection</p>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted)">Animations colorées sur l'écran projection</p>
+            </div>
+            <label class="flex items-center gap-0 cursor-pointer shrink-0">
+              <input type="checkbox" id="projectionVisualsToggle" class="sr-only" />
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
+            <div>
+              <label class="label">Mode d'effet</label>
+              <select id="projectionVisualsMode" class="input">
+                <option value="aurora">Aurora (doux)</option>
+                <option value="pulse">Pulse (rythmé)</option>
+                <option value="strobe">Strobe (intense)</option>
+                <option value="spectrum">Spectrum (arc-en-ciel)</option>
+                <option value="nebula">Nebula (nuages mouvants)</option>
+                <option value="laser">Laser (balayage)</option>
+                <option value="vortex">Vortex (tourbillon)</option>
+                <option value="party">Party (combo auto)</option>
+                <option value="dvd">DVD Bounce (rebond)</option>
+                <option value="bpm-sync">BPM Sync (réactif au tempo)</option>
+              </select>
+            </div>
+            <button type="button" id="btnSaveProjectionVisuals" class="btn btn-primary btn-sm">Appliquer</button>
+          </div>
+          <label class="flex items-center gap-2 mt-3 cursor-pointer select-none">
+            <input type="checkbox" id="projectionVisualsAutoPerTrack" class="w-4 h-4" style="accent-color:var(--accent)" />
+            <span class="text-xs" style="color:var(--text-secondary)">Changer automatiquement d'effet à chaque musique</span>
           </label>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
-          <div>
-            <label class="label">Mode d'effet</label>
-            <select id="projectionVisualsMode" class="input">
-              <option value="aurora">Aurora (doux)</option>
-              <option value="pulse">Pulse (rythmé)</option>
-              <option value="strobe">Strobe (intense)</option>
-              <option value="spectrum">Spectrum (arc-en-ciel)</option>
-              <option value="nebula">Nebula (nuages mouvants)</option>
-              <option value="laser">Laser (balayage)</option>
-              <option value="vortex">Vortex (tourbillon)</option>
-              <option value="party">Party (combo auto)</option>
-              <option value="dvd">DVD Bounce (rebond)</option>
-              <option value="bpm-sync">BPM Sync (réactif au tempo)</option>
-            </select>
+
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-sm font-medium" style="color:var(--text-primary)">Transition douce (Crossfade)</p>
+            <span id="crossfadeValue" class="text-sm font-bold" style="color:var(--accent)">0 s</span>
           </div>
-          <button type="button" id="btnSaveProjectionVisuals" class="btn btn-primary btn-sm">Appliquer</button>
+          <p class="text-xs mb-3" style="color:var(--text-muted)">Fondu enchaîné entre morceaux (0 = désactivé).</p>
+          <input type="range" id="crossfadeSlider" min="0" max="12" step="1" value="0"
+                 class="w-full" style="accent-color:var(--accent)" />
+          <div class="flex justify-between text-xs mt-1" style="color:var(--text-muted)">
+            <span>Désactivé</span><span>6 s</span><span>12 s</span>
+          </div>
         </div>
-        <label class="flex items-center gap-2 mt-3 cursor-pointer select-none">
-          <input type="checkbox" id="projectionVisualsAutoPerTrack" class="w-4 h-4" style="accent-color:var(--accent)" />
-          <span class="text-xs" style="color:var(--text-secondary)">Changer automatiquement d'effet à chaque musique</span>
-        </label>
-      </div>
 
-      <!-- Thank you message -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Message de fin de soirée</p>
-        <p class="text-xs mb-3" style="color:var(--text-muted)">Affiché aux invités quand la soirée se termine</p>
-        <textarea id="thankYouMessage" rows="3" class="input resize-none mb-3" placeholder="Merci d'avoir participé !&#10;On espère que vous avez passé un excellent moment."></textarea>
-        <div class="flex justify-end gap-2">
-          <button id="btnResetMessage" class="btn btn-ghost btn-sm">Réinitialiser</button>
-          <button id="btnSaveMessage" class="btn btn-primary btn-sm">Enregistrer</button>
-        </div>
-      </div>
-
-      <!-- Playlist de secours -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
         <div class="flex items-center justify-between mb-1">
           <p class="text-sm font-medium" style="color:var(--text-primary)">Playlist de secours</p>
           <span id="fallbackPlaylistBadge" class="text-xs font-semibold px-2 py-0.5 rounded-full hidden"
@@ -439,79 +507,11 @@
           </button>
         </div>
       </div>
-
-      <!-- Crossfade -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <div class="flex items-center justify-between mb-1">
-          <p class="text-sm font-medium" style="color:var(--text-primary)">Transition douce (Crossfade)</p>
-          <span id="crossfadeValue" class="text-sm font-bold" style="color:var(--accent)">0 s</span>
-        </div>
-        <p class="text-xs mb-3" style="color:var(--text-muted)">Fondu enchaîné entre les morceaux au moment de jouer le suivant. 0 = désactivé.</p>
-        <input type="range" id="crossfadeSlider" min="0" max="12" step="1" value="0"
-               class="w-full" style="accent-color:var(--accent)" />
-        <div class="flex justify-between text-xs mt-1" style="color:var(--text-muted)">
-          <span>Désactivé</span><span>6 s</span><span>12 s</span>
-        </div>
       </div>
+      <div class="space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--text-muted)">Équipe & sécurité</p>
 
-      <!-- Système de dons -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
-        <div class="flex items-start justify-between gap-4 mb-3">
-          <div>
-            <p class="text-sm font-medium" style="color:var(--text-primary)">Système de dons</p>
-            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Proposer ou exiger un don avant les demandes</p>
-          </div>
-          <label class="flex items-center gap-0 cursor-pointer shrink-0">
-            <input type="checkbox" id="donationEnabledToggle" class="sr-only" />
-            <span class="toggle-track"></span>
-          </label>
-        </div>
-        <div id="donationOptions" class="hidden space-y-3">
-          <!-- Obligatoire -->
-          <div class="flex items-center justify-between py-2" style="border-top:1px solid var(--border)">
-            <div>
-              <p class="text-xs font-medium" style="color:var(--text-primary)">Don obligatoire</p>
-              <p class="text-xs" style="color:var(--text-muted)">Bloque les demandes jusqu'à confirmation</p>
-            </div>
-            <label class="flex items-center gap-0 cursor-pointer shrink-0">
-              <input type="checkbox" id="donationRequiredToggle" class="sr-only" />
-              <span class="toggle-track"></span>
-            </label>
-          </div>
-          <!-- Montant -->
-          <div>
-            <label class="label">Montant suggéré (€)</label>
-            <input type="number" id="donationAmountInput" min="0.5" max="50" step="0.5" value="2" class="input" />
-          </div>
-          <!-- Lien de paiement -->
-          <div>
-            <label class="label">Lien de paiement</label>
-            <input type="url" id="donationLinkInput" placeholder="https://paypal.me/tonpseudo  ou  https://pay.sumup.com/..." class="input" autocomplete="off" />
-            <p class="text-xs mt-1" style="color:var(--text-muted)">PayPal, Twint, Lydia, Sumup, Stripe…</p>
-          </div>
-          <!-- Message -->
-          <div>
-            <label class="label">Message (optionnel)</label>
-            <input type="text" id="donationMessageInput" maxlength="200" placeholder="Soutiens le set, merci !" class="input" />
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="label">Objectif soirée (€)</label>
-              <input type="number" id="donationGoalAmountInput" min="0" max="100000" step="1" value="0" class="input" />
-            </div>
-            <div>
-              <label class="label">Collecté (€)</label>
-              <input type="number" id="donationsRaisedTotalInput" min="0" max="100000" step="0.5" value="0" class="input" />
-            </div>
-          </div>
-          <!-- Sauvegarder -->
-          <button id="btnSaveDonation" class="btn btn-primary btn-sm btn-full">Enregistrer les réglages de dons</button>
-          <div id="donationSaveFeedback" class="hidden text-xs font-medium text-center py-1 rounded-lg" style="background:var(--green-dim);color:var(--green)">Réglages sauvegardés !</div>
-        </div>
-      </div>
-
-      <!-- Blocages d'invités -->
-      <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
+        <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
         <div class="flex items-center justify-between gap-3 mb-3">
           <div>
             <p class="text-sm font-medium" style="color:var(--text-primary)">Invités bloqués</p>
@@ -524,7 +524,6 @@
         </div>
       </div>
 
-      <!-- Co-DJ rôles -->
       <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
         <p class="text-sm font-medium mb-1" style="color:var(--text-primary)">Mode co-DJ natif</p>
         <p class="text-xs mb-3" style="color:var(--text-muted)">Génère des liens avec rôles fins.</p>
@@ -541,7 +540,6 @@
         </div>
       </div>
 
-      <!-- Historique d'actions -->
       <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
         <div class="flex items-center justify-between mb-2">
           <p class="text-sm font-medium" style="color:var(--text-primary)">Historique actions</p>
@@ -552,7 +550,6 @@
         </div>
       </div>
 
-      <!-- Modérateurs -->
       <div class="p-4 rounded-xl" style="background:var(--bg-base);border:1px solid var(--border)">
         <div class="flex items-center justify-between gap-3 mb-1">
           <div>
@@ -577,6 +574,7 @@
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           Générer un lien modérateur
         </button>
+      </div>
       </div>
 
       <button id="closeSettingsBottom" class="btn btn-ghost btn-full">Fermer</button>
