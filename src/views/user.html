@@ -407,7 +407,7 @@
 <script src="/js/time-utils.js"></script>
 <script>
   const eventId = window.location.pathname.split("/")[2];
-  const socket  = io();
+  const socket  = io({ transports: ["websocket"] });
 
   let fullQueue        = [];
   let searchTimeout;

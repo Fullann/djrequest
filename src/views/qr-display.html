@@ -763,7 +763,7 @@
 <script src="/js/csrf.js"></script>
 <script>
   const eventId = window.location.pathname.split("/")[2];
-  const socket  = io();
+  const socket  = io({ transports: ["websocket"] });
 
   // ── Utilitaires ──────────────────────────────────────────
   function fmt(ms) {

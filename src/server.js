@@ -7,6 +7,9 @@ const io = require("socket.io")(http, {
   // Désactivé : perMessageDeflate utilise des bits réservés WebSocket
   // que certains proxies (nginx o2switch) ne gèrent pas, causant des déconnexions.
   perMessageDeflate: false,
+  // WebSocket uniquement : évite la phase de long-polling HTTP qui génère des
+  // rafales de requêtes rapides déclenchant l'anti-bot d'o2switch (Imunify360).
+  transports: ["websocket"],
 });
 app.set("io", io);
 const cookieParser = require("cookie-parser");
