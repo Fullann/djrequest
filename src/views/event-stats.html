@@ -471,7 +471,7 @@
   }
 
   // ── Socket : mises à jour immédiates quand live ──
-  const socket = io({ transports: ["websocket"] });
+  const socket = io();
   socket.on("connect", () => {
     if (isLive) socket.emit("join-event", eventId);
   });

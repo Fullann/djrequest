@@ -252,7 +252,7 @@
     }
   })();
 
-  const socket  = io({ transports: ["websocket"] });
+  const socket  = io();
 
   // ── Données ────────────────────────────────────────────────
   let pendingRequests = [];

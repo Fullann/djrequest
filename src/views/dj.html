@@ -745,7 +745,7 @@
     throw new Error("EventId manquant");
   }
 
-  const socket = io({ transports: ["websocket"] });
+  const socket = io();
   let pendingRequests  = [];
   let queue            = [];
   let queueSortable    = null; // instance SortableJS unique pour la queue
